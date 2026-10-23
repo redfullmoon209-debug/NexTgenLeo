@@ -15,6 +15,8 @@ var fox: Node3D
 var monsters: Array[Node3D] = []
 var drops: Array[Node3D] = []
 var target: Node3D = null
+var target_marker: Node3D
+var target_health_label: Label3D
 var auto_attack := false
 var attack_timer := 0.0
 var dash_timer := 0.0
@@ -50,6 +52,7 @@ func _ready() -> void:
     _build_world()
     _build_player()
     _build_monsters()
+    _build_target_marker()
     _build_fox()
     _build_ui()
     _update_camera(1.0)
@@ -210,6 +213,36 @@ func _build_monsters() -> void:
             _sphere(mob, 0.34, Vector3(0, 1.7, 0), Color(0.41, 0.62, 0.27))
         monsters.append(mob)
 
+func _build_target_marker() -> void:
+    target_marker = Node3D.new()
+    target_marker.name = "TargetIndicator"
+    add_child(target_marker)
+    var ring := MeshInstance3D.new()
+    var ring_mesh := CylinderMesh.new()
+    ring_mesh.top_radius = 0.82
+    ring_mesh.bottom_radius = 0.82
+    ring_mesh.height = 0.035
+    ring.mesh = ring_mesh
+    ring.material_override = _material(Color(0.9, 0.24, 0.15, 0.65))
+    ring.position.y = 0.045
+    target_marker.add_child(ring)
+    target_health_label = Label3D.new()
+    target_health_label.position.y = 2.2
+    target_health_label.font_size = 38
+    target_health_label.pixel_size = 0.008
+    target_health_label.modulate = Color(1.0, 0.92, 0.8)
+    target_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    target_marker.add_child(target_health_label)
+    target_marker.visible = false
+
+func _update_target_marker() -> void:
+    if not is_instance_valid(target) or not target.visible:
+        target_marker.visible = false
+        return
+    target_marker.visible = true
+    target_marker.position = target.position
+    target_health_label.text = "%s • HP %d/50" % [target.name, max(0, int(target.get_meta("hp")))]
+
 func _build_fox() -> void:
     fox = Node3D.new()
     fox.name = "SpiritFoxAutoLootPlaceholder"
@@ -281,6 +314,12 @@ func _update_camera(delta: float) -> void:
     var focus := player.global_position + Vector3(0, 1.45, 0)
     var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
     var desired := focus - forward * cos(camera_pitch) * camera_distance + Vector3.UP * sin(camera_pitch) * camera_distance
+    # Keep the third-person camera in front of level geometry instead of clipping through it.
+    var ray := PhysicsRayQueryParameters3D.create(focus, desired)
+    ray.exclude = [player.get_rid()]
+    var hit := get_world_3d().direct_space_state.intersect_ray(ray)
+    if not hit.is_empty():
+        desired = hit.position + (focus - desired).normalized() * 0.35
     camera.global_position = camera.global_position.lerp(desired, minf(1.0, delta * 10.0))
     camera.look_at(focus, Vector3.UP)
 
@@ -348,6 +387,7 @@ func _physics_process(delta: float) -> void:
             mob.position += toward.normalized() * delta * 0.85
             mob.rotation.y = atan2(toward.x, toward.z)
     _update_fox(delta)
+    _update_target_marker()
     _update_camera(delta)
 
 func _play_clip(anim: AnimationPlayer, hint: String) -> void:

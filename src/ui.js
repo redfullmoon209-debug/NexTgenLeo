@@ -95,7 +95,14 @@ export class GameUI {
     this.image(this.game.items.pet_fox, card); const info = this.element('div', null, card);
     this.element('h3', `Trail Fox · Lv.${pet.level}`, info);
     this.element('p', `EXP ${pet.xp}/${pet.level * 20} · อิ่ม ${Math.ceil(pet.hunger)}% · สนิท ${pet.bond}/100`, info);
-    this.element('p', `${pet.active ? 'กำลังเดินตาม' : 'ยังไม่เรียก'} · Auto Loot ${pet.autoLoot ? 'ON' : 'OFF'} · PvE HP +5 / Defense +2 ขณะเรียก`, info);
+    this.element('p', `${pet.active ? 'กำลังเดินตาม' : 'ยังไม่เรียก'} · Auto Loot ${pet.autoLoot ? 'ON' : 'OFF'} · ${pet.evolution ? `สาย ${pet.evolution.toUpperCase()} (PvE เท่านั้น)` : 'ร่างเริ่มต้น ไม่มีโบนัสสเตตัส'}`, info);
+    if (!pet.evolution) {
+      this.element('p', 'อัปเกรดสัตว์เลี้ยง: เลือกเพียง 1 สายถาวร · HP +5 / DEF +2 / ATK +5% (PvE เท่านั้น)', info);
+      for (const [kind, label] of [['hp', 'HP'], ['def', 'DEF'], ['atk', 'ATK']]) {
+        const b = this.button(`วิวัฒนาการ ${label}`, info, () => this.perform(() => this.game.evolvePet(kind)));
+        b.disabled = !pet.active;
+      }
+    }
     const entry = p.inventory.find(i => i.id === 'pet_fox');
     if (entry) { const b = this.button(pet.active ? 'เก็บสัตว์เลี้ยง' : 'เรียกสัตว์เลี้ยง', info, () => this.perform(() => this.game.use(entry.uid))); b.dataset.petAction = 'summon'; }
     for (const [id, label] of [['loot_stone', 'ใช้ Auto Loot Stone'], ['pet_food', 'ให้อาหาร +30'], ['bond_treat', 'เพิ่มความสนิท +10']]) {

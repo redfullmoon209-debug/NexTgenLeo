@@ -38,6 +38,19 @@ func _run() -> void:
     _check(fox != null, "Auto Loot fox created")
     _check(mobs.size() == 12, "12 3D forest monsters spawned")
     _check(game.get("player_level") == 1, "starts at level one")
+    if actor != null:
+        var start_z := actor.position.z
+        Input.action_press("leo_forward")
+        for tick in range(12):
+            await physics_frame
+        Input.action_release("leo_forward")
+        _check(actor.position.z < start_z - 0.05, "WASD action moves character in live physics")
+        var start_x := actor.position.x
+        game.set("joystick_axis", Vector2(1.0, 0.0))
+        for tick in range(12):
+            await physics_frame
+        game.set("joystick_axis", Vector2.ZERO)
+        _check(actor.position.x > start_x + 0.05, "virtual joystick moves character in live physics")
     game.call("_gain_xp", 100)
     _check(game.get("player_level") == 2, "XP advances player level")
     var visual := game.get("player_visual") as Node3D

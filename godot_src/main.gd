@@ -1,0 +1,490 @@
+extends Node3D
+## Real Godot 4.4.1 3D prototype. The original Work/Three.js game is not modified.
+const TOUCH_HUD = preload("res://godot_src/touch_hud.gd")
+const HUMAN_M = "res://assets/models/mini-dungeon/character-human.glb"
+const HUMAN_F = "res://assets/models/mini-forest/character-archer.glb"
+const ORC = "res://assets/models/mini-dungeon/character-orc.glb"
+const FOX = "res://assets/models/fox.glb"
+const TREE = "res://assets/models/mini-forest/tree.glb"
+const TREE_HIGH = "res://assets/models/mini-forest/tree-high.glb"
+const ROCK = "res://assets/models/mini-forest/rocks-low.glb"
+
+var player: CharacterBody3D
+var camera: Camera3D
+var fox: Node3D
+var monsters: Array[Node3D] = []
+var drops: Array[Node3D] = []
+var target: Node3D = null
+var auto_attack := false
+var attack_timer := 0.0
+var dash_timer := 0.0
+var camera_yaw := 0.0
+var camera_pitch := 0.42
+var camera_distance := 9.0
+var gold := 0
+var kills := 0
+var hp := 100
+var status := "Starter Forest • Godot 4.4.1 • เลือกเป้าหมายด้วย Tab"
+var stats_label: Label
+var help_label: Label
+var hud: Control
+var joystick_id := -1
+var joystick_origin := Vector2.ZERO
+var joystick_axis := Vector2.ZERO
+var look_id := -1
+var last_look := Vector2.ZERO
+var touches: Dictionary = {}
+var pinch_distance := -1.0
+var fox_animation: AnimationPlayer
+var player_animation: AnimationPlayer
+
+func _ready() -> void:
+    _build_world()
+    _build_player()
+    _build_monsters()
+    _build_fox()
+    _build_ui()
+    _update_camera(1.0)
+    _set_status("3D Starter Forest พร้อมเล่น • Tab เลือกมอนสเตอร์ • F โจมตี")
+
+func _material(color: Color) -> StandardMaterial3D:
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = color
+    mat.roughness = 0.85
+    return mat
+
+func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
+    var mesh := MeshInstance3D.new()
+    var shape := BoxMesh.new()
+    shape.size = size
+    mesh.mesh = shape
+    mesh.material_override = _material(color)
+    mesh.position = pos
+    parent.add_child(mesh)
+    return mesh
+
+func _sphere(parent: Node3D, radius: float, pos: Vector3, color: Color) -> MeshInstance3D:
+    var mesh := MeshInstance3D.new()
+    var shape := SphereMesh.new()
+    shape.radius = radius
+    shape.height = radius * 2.0
+    mesh.mesh = shape
+    mesh.material_override = _material(color)
+    mesh.position = pos
+    parent.add_child(mesh)
+    return mesh
+
+func _build_world() -> void:
+    var env := WorldEnvironment.new()
+    var environment := Environment.new()
+    environment.background_mode = Environment.BG_COLOR
+    environment.background_color = Color(0.56, 0.76, 0.91)
+    environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+    environment.ambient_light_color = Color(0.75, 0.82, 0.92)
+    environment.ambient_light_energy = 0.9
+    env.environment = environment
+    add_child(env)
+    var sun := DirectionalLight3D.new()
+    sun.rotation_degrees = Vector3(-48, -35, 0)
+    sun.light_energy = 1.8
+    sun.shadow_enabled = true
+    add_child(sun)
+    var ground := StaticBody3D.new()
+    ground.name = "ForestGround"
+    add_child(ground)
+    _box(ground, Vector3(120, 0.3, 120), Vector3(0, -0.15, 0), Color(0.26, 0.47, 0.26))
+    var collision := CollisionShape3D.new()
+    var ground_shape := BoxShape3D.new()
+    ground_shape.size = Vector3(120, 0.3, 120)
+    collision.shape = ground_shape
+    collision.position.y = -0.15
+    ground.add_child(collision)
+    _box(self, Vector3(4.0, 0.04, 72.0), Vector3(0, 0.025, -9), Color(0.55, 0.46, 0.30))
+    var rng := RandomNumberGenerator.new()
+    rng.seed = 2092026
+    for i in range(42):
+        var x := rng.randf_range(-43.0, 43.0)
+        var z := rng.randf_range(-43.0, 43.0)
+        if absf(x) < 5.0 and z > -35.0 and z < 22.0:
+            x += 8.0 if x >= 0.0 else -8.0
+        var tree := Node3D.new()
+        tree.name = "ForestTree_%d" % i
+        tree.position = Vector3(x, 0, z)
+        tree.rotation.y = rng.randf_range(-PI, PI)
+        add_child(tree)
+        if not _attach_model(tree, TREE_HIGH if i % 4 == 0 else TREE, rng.randf_range(4.0, 7.0)):
+            _box(tree, Vector3(0.45, 3.5, 0.45), Vector3(0, 1.75, 0), Color(0.34, 0.23, 0.12))
+            _sphere(tree, 2.0, Vector3(0, 4.0, 0), Color(0.13, 0.35, 0.16))
+    for i in range(22):
+        var rock := Node3D.new()
+        rock.position = Vector3(rng.randf_range(-36.0, 36.0), 0, rng.randf_range(-36.0, 36.0))
+        add_child(rock)
+        if not _attach_model(rock, ROCK, rng.randf_range(0.6, 1.5)):
+            _box(rock, Vector3(1.3, 0.65, 1.1), Vector3(0, 0.32, 0), Color(0.43, 0.47, 0.44))
+    camera = Camera3D.new()
+    camera.name = "ThirdPersonCamera"
+    camera.current = true
+    camera.fov = 58.0
+    camera.near = 0.08
+    camera.far = 170.0
+    add_child(camera)
+
+func _first_mesh(node: Node) -> MeshInstance3D:
+    if node is MeshInstance3D and node.mesh != null:
+        return node as MeshInstance3D
+    for child in node.get_children():
+        var found := _first_mesh(child)
+        if found != null:
+            return found
+    return null
+
+func _find_animation(node: Node) -> AnimationPlayer:
+    if node is AnimationPlayer:
+        return node as AnimationPlayer
+    for child in node.get_children():
+        var found := _find_animation(child)
+        if found != null:
+            return found
+    return null
+
+func _attach_model(parent: Node3D, path: String, target_height: float) -> bool:
+    if not ResourceLoader.exists(path):
+        return false
+    var packed := load(path) as PackedScene
+    if packed == null:
+        return false
+    var visual := packed.instantiate() as Node3D
+    if visual == null:
+        return false
+    parent.add_child(visual)
+    var mesh := _first_mesh(visual)
+    if mesh != null:
+        var size_y := maxf(mesh.get_aabb().size.y, 0.05)
+        visual.scale = Vector3.ONE * clampf(target_height / size_y, 0.02, 10.0)
+    return true
+
+func _build_player() -> void:
+    player = CharacterBody3D.new()
+    player.name = "PlayerMalePlaceholder"
+    player.position = Vector3(0, 0.2, 6)
+    add_child(player)
+    var shape := CollisionShape3D.new()
+    var capsule := CapsuleShape3D.new()
+    capsule.radius = 0.35
+    capsule.height = 1.8
+    shape.shape = capsule
+    shape.position.y = 0.9
+    player.add_child(shape)
+    var body := Node3D.new()
+    body.name = "CharacterVisual"
+    player.add_child(body)
+    if not _attach_model(body, HUMAN_M, 1.8):
+        _box(body, Vector3(0.75, 1.2, 0.4), Vector3(0, 1.05, 0), Color(0.26, 0.44, 0.86))
+        _sphere(body, 0.32, Vector3(0, 1.85, 0), Color(0.96, 0.77, 0.59))
+    player_animation = _find_animation(body)
+    _box(body, Vector3(0.11, 1.0, 0.12), Vector3(0.43, 1.05, 0.15), Color(0.84, 0.86, 0.91))
+
+func _build_monsters() -> void:
+    for i in range(12):
+        var mob := Node3D.new()
+        mob.name = "ForestOrc_%02d" % i
+        var angle := float(i) * TAU / 12.0
+        var radius := 9.0 + float(i % 4) * 3.5
+        mob.position = Vector3(sin(angle) * radius, 0, -8.0 + cos(angle) * radius)
+        mob.set_meta("hp", 50)
+        mob.set_meta("spawn", mob.position)
+        mob.set_meta("respawn_at", -1.0)
+        add_child(mob)
+        if not _attach_model(mob, ORC, 1.7):
+            _box(mob, Vector3(0.9, 1.4, 0.65), Vector3(0, 0.8, 0), Color(0.50, 0.22, 0.19))
+            _sphere(mob, 0.34, Vector3(0, 1.7, 0), Color(0.41, 0.62, 0.27))
+        monsters.append(mob)
+
+func _build_fox() -> void:
+    fox = Node3D.new()
+    fox.name = "SpiritFoxAutoLootPlaceholder"
+    fox.position = player.position + Vector3(1.4, 0, 1.4)
+    add_child(fox)
+    if not _attach_model(fox, FOX, 0.7):
+        _box(fox, Vector3(0.65, 0.35, 0.9), Vector3(0, 0.36, 0), Color(0.86, 0.94, 1.0))
+        _sphere(fox, 0.26, Vector3(0, 0.65, -0.32), Color(0.94, 0.97, 1.0))
+    fox_animation = _find_animation(fox)
+
+func _build_ui() -> void:
+    var layer := CanvasLayer.new()
+    add_child(layer)
+    var root := Control.new()
+    root.set_anchors_preset(Control.PRESET_FULL_RECT)
+    root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    layer.add_child(root)
+    stats_label = Label.new()
+    stats_label.position = Vector2(18, 12)
+    stats_label.add_theme_font_size_override("font_size", 20)
+    stats_label.add_theme_color_override("font_color", Color(1, 1, 1))
+    stats_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 1))
+    stats_label.add_theme_constant_override("shadow_offset_x", 2)
+    stats_label.add_theme_constant_override("shadow_offset_y", 2)
+    root.add_child(stats_label)
+    help_label = Label.new()
+    help_label.position = Vector2(18, 47)
+    help_label.add_theme_font_size_override("font_size", 16)
+    help_label.add_theme_color_override("font_color", Color(1, 0.94, 0.74))
+    root.add_child(help_label)
+    hud = TOUCH_HUD.new()
+    hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+    hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    root.add_child(hud)
+    _refresh_ui()
+
+func _set_status(message: String) -> void:
+    status = message
+    _refresh_ui()
+
+func _refresh_ui() -> void:
+    if stats_label == null:
+        return
+    stats_label.text = "NexTgenLeo • GODOT 3D   HP %d   Gold %d   Kills %d" % [hp, gold, kills]
+    var target_name := target.name if is_instance_valid(target) and target.visible else "ไม่มี"
+    help_label.text = "%s  |  เป้า: %s" % [status, target_name]
+
+func _update_camera(delta: float) -> void:
+    if not is_instance_valid(player):
+        return
+    var focus := player.global_position + Vector3(0, 1.45, 0)
+    var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
+    var desired := focus - forward * cos(camera_pitch) * camera_distance + Vector3.UP * sin(camera_pitch) * camera_distance
+    camera.global_position = camera.global_position.lerp(desired, minf(1.0, delta * 10.0))
+    camera.look_at(focus, Vector3.UP)
+
+func _move_input() -> Vector2:
+    var axis := Vector2.ZERO
+    if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+        axis.x -= 1.0
+    if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+        axis.x += 1.0
+    if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+        axis.y += 1.0
+    if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+        axis.y -= 1.0
+    return (axis + joystick_axis).limit_length(1.0)
+
+func _physics_process(delta: float) -> void:
+    attack_timer = maxf(0.0, attack_timer - delta)
+    dash_timer = maxf(0.0, dash_timer - delta)
+    var axis := _move_input()
+    var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
+    var right := Vector3(cos(camera_yaw), 0, sin(camera_yaw))
+    var direction := (right * axis.x + forward * axis.y).normalized()
+    if auto_attack and is_instance_valid(target) and target.visible:
+        var toward := target.global_position - player.global_position
+        toward.y = 0
+        if toward.length() > 2.7:
+            direction = toward.normalized()
+        else:
+            direction = Vector3.ZERO
+            _attack()
+    elif auto_attack:
+        auto_attack = false
+    var speed := 5.0
+    if dash_timer > 0.0:
+        speed = 11.0
+    player.velocity.x = direction.x * speed
+    player.velocity.z = direction.z * speed
+    player.velocity.y -= 19.0 * delta
+    player.move_and_slide()
+    if direction.length_squared() > 0.001:
+        player.rotation.y = atan2(direction.x, direction.z)
+    _play_clip(player_animation, "run" if direction.length_squared() > 0.001 else "idle")
+    for mob in monsters:
+        if not mob.visible:
+            if Time.get_ticks_msec() / 1000.0 >= float(mob.get_meta("respawn_at")):
+                mob.visible = true
+                mob.set_meta("hp", 50)
+                mob.position = mob.get_meta("spawn")
+            continue
+        var toward := player.position - mob.position
+        toward.y = 0
+        if toward.length() < 8.0 and toward.length() > 2.0:
+            mob.position += toward.normalized() * delta * 0.85
+            mob.rotation.y = atan2(toward.x, toward.z)
+    _update_fox(delta)
+    _update_camera(delta)
+
+func _play_clip(anim: AnimationPlayer, hint: String) -> void:
+    if anim == null:
+        return
+    for clip in anim.get_animation_list():
+        if hint in String(clip).to_lower():
+            if anim.current_animation != clip:
+                anim.play(clip)
+            return
+
+func _update_fox(delta: float) -> void:
+    var destination := player.position + Vector3(1.1, 0, 1.2)
+    var pickup: Node3D = null
+    var best := 11.0
+    for drop in drops:
+        var dist := player.position.distance_to(drop.position)
+        if dist < best:
+            best = dist
+            pickup = drop
+    if pickup != null:
+        destination = pickup.position
+    var diff := destination - fox.position
+    diff.y = 0
+    if diff.length() > 0.45:
+        fox.position += diff.normalized() * minf(diff.length(), delta * 6.0)
+        fox.rotation.y = atan2(diff.x, diff.z)
+        _play_clip(fox_animation, "run")
+    else:
+        _play_clip(fox_animation, "survey")
+    if pickup != null and fox.position.distance_to(pickup.position) < 0.75:
+        drops.erase(pickup)
+        pickup.queue_free()
+        gold += 10
+        _set_status("จิ้งจอก Auto Loot เก็บ Gold +10")
+    if fox.position.distance_to(player.position) > 30:
+        fox.position = player.position + Vector3(1, 0, 1)
+
+func _select_nearest() -> void:
+    var nearest := 30.0
+    target = null
+    for mob in monsters:
+        if mob.visible:
+            var dist := mob.position.distance_to(player.position)
+            if dist < nearest:
+                nearest = dist
+                target = mob
+    _set_status("ล็อกเป้าแล้ว" if target != null else "ไม่มีมอนสเตอร์ในระยะ")
+
+func _select_at_screen(point: Vector2) -> void:
+    var nearest := 65.0
+    var selected: Node3D = null
+    for mob in monsters:
+        if not mob.visible or camera.is_position_behind(mob.global_position + Vector3.UP):
+            continue
+        var projected := camera.unproject_position(mob.global_position + Vector3.UP)
+        var dist := projected.distance_to(point)
+        if dist < nearest:
+            nearest = dist
+            selected = mob
+    if selected != null:
+        target = selected
+        _set_status("แตะเลือกเป้าหมายแล้ว")
+
+func _attack() -> void:
+    if target == null or not is_instance_valid(target) or not target.visible:
+        auto_attack = false
+        _set_status("ต้องล็อกเป้าหมายก่อนโจมตี (Tab)")
+        return
+    if player.position.distance_to(target.position) > 2.8:
+        auto_attack = true
+        _set_status("วิ่งเข้าระยะโจมตีอัตโนมัติ")
+        return
+    auto_attack = false
+    if attack_timer > 0.0:
+        return
+    attack_timer = 0.8
+    var remaining := int(target.get_meta("hp")) - 24
+    target.set_meta("hp", remaining)
+    if remaining <= 0:
+        var drop := Node3D.new()
+        drop.name = "GoldDrop"
+        drop.position = target.position + Vector3(0, 0.4, 0)
+        add_child(drop)
+        _sphere(drop, 0.28, Vector3.ZERO, Color(1.0, 0.8, 0.15))
+        drops.append(drop)
+        target.visible = false
+        target.set_meta("respawn_at", Time.get_ticks_msec() / 1000.0 + 8.0)
+        target = null
+        kills += 1
+        _set_status("กำจัดมอนสเตอร์แล้ว • จิ้งจอกกำลังเก็บของ")
+    else:
+        _set_status("โจมตีสำเร็จ • HP มอนสเตอร์ %d" % remaining)
+
+func _jump() -> void:
+    if player.is_on_floor():
+        player.velocity.y = 7.5
+
+func _dash() -> void:
+    dash_timer = 0.26
+
+func _input(event: InputEvent) -> void:
+    if event is InputEventKey and event.pressed and not event.echo:
+        match event.keycode:
+            KEY_TAB:
+                _select_nearest()
+            KEY_F:
+                _attack()
+            KEY_SPACE:
+                _jump()
+            KEY_SHIFT:
+                _dash()
+            KEY_ESCAPE:
+                target = null
+                auto_attack = false
+                _set_status("ยกเลิกเป้าหมาย")
+    elif event is InputEventMouseButton:
+        if event.pressed:
+            if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+                camera_distance = maxf(3.0, camera_distance - 0.8)
+            elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+                camera_distance = minf(19.0, camera_distance + 0.8)
+            elif event.button_index == MOUSE_BUTTON_LEFT:
+                _select_at_screen(event.position)
+    elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+        camera_yaw -= event.relative.x * 0.006
+        camera_pitch = clampf(camera_pitch + event.relative.y * 0.004, 0.1, 1.2)
+    elif event is InputEventScreenTouch:
+        _handle_touch(event)
+    elif event is InputEventScreenDrag:
+        _handle_drag(event)
+
+func _handle_touch(event: InputEventScreenTouch) -> void:
+    var size := get_viewport().get_visible_rect().size
+    if event.pressed:
+        touches[event.index] = event.position
+        if event.position.x < size.x * 0.43 and event.position.y > size.y * 0.38 and joystick_id == -1:
+            joystick_id = event.index
+            joystick_origin = event.position
+        elif event.position.x > size.x * 0.62 and event.position.y > size.y * 0.57:
+            if event.position.x > size.x * 0.84 and event.position.y < size.y * 0.82:
+                _jump()
+            elif event.position.x > size.x * 0.83:
+                _dash()
+            else:
+                _attack()
+        elif look_id == -1:
+            look_id = event.index
+            last_look = event.position
+        if touches.size() == 2:
+            var points := touches.values()
+            pinch_distance = (points[0] as Vector2).distance_to(points[1] as Vector2)
+    else:
+        touches.erase(event.index)
+        if event.index == joystick_id:
+            joystick_id = -1
+            joystick_axis = Vector2.ZERO
+        if event.index == look_id:
+            look_id = -1
+        if touches.size() < 2:
+            pinch_distance = -1.0
+    if hud != null:
+        hud.set_joystick(joystick_axis)
+
+func _handle_drag(event: InputEventScreenDrag) -> void:
+    touches[event.index] = event.position
+    if touches.size() == 2:
+        var points := touches.values()
+        var dist := (points[0] as Vector2).distance_to(points[1] as Vector2)
+        if pinch_distance > 0.0:
+            camera_distance = clampf(camera_distance - (dist - pinch_distance) * 0.025, 3.0, 19.0)
+        pinch_distance = dist
+    elif event.index == joystick_id:
+        var drag := (event.position - joystick_origin) / 65.0
+        joystick_axis = Vector2(clampf(drag.x, -1, 1), clampf(-drag.y, -1, 1)).limit_length(1.0)
+        if hud != null:
+            hud.set_joystick(joystick_axis)
+    elif event.index == look_id:
+        camera_yaw -= event.relative.x * 0.007
+        camera_pitch = clampf(camera_pitch + event.relative.y * 0.005, 0.1, 1.2)

@@ -27,6 +27,7 @@ const SKILL_COSTS = [18.0, 25.0, 35.0]
 const SKILL_DELAYS = [6.0, 9.0, 14.0]
 var skill_feedback_timer := 0.0
 var dash_timer := 0.0
+var dash_direction := Vector3(0, 0, -1)
 var attack_lock := 0.0
 var jump_queued := false
 var player_level := 1
@@ -54,6 +55,7 @@ var mouse_joystick_origin := Vector2.ZERO
 var input_debug_timer := 0.0
 var pc_attack_was_down := false
 var pc_lock_was_down := false
+var pc_dash_was_down := false
 var look_id := -1
 var last_look := Vector2.ZERO
 var touches: Dictionary = {}
@@ -87,6 +89,7 @@ func _install_movement_actions() -> void:
     bindings["leo_skill1"] = [KEY_1]
     bindings["leo_skill2"] = [KEY_2]
     bindings["leo_skill3"] = [KEY_3]
+    bindings["leo_dash"] = [KEY_SHIFT, KEY_Q]
     for action_name in bindings:
         if not InputMap.has_action(action_name):
             InputMap.add_action(action_name)
@@ -434,6 +437,10 @@ func _physics_process(delta: float) -> void:
         skill_cooldowns[skill_index] = maxf(0.0, float(skill_cooldowns[skill_index]) - delta)
     if hud != null:
         hud.call("set_skills", skill_cooldowns, stamina)
+    var dash_down := Input.is_action_pressed("leo_dash") or Input.is_physical_key_pressed(KEY_SHIFT) or Input.is_physical_key_pressed(KEY_Q)
+    if dash_down and not pc_dash_was_down:
+        _dash()
+    pc_dash_was_down = dash_down
     attack_timer = maxf(0.0, attack_timer - delta)
     attack_lock = maxf(0.0, attack_lock - delta)
     dash_timer = maxf(0.0, dash_timer - delta)
@@ -449,7 +456,9 @@ func _physics_process(delta: float) -> void:
     var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
     var right := Vector3(cos(camera_yaw), 0, sin(camera_yaw))
     var direction := (right * axis.x + forward * axis.y).normalized()
-    if attack_lock > 0.0 and dash_timer <= 0.0:
+    if dash_timer > 0.0:
+        direction = dash_direction
+    elif attack_lock > 0.0:
         direction = Vector3.ZERO
     elif auto_attack and is_instance_valid(target) and target.visible:
         var toward := target.global_position - player.global_position
@@ -678,9 +687,17 @@ func _dash() -> void:
         _set_status("SP ไม่เพียงพอสำหรับ Dash")
         return
     stamina -= 15.0
+    # Dash in the chosen movement direction, or forward when standing still.
+    var axis := _move_input()
+    var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
+    var right := Vector3(cos(camera_yaw), 0, sin(camera_yaw))
+    dash_direction = (right * axis.x + forward * axis.y).normalized() if axis.length_squared() > 0.01 else Vector3(sin(player.rotation.y), 0, cos(player.rotation.y))
+    if dash_direction.length_squared() < 0.01:
+        dash_direction = forward
     attack_lock = 0.0
     auto_attack = false
-    dash_timer = 0.26
+    dash_timer = 0.32
+    _set_status("DASH! • SP -15")
 
 func _input(event: InputEvent) -> void:
     if event is InputEventKey:
@@ -705,7 +722,7 @@ func _input(event: InputEvent) -> void:
                 _use_skill(2)
             KEY_SPACE:
                 _jump()
-            KEY_SHIFT:
+            KEY_SHIFT, KEY_Q:
                 _dash()
             KEY_ESCAPE:
                 target = null

@@ -932,11 +932,9 @@ func _build_bag(root: Control) -> void:
     bag_button.pressed.connect(_toggle_bag)
     root.add_child(bag_button)
     bag_panel = PanelContainer.new()
-    bag_panel.position = Vector2(12, 84)
-    bag_panel.custom_minimum_size = Vector2(800, 520)
-    var view_size := get_viewport().get_visible_rect().size
-    var fit_scale := minf(1.0, minf((view_size.x - 24.0) / 840.0, (view_size.y - 96.0) / 560.0))
-    bag_panel.scale = Vector2.ONE * maxf(0.4, fit_scale)
+    bag_panel.custom_minimum_size = Vector2(800, 550)
+    bag_panel.set_meta("responsive_inventory", true)
+    get_viewport().size_changed.connect(_fit_bag_to_screen)
     bag_panel.visible = false
     bag_panel.mouse_filter = Control.MOUSE_FILTER_STOP
     _style_bag_panel(bag_panel)
@@ -1001,6 +999,7 @@ func _build_bag(root: Control) -> void:
     bag_grid.add_theme_constant_override("h_separation", 3)
     bag_grid.add_theme_constant_override("v_separation", 3)
     scrolling.add_child(bag_grid)
+    call_deferred("_fit_bag_to_screen")
 
 func _change_bag_page(page: int) -> void:
     bag_page = page
@@ -1050,6 +1049,7 @@ func _build_character_preview(status_column: VBoxContainer) -> void:
     status_column.add_child(preview_area)
     # Center: live 3D preview from the same player mesh resource, not a drawn silhouette.
     var viewport_box := SubViewportContainer.new()
+    viewport_box.clip_contents = true
     viewport_box.position = Vector2(72, 5)
     viewport_box.custom_minimum_size = Vector2(180, 275)
     viewport_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1136,3 +1136,20 @@ func _style_inventory_cell(button: Button, filled: bool) -> void:
         style.set_corner_radius_all(4)
         button.add_theme_stylebox_override(state, style)
     button.add_theme_color_override("font_color", Color(1.0, 0.91, 0.65))
+
+func _fit_bag_to_screen() -> void:
+    if bag_panel == null:
+        return
+    # Measure the actual content after Godot's containers have laid it out.
+    # Scale from the real minimum size rather than assuming the panel is 800x550.
+    var viewport_size := get_viewport().get_visible_rect().size
+    var margin := 12.0
+    var top_reserved := minf(74.0, viewport_size.y * 0.09)
+    var available := Vector2(maxf(1.0, viewport_size.x - margin * 2.0), maxf(1.0, viewport_size.y - top_reserved - margin))
+    var natural_size := bag_panel.get_combined_minimum_size()
+    natural_size.x = maxf(natural_size.x, 800.0)
+    natural_size.y = maxf(natural_size.y, 550.0)
+    var factor := minf(1.0, minf(available.x / natural_size.x, available.y / natural_size.y))
+    bag_panel.scale = Vector2.ONE * factor
+    var rendered := natural_size * factor
+    bag_panel.position = Vector2(maxf(margin, (viewport_size.x - rendered.x) * 0.5), top_reserved + maxf(0.0, (available.y - rendered.y) * 0.5))

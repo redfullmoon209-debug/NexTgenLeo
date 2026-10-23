@@ -18,6 +18,13 @@ var target: Node3D = null
 var auto_attack := false
 var attack_timer := 0.0
 var dash_timer := 0.0
+var attack_lock := 0.0
+var jump_queued := false
+var player_level := 1
+var player_xp := 0
+var stamina := 100.0
+var active_gender := "male"
+var player_visual: Node3D
 var camera_yaw := 0.0
 var camera_pitch := 0.42
 var camera_distance := 9.0
@@ -176,12 +183,14 @@ func _build_player() -> void:
     shape.position.y = 0.9
     player.add_child(shape)
     var body := Node3D.new()
+    player_visual = body
     body.name = "CharacterVisual"
     player.add_child(body)
     if not _attach_model(body, HUMAN_M, 1.8):
         _box(body, Vector3(0.75, 1.2, 0.4), Vector3(0, 1.05, 0), Color(0.26, 0.44, 0.86))
         _sphere(body, 0.32, Vector3(0, 1.85, 0), Color(0.96, 0.77, 0.59))
     player_animation = _find_animation(body)
+    _apply_level_scale()
     _box(body, Vector3(0.11, 1.0, 0.12), Vector3(0.43, 1.05, 0.15), Color(0.84, 0.86, 0.91))
 
 func _build_monsters() -> void:
@@ -243,9 +252,27 @@ func _set_status(message: String) -> void:
 func _refresh_ui() -> void:
     if stats_label == null:
         return
-    stats_label.text = "NexTgenLeo • GODOT 3D   HP %d   Gold %d   Kills %d" % [hp, gold, kills]
+    stats_label.text = "NexTgenLeo • GODOT 3D   Lv.%d   EXP %d/%d   HP %d   SP %d   Gold %d   Kills %d" % [player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]
     var target_name := target.name if is_instance_valid(target) and target.visible else "ไม่มี"
     help_label.text = "%s  |  เป้า: %s" % [status, target_name]
+
+func _apply_level_scale() -> void:
+    # Level 1 = 70% of adult height; Level 100 = 100%, preserving original game design.
+    if is_instance_valid(player_visual):
+        player_visual.scale = Vector3.ONE * (0.7 + 0.3 * float(player_level - 1) / 99.0)
+
+func _gain_xp(amount: int) -> void:
+    if player_level >= 100:
+        return
+    player_xp += amount
+    while player_level < 100 and player_xp >= player_level * 100:
+        player_xp -= player_level * 100
+        player_level += 1
+        _apply_level_scale()
+        hp = 100
+        _set_status("LEVEL UP! • Lv.%d" % player_level)
+    if player_level >= 100:
+        player_xp = 0
 
 func _update_camera(delta: float) -> void:
     if not is_instance_valid(player):
@@ -270,19 +297,26 @@ func _move_input() -> Vector2:
 
 func _physics_process(delta: float) -> void:
     attack_timer = maxf(0.0, attack_timer - delta)
+    attack_lock = maxf(0.0, attack_lock - delta)
     dash_timer = maxf(0.0, dash_timer - delta)
+    stamina = minf(100.0, stamina + delta * 5.0)
+    if jump_queued and attack_lock <= 0.0:
+        jump_queued = false
+        _jump()
     var axis := _move_input()
     var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
     var right := Vector3(cos(camera_yaw), 0, sin(camera_yaw))
     var direction := (right * axis.x + forward * axis.y).normalized()
-    if auto_attack and is_instance_valid(target) and target.visible:
+    if attack_lock > 0.0 and dash_timer <= 0.0:
+        direction = Vector3.ZERO
+    elif auto_attack and is_instance_valid(target) and target.visible:
         var toward := target.global_position - player.global_position
         toward.y = 0
         if toward.length() > 2.7:
             direction = toward.normalized()
         else:
             direction = Vector3.ZERO
-            _attack()
+            _perform_hit()
     elif auto_attack:
         auto_attack = false
     var speed := 5.0
@@ -294,7 +328,12 @@ func _physics_process(delta: float) -> void:
     player.move_and_slide()
     if direction.length_squared() > 0.001:
         player.rotation.y = atan2(direction.x, direction.z)
-    _play_clip(player_animation, "run" if direction.length_squared() > 0.001 else "idle")
+    if attack_lock > 0.0 and dash_timer <= 0.0:
+        _play_clip(player_animation, "attack")
+    elif not player.is_on_floor():
+        _play_clip(player_animation, "jump")
+    else:
+        _play_clip(player_animation, "run" if direction.length_squared() > 0.001 else "idle")
     for mob in monsters:
         if not mob.visible:
             if Time.get_ticks_msec() / 1000.0 >= float(mob.get_meta("respawn_at")):
@@ -377,14 +416,19 @@ func _attack() -> void:
         auto_attack = false
         _set_status("ต้องล็อกเป้าหมายก่อนโจมตี (Tab)")
         return
+    auto_attack = true
     if player.position.distance_to(target.position) > 2.8:
-        auto_attack = true
         _set_status("วิ่งเข้าระยะโจมตีอัตโนมัติ")
         return
-    auto_attack = false
-    if attack_timer > 0.0:
+    _perform_hit()
+
+func _perform_hit() -> void:
+    if not is_instance_valid(target) or not target.visible or attack_timer > 0.0 or dash_timer > 0.0:
+        return
+    if player.position.distance_to(target.position) > 2.8:
         return
     attack_timer = 0.8
+    attack_lock = 0.48
     var remaining := int(target.get_meta("hp")) - 24
     target.set_meta("hp", remaining)
     if remaining <= 0:
@@ -397,16 +441,27 @@ func _attack() -> void:
         target.visible = false
         target.set_meta("respawn_at", Time.get_ticks_msec() / 1000.0 + 8.0)
         target = null
+        auto_attack = false
         kills += 1
+        _gain_xp(35)
         _set_status("กำจัดมอนสเตอร์แล้ว • จิ้งจอกกำลังเก็บของ")
     else:
         _set_status("โจมตีสำเร็จ • HP มอนสเตอร์ %d" % remaining)
 
 func _jump() -> void:
+    if attack_lock > 0.0:
+        jump_queued = true
+        return
     if player.is_on_floor():
         player.velocity.y = 7.5
 
 func _dash() -> void:
+    if stamina < 15.0:
+        _set_status("SP ไม่เพียงพอสำหรับ Dash")
+        return
+    stamina -= 15.0
+    attack_lock = 0.0
+    auto_attack = false
     dash_timer = 0.26
 
 func _input(event: InputEvent) -> void:
@@ -423,6 +478,7 @@ func _input(event: InputEvent) -> void:
             KEY_ESCAPE:
                 target = null
                 auto_attack = false
+                jump_queued = false
                 _set_status("ยกเลิกเป้าหมาย")
     elif event is InputEventMouseButton:
         if event.pressed:

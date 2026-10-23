@@ -43,11 +43,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --path . --editor --import --quit
-          godot --headless --path . --script res://godot_src/smoke_test.gd
+          echo 'STAGE 1: import Godot 3D resources'
+          timeout 180s godot --headless --path . --editor --import --quit
+          echo 'STAGE 2: run native Godot gameplay smoke test'
+          timeout 90s godot --headless --path . --script res://godot_src/smoke_test.gd
           mkdir -p build/godot-playtest
-          godot --headless --path . --export-release Web build/godot-playtest/index.html
-          godot --headless --path . --quit-after 10
+          echo 'STAGE 3: export Godot 4.4.1 Web build'
+          timeout 180s godot --headless --path . --export-release Web build/godot-playtest/index.html
           test -s build/godot-playtest/index.html
           test -s build/godot-playtest/index.wasm
       - name: Upload playable Web export

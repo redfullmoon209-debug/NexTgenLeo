@@ -911,8 +911,15 @@ func _toggle_bag() -> void:
 func _build_bag(root: Control) -> void:
     var bag_button := Button.new()
     bag_button.text = "BAG"
-    bag_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-    bag_button.position = Vector2(-112, 22)
+    bag_button.anchor_left = 1.0
+    bag_button.anchor_right = 1.0
+    bag_button.anchor_top = 0.0
+    bag_button.anchor_bottom = 0.0
+    bag_button.offset_left = -112.0
+    bag_button.offset_right = -28.0
+    bag_button.offset_top = 22.0
+    bag_button.offset_bottom = 62.0
+    bag_button.mouse_filter = Control.MOUSE_FILTER_STOP
     bag_button.custom_minimum_size = Vector2(84, 40)
     bag_button.pressed.connect(_toggle_bag)
     root.add_child(bag_button)

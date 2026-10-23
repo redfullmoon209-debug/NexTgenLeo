@@ -929,9 +929,9 @@ func _build_bag(root: Control) -> void:
     root.add_child(bag_button)
     bag_panel = PanelContainer.new()
     bag_panel.position = Vector2(12, 84)
-    bag_panel.custom_minimum_size = Vector2(710, 380)
+    bag_panel.custom_minimum_size = Vector2(800, 520)
     var view_size := get_viewport().get_visible_rect().size
-    var fit_scale := minf(1.0, minf((view_size.x - 24.0) / 735.0, (view_size.y - 96.0) / 420.0))
+    var fit_scale := minf(1.0, minf((view_size.x - 24.0) / 840.0, (view_size.y - 96.0) / 560.0))
     bag_panel.scale = Vector2.ONE * maxf(0.4, fit_scale)
     bag_panel.visible = false
     root.add_child(bag_panel)
@@ -939,7 +939,7 @@ func _build_bag(root: Control) -> void:
     layout.add_theme_constant_override("separation", 14)
     bag_panel.add_child(layout)
     var status_column := VBoxContainer.new()
-    status_column.custom_minimum_size = Vector2(240, 360)
+    status_column.custom_minimum_size = Vector2(330, 430)
     layout.add_child(status_column)
     var status_title := Label.new()
     status_title.text = "CHARACTER STATUS"
@@ -948,8 +948,9 @@ func _build_bag(root: Control) -> void:
     var separator := HSeparator.new()
     status_column.add_child(separator)
     character_status_label = Label.new()
-    character_status_label.add_theme_font_size_override("font_size", 17)
+    character_status_label.add_theme_font_size_override("font_size", 14)
     status_column.add_child(character_status_label)
+    _build_character_preview(status_column)
     var equip_title := Label.new()
     equip_title.text = "EQUIPMENT"
     equip_title.add_theme_font_size_override("font_size", 18)
@@ -979,7 +980,7 @@ func _build_bag(root: Control) -> void:
     close_button.pressed.connect(_toggle_bag)
     paging.add_child(close_button)
     var scrolling := ScrollContainer.new()
-    scrolling.custom_minimum_size = Vector2(420, 270)
+    scrolling.custom_minimum_size = Vector2(420, 355)
     content.add_child(scrolling)
     bag_grid = GridContainer.new()
     bag_grid.columns = 10
@@ -1023,3 +1024,60 @@ func _refresh_character_status() -> void:
     if character_status_label == null:
         return
     character_status_label.text = "Gender: %s\nClass: 0 • Novice\nLevel: %d / 100\nEXP: %d / %d\nHP: %d / 100\nStamina: %d / 100\nGold: %d\nKills: %d" % [active_gender.capitalize(), player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]
+
+func _build_character_preview(status_column: VBoxContainer) -> void:
+    var preview_area := Control.new()
+    preview_area.custom_minimum_size = Vector2(330, 285)
+    status_column.add_child(preview_area)
+    # Center: live 3D preview from the same player mesh resource, not a drawn silhouette.
+    var viewport_box := SubViewportContainer.new()
+    viewport_box.position = Vector2(72, 5)
+    viewport_box.custom_minimum_size = Vector2(180, 275)
+    viewport_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    preview_area.add_child(viewport_box)
+    var preview_viewport := SubViewport.new()
+    preview_viewport.size = Vector2i(180, 275)
+    preview_viewport.transparent_bg = true
+    preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    viewport_box.add_child(preview_viewport)
+    var preview_world := Node3D.new()
+    preview_viewport.add_child(preview_world)
+    if player_visual != null:
+        var model_copy := player_visual.duplicate()
+        preview_world.add_child(model_copy)
+        model_copy.position = Vector3.ZERO
+        model_copy.rotation = Vector3.ZERO
+        model_copy.scale = Vector3.ONE
+    var preview_camera := Camera3D.new()
+    preview_camera.position = Vector3(0, 1.0, 3.6)
+    preview_camera.look_at(Vector3(0, 0.95, 0), Vector3.UP)
+    preview_camera.current = true
+    preview_world.add_child(preview_camera)
+    var light := DirectionalLight3D.new()
+    light.rotation_degrees = Vector3(-35, -30, 0)
+    light.light_energy = 2.0
+    preview_world.add_child(light)
+    # Color positions from the provided mockup; buttons are slot placeholders.
+    _preview_slot(preview_area, Vector2(8, 8), Color(0.25, 0.75, 0.30), "HAIR")
+    _preview_slot(preview_area, Vector2(6, 77), Color(1.0, 0.47, 0.13), "WEAPON R")
+    _preview_slot(preview_area, Vector2(6, 146), Color(1.0, 0.47, 0.13), "WEAPON L")
+    _preview_slot(preview_area, Vector2(6, 215), Color(1.0, 0.65, 0.77), "FASHION")
+    _preview_slot(preview_area, Vector2(267, 8), Color(0.94, 0.13, 0.19), "HAT")
+    _preview_slot(preview_area, Vector2(267, 63), Color(0.94, 0.13, 0.19), "SHIRT")
+    _preview_slot(preview_area, Vector2(267, 118), Color(0.94, 0.13, 0.19), "GLOVES")
+    _preview_slot(preview_area, Vector2(267, 173), Color(0.94, 0.13, 0.19), "PANTS")
+    _preview_slot(preview_area, Vector2(267, 228), Color(0.94, 0.13, 0.19), "SHOES")
+    _preview_slot(preview_area, Vector2(6, 270), Color(1.0, 0.65, 0.77), "PET")
+
+func _preview_slot(parent: Control, point: Vector2, tint: Color, slot_name: String) -> void:
+    var slot := Button.new()
+    slot.position = point
+    slot.custom_minimum_size = Vector2(51, 51)
+    slot.tooltip_text = slot_name
+    slot.text = ""
+    slot.disabled = true
+    var style := StyleBoxFlat.new()
+    style.bg_color = tint
+    style.set_corner_radius_all(25)
+    slot.add_theme_stylebox_override("disabled", style)
+    parent.add_child(slot)

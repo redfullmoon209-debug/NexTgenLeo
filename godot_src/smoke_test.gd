@@ -59,8 +59,12 @@ func _run() -> void:
         var mob := mobs[0] as Node3D
         actor.position = mob.position + Vector3(0, 0, 2.0)
         game.set("target", mob)
-        game.call("_attack")
-        _check(int(mob.get_meta("hp")) == 26, "basic attack deals damage")
+        var physical_attack := InputEventKey.new()
+        physical_attack.pressed = true
+        physical_attack.physical_keycode = KEY_F
+        physical_attack.keycode = 0
+        game.call("_input", physical_attack)
+        _check(int(mob.get_meta("hp")) == 26, "physical F attacks despite non-English keyboard layout")
         _check(game.get("auto_attack") == true, "auto-attack continues after first hit")
         game.set("attack_timer", 0.0)
         game.set("attack_lock", 0.0)

@@ -747,6 +747,8 @@ func _input(event: InputEvent) -> void:
             KEY_B, KEY_I:
                 _toggle_bag()
             KEY_SPACE:
+                # Space is reserved for Jump. Clear UI focus so it never activates BAG.
+                get_viewport().gui_release_focus()
                 _jump()
             KEY_SHIFT, KEY_Q:
                 pc_dash_was_down = true
@@ -914,7 +916,9 @@ func _toggle_bag() -> void:
 
 func _build_bag(root: Control) -> void:
     var bag_button := Button.new()
-    bag_button.text = "BAG"
+    bag_button.text = "🎒 BAG"
+    bag_button.focus_mode = Control.FOCUS_NONE
+    _style_bag_button(bag_button, Color(0.12, 0.34, 0.62))
     bag_button.anchor_left = 1.0
     bag_button.anchor_right = 1.0
     bag_button.anchor_top = 0.0
@@ -934,6 +938,8 @@ func _build_bag(root: Control) -> void:
     var fit_scale := minf(1.0, minf((view_size.x - 24.0) / 840.0, (view_size.y - 96.0) / 560.0))
     bag_panel.scale = Vector2.ONE * maxf(0.4, fit_scale)
     bag_panel.visible = false
+    bag_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+    _style_bag_panel(bag_panel)
     root.add_child(bag_panel)
     var layout := HBoxContainer.new()
     layout.add_theme_constant_override("separation", 14)
@@ -942,7 +948,8 @@ func _build_bag(root: Control) -> void:
     status_column.custom_minimum_size = Vector2(330, 430)
     layout.add_child(status_column)
     var status_title := Label.new()
-    status_title.text = "CHARACTER STATUS"
+    status_title.text = "✦ CHARACTER STATUS"
+    status_title.add_theme_color_override("font_color", Color(0.76, 0.91, 1.0))
     status_title.add_theme_font_size_override("font_size", 19)
     status_column.add_child(status_title)
     var separator := HSeparator.new()
@@ -952,7 +959,8 @@ func _build_bag(root: Control) -> void:
     status_column.add_child(character_status_label)
     _build_character_preview(status_column)
     var equip_title := Label.new()
-    equip_title.text = "EQUIPMENT"
+    equip_title.text = "✦ EQUIPMENT"
+    equip_title.add_theme_color_override("font_color", Color(0.76, 0.91, 1.0))
     equip_title.add_theme_font_size_override("font_size", 18)
     status_column.add_child(equip_title)
     character_equipment_label = Label.new()
@@ -963,7 +971,8 @@ func _build_bag(root: Control) -> void:
     var content := VBoxContainer.new()
     layout.add_child(content)
     var title := Label.new()
-    title.text = "NexTgenLeo • INVENTORY"
+    title.text = "✦ INVENTORY"
+    title.add_theme_color_override("font_color", Color(0.76, 0.91, 1.0))
     title.add_theme_font_size_override("font_size", 20)
     content.add_child(title)
     bag_info = Label.new()
@@ -973,17 +982,24 @@ func _build_bag(root: Control) -> void:
     for page in range(2):
         var button := Button.new()
         button.text = "PAGE %d" % (page + 1)
+        button.focus_mode = Control.FOCUS_NONE
+        _style_bag_button(button, Color(0.11, 0.33, 0.58))
         button.pressed.connect(_change_bag_page.bind(page))
         paging.add_child(button)
     var close_button := Button.new()
     close_button.text = "X"
+    close_button.focus_mode = Control.FOCUS_NONE
+    _style_bag_button(close_button, Color(0.65, 0.17, 0.25))
     close_button.pressed.connect(_toggle_bag)
     paging.add_child(close_button)
     var scrolling := ScrollContainer.new()
     scrolling.custom_minimum_size = Vector2(420, 355)
+    scrolling.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
     content.add_child(scrolling)
     bag_grid = GridContainer.new()
     bag_grid.columns = 10
+    bag_grid.add_theme_constant_override("h_separation", 3)
+    bag_grid.add_theme_constant_override("v_separation", 3)
     scrolling.add_child(bag_grid)
 
 func _change_bag_page(page: int) -> void:
@@ -993,7 +1009,8 @@ func _change_bag_page(page: int) -> void:
 func _refresh_bag() -> void:
     if bag_grid == null or bag_info == null:
         return
-    bag_info.text = "Page %d/2 • %d/200 slots • Gold %d" % [bag_page + 1, inventory.size(), gold]
+    bag_info.text = "Page %d / 2    •    %d / 200 Slots    •    Gold %d" % [bag_page + 1, inventory.size(), gold]
+    bag_info.add_theme_color_override("font_color", Color(1.0, 0.81, 0.42))
     if character_status_label != null:
         character_status_label.text = "Gender: %s\nClass: 0 • Novice\nLevel: %d / 100\nEXP: %d / %d\nHP: %d / 100\nStamina: %d / 100\nGold: %d\nKills: %d" % [active_gender.capitalize(), player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]
     if character_equipment_label != null:
@@ -1007,8 +1024,10 @@ func _refresh_bag() -> void:
     for slot_index in range(100):
         var index := bag_page * 100 + slot_index
         var cell := Button.new()
-        cell.custom_minimum_size = Vector2(39, 26)
+        cell.custom_minimum_size = Vector2(39, 39)
+        cell.focus_mode = Control.FOCUS_NONE
         cell.add_theme_font_size_override("font_size", 11)
+        _style_inventory_cell(cell, index < inventory.size())
         if index < inventory.size():
             var item: Dictionary = inventory[index]
             var item_id := str(item.get("id", ""))
@@ -1016,7 +1035,7 @@ func _refresh_bag() -> void:
             cell.tooltip_text = str(ITEM_NAMES.get(item_id, item_id))
             cell.pressed.connect(_use_inventory_item.bind(index))
         else:
-            cell.text = "·"
+            cell.text = ""
             cell.disabled = true
         bag_grid.add_child(cell)
 
@@ -1076,8 +1095,44 @@ func _preview_slot(parent: Control, point: Vector2, tint: Color, slot_name: Stri
     slot.tooltip_text = slot_name
     slot.text = ""
     slot.disabled = true
+    slot.focus_mode = Control.FOCUS_NONE
     var style := StyleBoxFlat.new()
     style.bg_color = tint
     style.set_corner_radius_all(25)
     slot.add_theme_stylebox_override("disabled", style)
     parent.add_child(slot)
+
+func _style_bag_panel(panel: PanelContainer) -> void:
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.035, 0.095, 0.18, 0.96)
+    style.border_color = Color(0.25, 0.69, 1.0, 0.98)
+    style.set_border_width_all(3)
+    style.set_corner_radius_all(12)
+    style.set_content_margin_all(12)
+    style.shadow_color = Color(0.01, 0.03, 0.08, 0.65)
+    style.shadow_size = 12
+    panel.add_theme_stylebox_override("panel", style)
+
+func _style_bag_button(button: Button, tint: Color) -> void:
+    for state in ["normal", "hover", "pressed", "disabled"]:
+        var style := StyleBoxFlat.new()
+        style.bg_color = tint.lightened(0.16) if state == "hover" else (tint.darkened(0.20) if state == "pressed" else tint)
+        style.border_color = Color(0.44, 0.81, 1.0, 0.95)
+        style.set_border_width_all(2)
+        style.set_corner_radius_all(7)
+        style.set_content_margin_all(5)
+        button.add_theme_stylebox_override(state, style)
+    button.add_theme_color_override("font_color", Color(0.95, 0.98, 1.0))
+    button.add_theme_color_override("font_hover_color", Color.WHITE)
+
+func _style_inventory_cell(button: Button, filled: bool) -> void:
+    for state in ["normal", "hover", "pressed", "disabled"]:
+        var style := StyleBoxFlat.new()
+        style.bg_color = Color(0.14, 0.30, 0.48, 0.97) if filled else Color(0.08, 0.19, 0.32, 0.94)
+        if state == "hover":
+            style.bg_color = Color(0.21, 0.43, 0.66)
+        style.border_color = Color(0.36, 0.69, 0.92, 0.9)
+        style.set_border_width_all(1)
+        style.set_corner_radius_all(4)
+        button.add_theme_stylebox_override(state, style)
+    button.add_theme_color_override("font_color", Color(1.0, 0.91, 0.65))

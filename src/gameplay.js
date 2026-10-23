@@ -37,7 +37,7 @@ export class Game {
 
   create(name, gender) {
     this.player = { version: 2, name, gender, level: 1, class: 1, xp: 0, hp: 100, sp: 100, gold: 1000, cash: 1500, cp: 0, kills: 0, x: 0, z: 0, yaw: Math.PI, buffs: {}, equipment: {}, inventory: [], starterClaimed: false, trialClaimed: true,
-      pet: { active: false, autoLoot: false, level: 1, xp: 0, hunger: 100, bond: 0, x: 1, z: 1 } };
+      pet: { active: false, autoLoot: false, evolution: null, level: 1, xp: 0, hunger: 100, bond: 0, x: 1, z: 1 } };
     for (const id of ['sword', 'gun', 'kunai', 'hat', 'hair', 'shirt', 'gloves', 'pants', 'boots', 'accessory', 'pet_fox', 'pet_food', 'loot_stone', 'bond_treat', 'enhance_stone', 'material', 'revive']) this.addItem(id, ['pet_food', 'enhance_stone'].includes(id) ? 10 : 1);
     this.player.equipment.weapon = this.player.inventory.find(i => i.id === 'sword').uid;
     return this.player;
@@ -87,6 +87,7 @@ export class Game {
       Object.assign(p.pet, { active: data.pet.active === true, autoLoot: data.pet.autoLoot === true });
       for (const key of ['level', 'hunger', 'bond']) p.pet[key] = clamp(data.pet[key], key === 'level' ? 1 : 0, 100);
       p.pet.level = Math.floor(p.pet.level); p.pet.xp = clamp(data.pet.xp, 0, p.pet.level * 20 - 1);
+      p.pet.evolution = ['hp', 'def', 'atk'].includes(data.pet.evolution) ? data.pet.evolution : null;
     }
     p.pet.x = p.x + 1; p.pet.z = p.z + 1;
     return true;
@@ -94,7 +95,14 @@ export class Game {
 
   snapshot() { return clone(this.player); }
   buff(id) { return (this.player.buffs[id]?.endsAt || 0) > this.now; }
-  maxHP() { return Math.round((100 + (this.player.pet.active ? 5 : 0)) * (this.buff('hp') ? 1.2 : 1)); }
+  petBonus(kind) { return this.player.pet.active && this.player.pet.evolution === kind ? (kind === 'hp' ? 5 : kind === 'def' ? 2 : 0.05) : 0; }
+  evolvePet(kind) {
+    const pet = this.player.pet;
+    if (!['hp', 'def', 'atk'].includes(kind) || pet.evolution) return this.fail('สัตว์เลี้ยงเลือกสายได้เพียงครั้งเดียว');
+    if (!pet.active) return this.fail('เรียกสัตว์เลี้ยงก่อนอัปเกรด');
+    pet.evolution = kind; this.notify(`วิวัฒนาการจิ้งจอกสาย ${kind.toUpperCase()} สำเร็จ`); return true;
+  }
+  maxHP() { return Math.round((100 + this.petBonus('hp')) * (this.buff('hp') ? 1.2 : 1)); }
   weapon() { return this.player.inventory.find(i => i.uid === this.player.equipment.weapon); }
   job() { return this.rules.jobs[this.items[this.weapon()?.id]?.job || 'Sword']; }
   hasCapacity(id, count = 1) {
@@ -186,7 +194,7 @@ export class Game {
     const p = this.player, job = this.job();
     if (Math.hypot(target.x - p.x, target.z - p.z) > job.range + 0.5) return;
     const victims = skill?.radius ? this.monsters.filter(m => m.hp > 0 && Math.hypot(m.x - target.x, m.z - target.z) < skill.radius) : [target];
-    const damage = Math.round((job.baseDamage + (this.weapon()?.plus || 0) * 2) * (this.buff('attack') ? 1.2 : 1) * (skill?.multiplier || 1));
+    const damage = Math.round((job.baseDamage + (this.weapon()?.plus || 0) * 2) * (this.buff('attack') ? 1.2 : 1) * (1 + this.petBonus('atk')) * (skill?.multiplier || 1));
     for (const m of victims) {
       m.hp = Math.max(0, m.hp - damage); this.events.push({ kind: 'hit', x: m.x, z: m.z, value: damage, at: this.time });
       if (m.hp === 0) {
@@ -282,7 +290,7 @@ export class Game {
       if (chasing && distance > 1.5 && distance < 16) { m.x += (p.x - m.x) / distance * 1.8 * dt; m.z += (p.z - m.z) / distance * 1.8 * dt; m.pose = 'walk'; }
       if (chasing && distance <= 1.7 && this.time > m.nextHit) {
         m.nextHit = this.time + 1.5; m.pose = 'attack-melee-right';
-        const defense = 10 * (this.buff('defense') ? 1.2 : 1) + (p.pet.active ? 2 : 0);
+        const defense = 10 * (this.buff('defense') ? 1.2 : 1) + this.petBonus('def');
         p.hp = Math.max(0, p.hp - Math.max(1, Math.round((m.elite ? 16 : 9) * 100 / (100 + defense))));
         if (p.hp === 0) { this.deadAt = this.time; this.cancelAttack(); this.attack = null; this.jumpY = this.jumpVelocity = 0; }
       }

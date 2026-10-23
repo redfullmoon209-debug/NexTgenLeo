@@ -723,6 +723,7 @@ func _input(event: InputEvent) -> void:
             KEY_SPACE:
                 _jump()
             KEY_SHIFT, KEY_Q:
+                pc_dash_was_down = true
                 _dash()
             KEY_ESCAPE:
                 target = null

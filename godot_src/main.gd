@@ -310,7 +310,7 @@ func _refresh_ui() -> void:
     if stats_label == null:
         return
     stats_label.text = "NexTgenLeo • GODOT 3D   Lv.%d   EXP %d/%d   HP %d   SP %d   Gold %d   Kills %d" % [player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]
-    var target_name := target.name if is_instance_valid(target) and target.visible else "ไม่มี"
+    var target_name: String = str(target.name) if is_instance_valid(target) and target.visible else "ไม่มี"
     help_label.text = "%s  |  เป้า: %s" % [status, target_name]
 
 func _apply_level_scale() -> void:

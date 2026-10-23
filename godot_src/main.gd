@@ -44,6 +44,8 @@ var equipment: Dictionary = {}
 var bag_panel: PanelContainer
 var bag_grid: GridContainer
 var bag_info: Label
+var character_status_label: Label
+var character_equipment_label: Label
 var bag_page := 0
 const ITEM_NAMES = {"hp_potion": "HP Potion", "life_trace": "Life Trace", "forest_helm": "Forest Helm", "forest_sword": "Forest Sword"}
 const ITEM_SLOTS = {"forest_helm": "Hat", "forest_sword": "Weapon"}
@@ -385,6 +387,8 @@ func _set_status(message: String) -> void:
 func _refresh_ui() -> void:
     if stats_label == null:
         return
+    if bag_panel != null and bag_panel.visible:
+        _refresh_character_status()
     stats_label.text = "NexTgenLeo • GODOT 3D   Lv.%d   EXP %d/%d   HP %d   SP %d   Gold %d   Kills %d" % [player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]
     var target_name: String = str(target.name) if is_instance_valid(target) and target.visible else "ไม่มี"
     help_label.text = "%s  |  เป้า: %s" % [status, target_name]
@@ -925,11 +929,38 @@ func _build_bag(root: Control) -> void:
     root.add_child(bag_button)
     bag_panel = PanelContainer.new()
     bag_panel.position = Vector2(12, 84)
-    bag_panel.custom_minimum_size = Vector2(445, 380)
+    bag_panel.custom_minimum_size = Vector2(710, 380)
+    var view_size := get_viewport().get_visible_rect().size
+    var fit_scale := minf(1.0, minf((view_size.x - 24.0) / 735.0, (view_size.y - 96.0) / 420.0))
+    bag_panel.scale = Vector2.ONE * maxf(0.4, fit_scale)
     bag_panel.visible = false
     root.add_child(bag_panel)
+    var layout := HBoxContainer.new()
+    layout.add_theme_constant_override("separation", 14)
+    bag_panel.add_child(layout)
+    var status_column := VBoxContainer.new()
+    status_column.custom_minimum_size = Vector2(240, 360)
+    layout.add_child(status_column)
+    var status_title := Label.new()
+    status_title.text = "CHARACTER STATUS"
+    status_title.add_theme_font_size_override("font_size", 19)
+    status_column.add_child(status_title)
+    var separator := HSeparator.new()
+    status_column.add_child(separator)
+    character_status_label = Label.new()
+    character_status_label.add_theme_font_size_override("font_size", 17)
+    status_column.add_child(character_status_label)
+    var equip_title := Label.new()
+    equip_title.text = "EQUIPMENT"
+    equip_title.add_theme_font_size_override("font_size", 18)
+    status_column.add_child(equip_title)
+    character_equipment_label = Label.new()
+    character_equipment_label.add_theme_font_size_override("font_size", 15)
+    status_column.add_child(character_equipment_label)
+    var vertical_divider := VSeparator.new()
+    layout.add_child(vertical_divider)
     var content := VBoxContainer.new()
-    bag_panel.add_child(content)
+    layout.add_child(content)
     var title := Label.new()
     title.text = "NexTgenLeo • INVENTORY"
     title.add_theme_font_size_override("font_size", 20)
@@ -961,7 +992,14 @@ func _change_bag_page(page: int) -> void:
 func _refresh_bag() -> void:
     if bag_grid == null or bag_info == null:
         return
-    bag_info.text = "Page %d/2 • %d/200 slots • Gold %d • Equip %s" % [bag_page + 1, inventory.size(), gold, str(equipment)]
+    bag_info.text = "Page %d/2 • %d/200 slots • Gold %d" % [bag_page + 1, inventory.size(), gold]
+    if character_status_label != null:
+        character_status_label.text = "Gender: %s\nClass: 0 • Novice\nLevel: %d / 100\nEXP: %d / %d\nHP: %d / 100\nStamina: %d / 100\nGold: %d\nKills: %d" % [active_gender.capitalize(), player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]
+    if character_equipment_label != null:
+        var equip_text := ""
+        for slot_name in ["Hat", "Shirt", "Gloves", "Pants", "Shoes", "Weapon"]:
+            equip_text += "%s: %s\n" % [slot_name, str(ITEM_NAMES.get(str(equipment.get(slot_name, "")), "-"))]
+        character_equipment_label.text = equip_text
     for child in bag_grid.get_children():
         bag_grid.remove_child(child)
         child.queue_free()
@@ -980,3 +1018,8 @@ func _refresh_bag() -> void:
             cell.text = "·"
             cell.disabled = true
         bag_grid.add_child(cell)
+
+func _refresh_character_status() -> void:
+    if character_status_label == null:
+        return
+    character_status_label.text = "Gender: %s\nClass: 0 • Novice\nLevel: %d / 100\nEXP: %d / %d\nHP: %d / 100\nStamina: %d / 100\nGold: %d\nKills: %d" % [active_gender.capitalize(), player_level, player_xp, player_level * 100, hp, int(stamina), gold, kills]

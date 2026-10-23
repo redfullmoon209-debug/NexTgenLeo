@@ -39,6 +39,14 @@ var camera_yaw := 0.0
 var camera_pitch := 0.42
 var camera_distance := 9.0
 var gold := 0
+var inventory: Array = []
+var equipment: Dictionary = {}
+var bag_panel: PanelContainer
+var bag_grid: GridContainer
+var bag_info: Label
+var bag_page := 0
+const ITEM_NAMES = {"hp_potion": "HP Potion", "life_trace": "Life Trace", "forest_helm": "Forest Helm", "forest_sword": "Forest Sword"}
+const ITEM_SLOTS = {"forest_helm": "Hat", "forest_sword": "Weapon"}
 var kills := 0
 var hp := 100
 var status := "Starter Forest • Godot 4.4.1 • เลือกเป้าหมายด้วย Tab"
@@ -73,6 +81,7 @@ func _ready() -> void:
     _build_target_marker()
     _build_fox()
     _build_ui()
+    _refresh_bag()
     _update_camera(1.0)
     _set_status("Starter Forest • Tab ล็อก • F ตี • 1/2/3 ใช้สกิล")
 
@@ -133,6 +142,10 @@ func _load_progress() -> void:
     player_level = clampi(int(data.get("level", 1)), 1, 100)
     player_xp = clampi(int(data.get("xp", 0)), 0, player_level * 100 - 1)
     gold = clampi(int(data.get("gold", 0)), 0, 100000000)
+    if data.get("inventory", []) is Array:
+        inventory = data.get("inventory", []).slice(0, 200)
+    if data.get("equipment", {}) is Dictionary:
+        equipment = data.get("equipment", {})
     kills = clampi(int(data.get("kills", 0)), 0, 100000000)
     _apply_level_scale()
 
@@ -140,7 +153,7 @@ func _save_progress() -> void:
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file == null:
         return
-    file.store_string(JSON.stringify({"version": 1, "level": player_level, "xp": player_xp, "gold": gold, "kills": kills}))
+    file.store_string(JSON.stringify({"version": 1, "level": player_level, "xp": player_xp, "gold": gold, "kills": kills, "inventory": inventory, "equipment": equipment}))
 
 func _material(color: Color) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -362,6 +375,7 @@ func _build_ui() -> void:
     hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
     root.add_child(hud)
     hud.call("set_skills", skill_cooldowns, stamina)
+    _build_bag(root)
     _refresh_ui()
 
 func _set_status(message: String) -> void:
@@ -532,9 +546,14 @@ func _update_fox(delta: float) -> void:
     if pickup != null and fox.position.distance_to(pickup.position) < 0.75:
         drops.erase(pickup)
         pickup.queue_free()
-        gold += 10
+        var item_id := str(pickup.get_meta("item_id", "gold"))
+        if item_id == "gold":
+            gold += 10
+        else:
+            _add_item(item_id, 1)
         _save_progress()
-        _set_status("จิ้งจอก Auto Loot เก็บ Gold +10")
+        _refresh_bag()
+        _set_status("จิ้งจอก Auto Loot เก็บ %s" % item_id)
     if fox.position.distance_to(player.position) > 30:
         fox.position = player.position + Vector3(1, 0, 1)
 
@@ -602,6 +621,7 @@ func _damage_monster(mob: Node3D, damage: int, critical: bool = false) -> void:
     drop.position = mob.position + Vector3(0, 0.4, 0)
     add_child(drop)
     _sphere(drop, 0.28, Vector3.ZERO, Color(1.0, 0.8, 0.15))
+    drop.set_meta("item_id", ["gold", "hp_potion", "life_trace", "forest_helm", "forest_sword"][kills % 5])
     drops.append(drop)
     mob.visible = false
     mob.set_meta("respawn_at", Time.get_ticks_msec() / 1000.0 + 8.0)
@@ -720,6 +740,8 @@ func _input(event: InputEvent) -> void:
                 _use_skill(1)
             KEY_3, KEY_KP_3:
                 _use_skill(2)
+            KEY_B, KEY_I:
+                _toggle_bag()
             KEY_SPACE:
                 _jump()
             KEY_SHIFT, KEY_Q:
@@ -791,6 +813,7 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 
 func _handle_action_touch(point: Vector2, size: Vector2) -> bool:
     var actions := [
+        [Vector2(size.x * 0.92, size.y * 0.13), 42.0, "bag"],
         [Vector2(size.x * 0.60, size.y * 0.48), 38.0, "skill1"],
         [Vector2(size.x * 0.75, size.y * 0.48), 38.0, "skill2"],
         [Vector2(size.x * 0.90, size.y * 0.48), 38.0, "skill3"],
@@ -802,6 +825,7 @@ func _handle_action_touch(point: Vector2, size: Vector2) -> bool:
     for action in actions:
         if point.distance_to(action[0]) <= float(action[1]):
             match String(action[2]):
+                "bag": _toggle_bag()
                 "skill1": _use_skill(0)
                 "skill2": _use_skill(1)
                 "skill3": _use_skill(2)
@@ -837,3 +861,115 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
     elif event.index == look_id:
         camera_yaw -= event.relative.x * 0.007
         camera_pitch = clampf(camera_pitch + event.relative.y * 0.005, 0.1, 1.2)
+
+func _add_item(item_id: String, amount: int) -> bool:
+    if not ITEM_NAMES.has(item_id):
+        return false
+    var stackable := not ITEM_SLOTS.has(item_id)
+    if stackable:
+        for item in inventory:
+            if str(item.get("id", "")) == item_id and int(item.get("count", 0)) < 99:
+                var added := mini(amount, 99 - int(item["count"]))
+                item["count"] = int(item["count"]) + added
+                amount -= added
+                if amount == 0:
+                    return true
+    while amount > 0:
+        if inventory.size() >= 200:
+            return false
+        var count := mini(amount, 99) if stackable else 1
+        inventory.append({"id": item_id, "count": count})
+        amount -= count
+    return true
+
+func _use_inventory_item(index: int) -> void:
+    if index < 0 or index >= inventory.size():
+        return
+    var item: Dictionary = inventory[index]
+    var item_id := str(item.get("id", ""))
+    if item_id == "hp_potion":
+        if hp >= 100:
+            _set_status("HP เต็มแล้ว")
+            return
+        hp = mini(100, hp + 50)
+        item["count"] = int(item.get("count", 1)) - 1
+        if int(item["count"]) <= 0:
+            inventory.remove_at(index)
+    elif ITEM_SLOTS.has(item_id):
+        equipment[str(ITEM_SLOTS[item_id])] = item_id
+    _save_progress()
+    _refresh_bag()
+    _refresh_ui()
+
+func _toggle_bag() -> void:
+    if bag_panel == null:
+        return
+    bag_panel.visible = not bag_panel.visible
+    if bag_panel.visible:
+        _refresh_bag()
+
+func _build_bag(root: Control) -> void:
+    var bag_button := Button.new()
+    bag_button.text = "BAG"
+    bag_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+    bag_button.position = Vector2(-112, 22)
+    bag_button.custom_minimum_size = Vector2(84, 40)
+    bag_button.pressed.connect(_toggle_bag)
+    root.add_child(bag_button)
+    bag_panel = PanelContainer.new()
+    bag_panel.position = Vector2(12, 84)
+    bag_panel.custom_minimum_size = Vector2(445, 380)
+    bag_panel.visible = false
+    root.add_child(bag_panel)
+    var content := VBoxContainer.new()
+    bag_panel.add_child(content)
+    var title := Label.new()
+    title.text = "NexTgenLeo • INVENTORY"
+    title.add_theme_font_size_override("font_size", 20)
+    content.add_child(title)
+    bag_info = Label.new()
+    content.add_child(bag_info)
+    var paging := HBoxContainer.new()
+    content.add_child(paging)
+    for page in range(2):
+        var button := Button.new()
+        button.text = "PAGE %d" % (page + 1)
+        button.pressed.connect(_change_bag_page.bind(page))
+        paging.add_child(button)
+    var close_button := Button.new()
+    close_button.text = "X"
+    close_button.pressed.connect(_toggle_bag)
+    paging.add_child(close_button)
+    var scrolling := ScrollContainer.new()
+    scrolling.custom_minimum_size = Vector2(420, 270)
+    content.add_child(scrolling)
+    bag_grid = GridContainer.new()
+    bag_grid.columns = 10
+    scrolling.add_child(bag_grid)
+
+func _change_bag_page(page: int) -> void:
+    bag_page = page
+    _refresh_bag()
+
+func _refresh_bag() -> void:
+    if bag_grid == null or bag_info == null:
+        return
+    bag_info.text = "Page %d/2 • %d/200 slots • Gold %d • Equip %s" % [bag_page + 1, inventory.size(), gold, str(equipment)]
+    for child in bag_grid.get_children():
+        bag_grid.remove_child(child)
+        child.queue_free()
+    for slot_index in range(100):
+        var index := bag_page * 100 + slot_index
+        var cell := Button.new()
+        cell.custom_minimum_size = Vector2(39, 26)
+        cell.add_theme_font_size_override("font_size", 11)
+        if index < inventory.size():
+            var item: Dictionary = inventory[index]
+            var item_id := str(item.get("id", ""))
+            cell.text = item_id.substr(0, 3).to_upper() + str(item.get("count", 1))
+            cell.tooltip_text = str(ITEM_NAMES.get(item_id, item_id))
+            cell.pressed.connect(_use_inventory_item.bind(index))
+        else:
+            cell.text = "·"
+            cell.disabled = true
+        bag_grid.add_child(cell)

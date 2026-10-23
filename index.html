@@ -1,8 +1,43 @@
 <!doctype html>
-<html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#081326"><title>NexTgenLeo — Web Playtest</title><link rel="stylesheet" href="style.css"></head>
-<body><div id="app">
-<header><div class="brand">✦ <b>NexTgenLeo</b> <small>WEB PLAYTEST V1</small></div><div class="topright"><span id="onlineStatus">● LOCAL DEMO</span><button id="settingsBtn">⚙</button></div></header>
-<section id="gate" class="screen"><div class="gate-card"><div class="emblem">✦</div><h1>NexTgenLeo</h1><p>THE ELEMENTAL AWAKENING</p><div class="notice">เวอร์ชันทดสอบในเครื่อง • ยังไม่มีบัญชีออนไลน์หรือ Multiplayer จริง</div><label>ชื่อตัวละคร</label><input id="nameInput" maxlength="18" placeholder="ตั้งชื่อ 3–18 ตัวอักษร"><label>เลือกตัวละคร</label><div class="gender"><button class="selected" data-gender="male">⚔ ชาย</button><button data-gender="female">✧ หญิง</button></div><button id="startBtn" class="primary">เริ่มการผจญภัย →</button><div id="gateError"></div><p class="tiny">ข้อมูลเดโมเก็บเฉพาะในเบราว์เซอร์นี้ ไม่ใช่บัญชีที่ปลอดภัย</p></div></section>
-<section id="game" hidden><canvas id="world"></canvas><div class="hud-top"><div class="player-card"><div class="avatar">✦</div><div class="bars"><b id="playerName">Novice</b><span id="playerLevel">LV 1 · CLASS 1</span><div class="bar hp"><i id="hpBar"></i></div><div class="bar sp"><i id="spBar"></i></div><div class="bar xp"><i id="xpBar"></i></div></div></div><div class="currency"><span>🪙 <b id="gold">0</b></span><span>✦ <b id="cash">0</b></span><span>◇ <b id="cp">0</b></span></div></div><div class="quest"><b>✧ ภารกิจเริ่มต้น</b><div id="questText">กำจัดมอนสเตอร์ 0/5</div><small>แตะมอนสเตอร์เพื่อเลือกเป้าหมาย</small></div><div id="targetInfo" class="target" hidden></div><div class="rightmenu"><button data-panel="inventory">🎒<small>กระเป๋า</small></button><button data-panel="shop">✦<small>ร้านค้า</small></button><button data-panel="quests">📜<small>เควสต์</small></button><button data-panel="gm" id="gmButton">♛<small>GM DEMO</small></button></div><div id="toast"></div><div class="controls"><div id="joystick"><div id="knob"></div></div><div class="actions"><button id="dashBtn">↗<small>วิ่ง</small></button><button id="skillBtn">✧<small>AOE</small></button><button id="attackBtn">⚔<small>ATK</small></button></div></div><div class="help">WASD เดิน • คลิกมอนสเตอร์เลือกเป้า • SPACE โจมตี • Q สกิล • SHIFT วิ่ง • ลากหน้าจอหมุนกล้อง</div></section>
-<div id="modal" class="modal" hidden><div class="panel"><div class="panelhead"><h2 id="panelTitle"></h2><button id="closePanel">✕</button></div><div id="panelBody"></div></div></div>
-</div><script type="module" src="game.js"></script></body></html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1825">
+  <title>NexTgenLeo · Starter Forest Playtest</title>
+  <link rel="icon" href="assets/icons/gem-necklace.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=20261023-2">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
+</head>
+<body>
+  <header><a class="brand" href="./"><span>✦</span> NexTgenLeo <small>PLAYTEST 02</small></a><div class="session"><span class="status-dot"></span> LOCAL PLAYTEST <button id="settingsBtn" aria-label="ตั้งค่า">⚙</button></div></header>
+  <main id="game" hidden>
+    <canvas id="world" aria-label="Starter Forest · พื้นที่เกม 3D"></canvas>
+    <div class="world-caption"><span>01 / THE FIRST CHAPTER</span><h1>Starter Forest</h1><p>FOREST CAMP · Lv. 1–10</p></div>
+    <div class="hud-top"><div class="player-card"><div class="avatar">✦</div><div class="bars"><b id="playerName">Novice</b><span id="playerLevel"></span><div class="bar hp"><i id="hpBar"></i><small id="hpText"></small></div><div class="bar sp"><i id="spBar"></i><small id="spText"></small></div><div class="bar xp"><i id="xpBar"></i><small id="xpText"></small></div></div></div><div class="currency"><span>G <b id="gold">0</b></span><span>C <b id="cash">0</b></span><span>CP <b id="cp">0</b></span><small>CASH ทดลอง</small></div></div>
+    <div class="quest"><span class="eyebrow">STARTER HUNT</span><b id="questText">กำจัดมอนสเตอร์ 0/5</b><small>Lock เป้า → ATK → เก็บดรอป</small></div>
+    <div id="buffs" class="buffs"></div>
+    <div id="targetInfo" class="target" hidden><b id="targetName"></b><div class="bar hp"><i id="targetBar"></i></div><small id="targetHP"></small></div>
+    <div class="minimap"><canvas id="minimap" width="120" height="120" aria-label="แผนที่ย่อ"></canvas><span>STARTER FOREST</span></div>
+    <nav class="rightmenu" aria-label="เมนูเกม"><button data-panel="inventory" aria-label="กระเป๋า"><img src="assets/icons/locked-chest.svg" alt=""><small>กระเป๋า</small></button><button data-panel="shop" aria-label="ร้านค้า"><img src="assets/icons/gem-necklace.svg" alt=""><small>ร้านค้า</small></button><button data-panel="pet" aria-label="สัตว์เลี้ยง"><img src="assets/icons/fox-head.svg" alt=""><small>สัตว์เลี้ยง</small></button><button data-panel="quests" aria-label="เควสต์"><img src="assets/icons/open-book.svg" alt=""><small>เควสต์</small></button></nav>
+    <div id="damageNumbers" aria-hidden="true"></div>
+    <div class="controls"><div id="joystick" aria-label="จอยสติกเดิน"><div id="knob"></div></div><div class="actions"><div class="utility"><button id="lockBtn" aria-label="เลือกเป้าหมายใกล้สุด">◎<small>LOCK</small></button><button id="pickupBtn" aria-label="เก็บไอเทม">↧<small>LOOT</small></button></div><div class="skills"><button data-skill="cleave"><img src="assets/icons/crossed-swords.svg" alt=""><small>1 CLEAVE</small></button><button data-skill="focus"><img src="assets/icons/crystal-growth.svg" alt=""><small>2 FOCUS</small></button><button data-skill="burst"><img src="assets/icons/shield-reflect.svg" alt=""><small>3 BURST</small></button></div><div class="movement"><button id="jumpBtn" aria-label="กระโดด">↑<small>JUMP</small></button><button id="dashBtn" aria-label="พุ่งตัว">»<small>DASH</small></button></div><button id="attackBtn" aria-label="โจมตี"><img src="assets/icons/broadsword.svg" alt=""><small>ATK</small></button><button id="cancelBtn" aria-label="หยุดโจมตี">×</button></div></div>
+    <div class="help">WASD เดิน · ลากหมุนกล้อง · ล้อเมาส์ซูม · Space กระโดด · Shift พุ่ง · F โจมตี · 1–3 สกิล · Tab ล็อกเป้า · X หยุด</div>
+    <div id="deathPanel" class="death-panel" hidden><h2>การเดินทางยังไม่จบ</h2><p id="deathText"></p><button id="reviveSpot">ชุบ ณ จุดตาย</button><button id="reviveSafe">Safe Zone · −2% EXP</button></div>
+  </main>
+  <section id="gate" class="screen"><div class="gate-card"><span class="eyebrow">THE ELEMENTAL AWAKENING</span><div class="emblem">✦</div><h1>NexTgenLeo</h1><p>ก้าวแรกสู่โลกใบใหม่</p><div class="notice">ทดสอบการต่อสู้ ไอเทม และสัตว์เลี้ยงในเครื่อง<br>ยังไม่เชื่อมบัญชีหรือผู้เล่นออนไลน์</div><label for="nameInput">ชื่อตัวละคร</label><input id="nameInput" minlength="3" maxlength="18" autocomplete="off" placeholder="ตั้งชื่อ 3–18 ตัวอักษร"><label>ตัวละครฐานชั่วคราว</label><div class="gender"><button class="selected" data-gender="male">ชาย / Male</button><button data-gender="female">หญิง / Female</button></div><button id="startBtn" class="primary" disabled>กำลังโหลด…</button><div id="gateError" role="alert"></div><small class="muted">Cash และข้อมูลทั้งหมดเป็นข้อมูลทดลองในเบราว์เซอร์นี้</small><a href="CREDITS.md" target="_blank">Asset credits & licenses ↗</a></div></section>
+  <div id="modal" class="modal" hidden><section class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="panelhead"><div><span class="eyebrow">NEXTGENLEO / PLAYTEST</span><h2 id="panelTitle"></h2></div><button id="closePanel" aria-label="ปิดหน้าต่าง">×</button></div><div id="panelBody"></div></section></div>
+  <div id="toast" role="status"></div>
+  <div id="bootError" class="boot-error" role="alert" hidden><b>เปิดเกมไม่สำเร็จ</b><p id="bootMessage"></p><button onclick="location.reload()">ลองใหม่</button></div>
+  <script>
+    window.showGameError = function(error) {
+      console.error(error);
+      document.getElementById('bootError').hidden = false;
+      document.getElementById('bootMessage').textContent = error.message || String(error);
+    };
+    window.addEventListener('error', e => { if(e.error) window.showGameError(e.error); });
+    window.addEventListener('unhandledrejection', e => window.showGameError(e.reason || 'โหลดข้อมูลไม่สำเร็จ'));
+    import('./game.js?v=20261023-2').catch(window.showGameError);
+  </script>
+</body>
+</html>

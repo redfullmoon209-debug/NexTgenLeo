@@ -1,0 +1,418 @@
+{
+  "icon.spell-book": {
+    "type": "icon",
+    "path": "assets/icons/spell-book.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "delapouite/spell-book.svg",
+    "author": "delapouite",
+    "license": "CC-BY-3.0",
+    "sha256": "4966d0148d28ff97f20d4528827517f7e49ea251b51d899874839a2a0573d9a2"
+  },
+  "icon.crystal-growth": {
+    "type": "icon",
+    "path": "assets/icons/crystal-growth.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/crystal-growth.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "9b5f92549a1173fc6d7061725a273d91fe3c58b213a52099d53b5262dec66e72"
+  },
+  "icon.shield-reflect": {
+    "type": "icon",
+    "path": "assets/icons/shield-reflect.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/shield-reflect.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "c3e74b67c1c496ac100fb7c1724308399b795c8b9b40be1932368c778bb555cb"
+  },
+  "icon.heart-plus": {
+    "type": "icon",
+    "path": "assets/icons/heart-plus.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "zeromancer/heart-plus.svg",
+    "author": "zeromancer",
+    "license": "CC0-1.0",
+    "sha256": "95c15119bf69d0b40bac99363e8683327e504849a9b65aef6ef8dd38d56f88c0"
+  },
+  "icon.tied-scroll": {
+    "type": "icon",
+    "path": "assets/icons/tied-scroll.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/tied-scroll.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "8dec10d48e8c0012a30d7146b4187e8ed9aa016029de5f87cc254c129dc3c1d6"
+  },
+  "icon.broadsword": {
+    "type": "icon",
+    "path": "assets/icons/broadsword.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/broadsword.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "37eda3d1e9c41d2389ed28e163472672391df6bd4e02b6e36e8acc37087e5079"
+  },
+  "icon.winchester-rifle": {
+    "type": "icon",
+    "path": "assets/icons/winchester-rifle.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "skoll/winchester-rifle.svg",
+    "author": "skoll",
+    "license": "CC-BY-3.0",
+    "sha256": "571b5e27a432a6fb9e9eaa9ce89be2268eea1ed4383a5a011150c150e530c41c"
+  },
+  "icon.shuriken": {
+    "type": "icon",
+    "path": "assets/icons/shuriken.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/shuriken.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "2e829ff61d5863541513e1c4f7f6224efde9136324bf4df1cb1a419661a4ec13"
+  },
+  "icon.pointy-hat": {
+    "type": "icon",
+    "path": "assets/icons/pointy-hat.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/pointy-hat.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "25374af950c90e2dd8f074ccce61839180f6dfd72feb38a1c1b7bb5a3c762fc2"
+  },
+  "icon.mail-shirt": {
+    "type": "icon",
+    "path": "assets/icons/mail-shirt.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/mail-shirt.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "27785e256773e2b60428a57daf3d1c70cf416283292aada80dc8c858e6eaa6ef"
+  },
+  "icon.gloves": {
+    "type": "icon",
+    "path": "assets/icons/gloves.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "delapouite/gloves.svg",
+    "author": "delapouite",
+    "license": "CC-BY-3.0",
+    "sha256": "e8d522f7e80657e32494eb9a25d3bcb8dbdf6f722fb0a6e82292c127a6c8f3b5"
+  },
+  "icon.trousers": {
+    "type": "icon",
+    "path": "assets/icons/trousers.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/trousers.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "ed9dc5535be8f8689bfdae25bb0e4f47bdf1d2c868ebd0402a3c6e5900c67221"
+  },
+  "icon.boots": {
+    "type": "icon",
+    "path": "assets/icons/boots.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/boots.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "37ec3570d287f851fdf93713b2fa871de74b5562531a10c61db6586fe5a46b7d"
+  },
+  "icon.gem-necklace": {
+    "type": "icon",
+    "path": "assets/icons/gem-necklace.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/gem-necklace.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "7bac06388eac1132fcda2b5e0060be10e3f939d3c18a09c0d14d0f4240abd63d"
+  },
+  "icon.fox-head": {
+    "type": "icon",
+    "path": "assets/icons/fox-head.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/fox-head.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "123d5c61777a950e5948c11df6fc9adfdadd68d58adc458b161de8dff55e79a2"
+  },
+  "icon.meat": {
+    "type": "icon",
+    "path": "assets/icons/meat.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/meat.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "928b0da10545fc2a8b373878aaabdaed0c9c339d25f2fcf3a2888a3f3a6e7950"
+  },
+  "icon.cut-diamond": {
+    "type": "icon",
+    "path": "assets/icons/cut-diamond.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/cut-diamond.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "cf1df0d727305bc033ca0c3b04872159658a907b7a5687ce683707b4b993f647"
+  },
+  "icon.hearts": {
+    "type": "icon",
+    "path": "assets/icons/hearts.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "skoll/hearts.svg",
+    "author": "skoll",
+    "license": "CC-BY-3.0",
+    "sha256": "dd0875180c46ec9de41f2f7d7f97cd23bcb8b075b7fc57e8661e6812b9f08bdc"
+  },
+  "icon.anvil-impact": {
+    "type": "icon",
+    "path": "assets/icons/anvil-impact.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/anvil-impact.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "4c3292e20c806e539209c06d3c80e1f4480ec15af0e131a379bc4fbc80da075e"
+  },
+  "icon.stone-block": {
+    "type": "icon",
+    "path": "assets/icons/stone-block.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/stone-block.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "f08c6f33c8ea546305387087e4a75c57c12152a6270742c5a730ebeb2b4f0572"
+  },
+  "icon.open-book": {
+    "type": "icon",
+    "path": "assets/icons/open-book.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/open-book.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "fea1988dca10d827a6159328da655f9aaefcd642e2a08588d728424190fcd285"
+  },
+  "icon.crossed-swords": {
+    "type": "icon",
+    "path": "assets/icons/crossed-swords.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/crossed-swords.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "d977de17aa347c15a311e96ee4c7194837e47d119d2b5a06bc1dbbd2cd1a92f2"
+  },
+  "icon.locked-chest": {
+    "type": "icon",
+    "path": "assets/icons/locked-chest.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/locked-chest.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "d4a2124e86e071dfd8f6d8c007413ec6f4795104698bb3f49c5bfcc04a17e2a7"
+  },
+  "icon.compass": {
+    "type": "icon",
+    "path": "assets/icons/compass.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/compass.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "beb88d002e3f2e3759a41c626ff67f52b9d92d70605a24e8e8d3ea9915208f20"
+  },
+  "icon.hammer-drop": {
+    "type": "icon",
+    "path": "assets/icons/hammer-drop.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/hammer-drop.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "08547f5ed9166b71a9188f69f5f03a3c59e40c3c72bf67f0bbae932291d86242"
+  },
+  "icon.daggers": {
+    "type": "icon",
+    "path": "assets/icons/daggers.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/daggers.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "11db687db55c9a3efbe76afc5700cc783b677663fb96a3289080d31678ad4487"
+  },
+  "icon.battle-axe": {
+    "type": "icon",
+    "path": "assets/icons/battle-axe.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/battle-axe.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "c0c9c2359cc1fb66976fed317df7e5329ee5b2f0c7463f89b7aaebdb28d19834"
+  },
+  "icon.wizard-staff": {
+    "type": "icon",
+    "path": "assets/icons/wizard-staff.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/wizard-staff.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "743b394ecdbf8c7bf6be177dac0d4e172a4559e66d5c86b8c5aad9c37c394637"
+  },
+  "icon.emerald": {
+    "type": "icon",
+    "path": "assets/icons/emerald.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "lorc/emerald.svg",
+    "author": "lorc",
+    "license": "CC-BY-3.0",
+    "sha256": "5cab123c24b1eef2bd3f1b3f07fdb3ab1b25d278320b397a4e3044dac1042d29"
+  },
+  "character.male": {
+    "type": "model",
+    "path": "assets/models/mini-dungeon/character-human.glb",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "6a149b22f52f5ea6b2983dd38cb164b112be66bad5a51d640d089aafd2647a7b"
+  },
+  "character.female": {
+    "type": "model",
+    "path": "assets/models/mini-forest/character-archer.glb",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "0fd0f92e452ffab13529e51037cc804edf6ff3134f6bdd614b7aaea9ae6feb3b"
+  },
+  "monster.orc": {
+    "type": "model",
+    "path": "assets/models/mini-dungeon/character-orc.glb",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "e0b021c98b34a633567ca79f7c129cca48fd7919aa9e959464deba226767c284"
+  },
+  "forest.tree": {
+    "type": "model",
+    "path": "assets/models/mini-forest/tree.glb",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "0075d5059c1ea855fecc1dba3c6262c3a01924c50b971ddde2eb8b0b5a62851a"
+  },
+  "forest.tree-high": {
+    "type": "model",
+    "path": "assets/models/mini-forest/tree-high.glb",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "c86332ac085c2a7f0f926ea9f51907bbd9354561f5717cf95dc2cfcaaff873b1"
+  },
+  "forest.rocks": {
+    "type": "model",
+    "path": "assets/models/mini-forest/rocks-low.glb",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "f98f27210e6d4f43192290fff8af07e0e79bdd25604b78c44a8bd7b3d98ea259"
+  },
+  "forest.plant": {
+    "type": "model",
+    "path": "assets/models/mini-forest/plant.glb",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "4ce1784382a2c986b5a63cd4cf7fc41f8775148464021fc4e10d780cc7892789"
+  },
+  "forest.tent": {
+    "type": "model",
+    "path": "assets/models/mini-forest/tent.glb",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "a3f6e7a1597ccbf57f5345e6647844e21f632e03c5faae9a45af7140c7371262"
+  },
+  "weapon.sword": {
+    "type": "model",
+    "path": "assets/models/mini-dungeon/weapon-sword.glb",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "8e69eb27977f8c84a9b7cd423cd5830eddcf0d07ac1d7fed1969931387015b28"
+  },
+  "drop.coin": {
+    "type": "model",
+    "path": "assets/models/mini-dungeon/coin.glb",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "5e108e4b013961a60fa1b92b2b55248f19ac56e48771ce9ccbb74adb3a335455"
+  },
+  "drop.chest": {
+    "type": "model",
+    "path": "assets/models/mini-dungeon/chest.glb",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "64cc6c44786a0833bbe53c694cbad9f10d4fdd9e99d4b5ec03fcb3b8b5dd71e0"
+  },
+  "pet.fox": {
+    "type": "model",
+    "path": "assets/models/fox.glb",
+    "source": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox",
+    "author": "PixelMannen (model); tomkranis (rig and animation); AsoboStudio and scurest (glTF conversion)",
+    "license": "CC0-1.0 AND CC-BY-4.0",
+    "sha256": "d97044e701822bac5a62696459b27d7b375aada5de8574ed4362edbba94771f7"
+  },
+  "weapon.gun": {
+    "type": "model",
+    "path": "assets/models/blaster-kit/blaster-d.glb",
+    "source": "https://kenney.nl/assets/blaster-kit",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "c05bf6af6cded1bc76e32e455507f5d1a21cd58503ce66de33ca39e597b28280"
+  },
+  "weapon.kunai": {
+    "type": "model",
+    "path": "assets/models/mini-dungeon/weapon-sword.glb",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "8e69eb27977f8c84a9b7cd423cd5830eddcf0d07ac1d7fed1969931387015b28",
+    "note": "Shortened sword placeholder; replace with real kunai later."
+  },
+  "icon.hair-strands": {
+    "type": "icon",
+    "path": "assets/icons/hair-strands.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "delapouite/hair-strands.svg",
+    "author": "delapouite",
+    "license": "CC-BY-3.0",
+    "sha256": "e0f79e565a835a6478e31a9511dec697bb6a69aa120ed29f17c20191bcf41c59"
+  },
+  "icon.health-potion": {
+    "type": "icon",
+    "path": "assets/icons/health-potion.svg",
+    "source": "https://game-icons.net/",
+    "originalPath": "delapouite/health-potion.svg",
+    "author": "delapouite",
+    "license": "CC-BY-3.0",
+    "sha256": "53c32fe9f69f6e92868434e0cead3e283eb4340d6a629422283cdf4521cec8f5"
+  },
+  "texture.mini-dungeon.colormap": {
+    "type": "texture",
+    "path": "assets/models/mini-dungeon/Textures/colormap.png",
+    "source": "https://kenney.nl/assets/mini-dungeon",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "bc492d755caf9e64924447f065681be0d5438a33cd0acddc72f3d00fd75893be"
+  },
+  "texture.mini-forest.colormap": {
+    "type": "texture",
+    "path": "assets/models/mini-forest/Textures/colormap.png",
+    "source": "https://kenney.nl/assets/mini-forest",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "319f1087d8ed50a8794f9a8179f64671d5595f2365fdf3e47ec2d4eb74dba20f"
+  },
+  "texture.blaster-kit.colormap": {
+    "type": "texture",
+    "path": "assets/models/blaster-kit/Textures/colormap.png",
+    "source": "https://kenney.nl/assets/blaster-kit",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sha256": "4d0867c3c3c8c539106f91fbc0987d0e1b7d2811362d1daed593169c7d3b0fdc"
+  }
+}

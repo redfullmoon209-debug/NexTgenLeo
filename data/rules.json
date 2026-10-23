@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "levelCap": 100,
+  "height": { "start": 0.7, "adult": 1.0 },
+  "inventory": { "capacity": 200, "pageSize": 100, "stackLimit": 99 },
+  "world": { "id": "starter_forest", "bounds": 42, "safeX": 0, "safeZ": 5, "monsterCount": 16, "respawnSeconds": 9 },
+  "jobs": {
+    "Sword": { "range": 2.2, "interval": 0.8, "baseDamage": 24, "animation": "attack-melee-right" },
+    "Kunai": { "range": 7, "interval": 1.1, "baseDamage": 24, "animation": "holding-right-shoot" },
+    "Gun": { "range": 12, "interval": 1.5, "baseDamage": 24, "animation": "holding-both-shoot" }
+  },
+  "skillSlots": [
+    { "id": "cleave", "label": "Cleave", "sp": 18, "cooldown": 4, "multiplier": 1.5, "radius": 4.5 },
+    { "id": "focus", "label": "Focus", "sp": 22, "cooldown": 6, "multiplier": 2, "radius": 0 },
+    { "id": "burst", "label": "Burst", "sp": 30, "cooldown": 9, "multiplier": 2.5, "radius": 3 }
+  ],
+  "reservedJobSlots": 9,
+  "skillsPerJobPlanned": 15,
+  "elements": ["earth", "water", "purple_wind", "fire", "white_lightning", "wood"],
+  "speedRun": [{"level":20,"multiplier":1.2,"spPerSecond":5},{"level":60,"multiplier":1.6,"spPerSecond":3}],
+  "cashPer100THB": 500,
+  "paymentsEnabled": false,
+  "pvpEnabled": false
+}

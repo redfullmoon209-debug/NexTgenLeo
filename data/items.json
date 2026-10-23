@@ -1,0 +1,272 @@
+[
+  {
+    "id": "exp_1h",
+    "name": "EXP ×2 · 1 ชั่วโมง",
+    "type": "consumable",
+    "icon": "icon.spell-book",
+    "effect": "exp",
+    "durationHours": 1,
+    "price": 50,
+    "currency": "cash",
+    "description": "EXP จากมอนสเตอร์ ×2 และชุบ ณ จุดตายฟรี HP/SP 50% ขณะบัฟทำงาน"
+  },
+  {
+    "id": "exp_6h",
+    "name": "EXP ×2 · 6 ชั่วโมง",
+    "type": "consumable",
+    "icon": "icon.spell-book",
+    "effect": "exp",
+    "durationHours": 6,
+    "price": 250,
+    "currency": "cash",
+    "description": "EXP ×2 พร้อมสิทธิ์ชุบชีวิต ณ จุดตาย ระยะเวลารวมเมื่อใช้ซ้ำ"
+  },
+  {
+    "id": "exp_12h",
+    "name": "EXP ×2 · 12 ชั่วโมง",
+    "type": "consumable",
+    "icon": "icon.spell-book",
+    "effect": "exp",
+    "durationHours": 12,
+    "price": 450,
+    "currency": "cash",
+    "description": "EXP ×2 พร้อมสิทธิ์ชุบชีวิต ณ จุดตาย ระยะเวลารวมเมื่อใช้ซ้ำ"
+  },
+  {
+    "id": "exp_24h",
+    "name": "EXP ×2 · 24 ชั่วโมง",
+    "type": "consumable",
+    "icon": "icon.spell-book",
+    "effect": "exp",
+    "durationHours": 24,
+    "price": 750,
+    "currency": "cash",
+    "description": "EXP ×2 พร้อมสิทธิ์ชุบชีวิต ณ จุดตาย ระยะเวลารวมเมื่อใช้ซ้ำ"
+  },
+  {
+    "id": "buff_attack",
+    "name": "PvE Attack +20%",
+    "type": "consumable",
+    "icon": "icon.crystal-growth",
+    "effect": "attack",
+    "durationHours": 1,
+    "price": 25,
+    "currency": "cash",
+    "description": "เพิ่มดาเมจ PvE 20% เป็นเวลา 1 ชั่วโมง ไม่ใช้กับ PvP"
+  },
+  {
+    "id": "buff_defense",
+    "name": "PvE Defense +20%",
+    "type": "consumable",
+    "icon": "icon.shield-reflect",
+    "effect": "defense",
+    "durationHours": 1,
+    "price": 25,
+    "currency": "cash",
+    "description": "เพิ่ม Defense PvE 20% เป็นเวลา 1 ชั่วโมง ไม่ใช้กับ PvP"
+  },
+  {
+    "id": "buff_hp",
+    "name": "Max HP +20%",
+    "type": "consumable",
+    "icon": "icon.heart-plus",
+    "effect": "hp",
+    "durationHours": 1,
+    "price": 25,
+    "currency": "cash",
+    "description": "เพิ่ม Max HP PvE 20% เป็นเวลา 1 ชั่วโมง ไม่เติม HP ให้เต็มทันที"
+  },
+  {
+    "id": "warp",
+    "name": "City Warp Scroll",
+    "type": "consumable",
+    "icon": "icon.tied-scroll",
+    "effect": "warp",
+    "price": 30,
+    "currency": "cash",
+    "description": "กลับค่าย Safe Zone ใน Starter Forest (ชื่อเมืองยังไม่กำหนด)"
+  },
+  {
+    "id": "revive",
+    "name": "Revive Leaf",
+    "type": "consumable",
+    "icon": "icon.heart-plus",
+    "effect": "revive",
+    "price": 150,
+    "currency": "gold",
+    "description": "ใช้หนึ่งชิ้นเพื่อชุบ ณ จุดตาย HP/SP 50%"
+  },
+  {
+    "id": "sword",
+    "name": "Novice Sword",
+    "type": "equipment",
+    "slot": "weapon",
+    "job": "Sword",
+    "icon": "icon.broadsword",
+    "model": "weapon.sword",
+    "price": 100,
+    "currency": "gold",
+    "description": "ดาบระยะประชิด โมเดลและอนิเมชันชั่วคราวจาก Kenney"
+  },
+  {
+    "id": "gun",
+    "name": "Training Gun",
+    "type": "equipment",
+    "slot": "weapon",
+    "job": "Gun",
+    "icon": "icon.winchester-rifle",
+    "model": "weapon.gun",
+    "price": 100,
+    "currency": "gold",
+    "description": "ปืนระยะไกล ใช้ Blaster เป็นโมเดลชั่วคราว"
+  },
+  {
+    "id": "kunai",
+    "name": "Training Kunai",
+    "type": "equipment",
+    "slot": "weapon",
+    "job": "Kunai",
+    "icon": "icon.shuriken",
+    "model": "weapon.kunai",
+    "price": 100,
+    "currency": "gold",
+    "description": "คุไนระยะกลาง ใช้โมเดลดาบย่อขนาดเป็นอาวุธชั่วคราว"
+  },
+  {
+    "id": "weapon_reserved",
+    "name": "อาวุธสำรอง · ยังไม่กำหนดอาชีพ",
+    "type": "material",
+    "icon": "icon.crossed-swords",
+    "price": 25,
+    "currency": "gold",
+    "description": "ตัวอย่างไอคอนสำหรับอาวุธในอนาคต ยังไม่มีอาชีพหรือค่าพลังถาวร"
+  },
+  {
+    "id": "hat",
+    "name": "Wayfarer Hat",
+    "type": "equipment",
+    "slot": "hat",
+    "icon": "icon.pointy-hat",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องหมวกพร้อมใช้งาน โมเดลสวมใส่จริงรอ Asset ที่พอดีหัว"
+  },
+  {
+    "id": "hair",
+    "name": "Wayfarer Hair",
+    "type": "equipment",
+    "slot": "hair",
+    "icon": "icon.hair-strands",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องทรงผมแยกจากหมวก โมเดลผมจริงยังไม่ติดตั้ง"
+  },
+  {
+    "id": "shirt",
+    "name": "Azure Tunic",
+    "type": "equipment",
+    "slot": "shirt",
+    "icon": "icon.mail-shirt",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องเสื้อพร้อมใช้งาน รอ Mesh แบบ Modular ที่เข้ากับ Base จริง"
+  },
+  {
+    "id": "gloves",
+    "name": "Wayfarer Gloves",
+    "type": "equipment",
+    "slot": "gloves",
+    "icon": "icon.gloves",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องถุงมือพร้อมใช้งาน รอ Mesh แบบ Modular"
+  },
+  {
+    "id": "pants",
+    "name": "Wayfarer Trousers",
+    "type": "equipment",
+    "slot": "pants",
+    "icon": "icon.trousers",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องกางเกงพร้อมใช้งาน รอ Mesh แบบ Modular"
+  },
+  {
+    "id": "boots",
+    "name": "Wayfarer Boots",
+    "type": "equipment",
+    "slot": "boots",
+    "icon": "icon.boots",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องรองเท้าพร้อมใช้งาน รอ Mesh แบบ Modular"
+  },
+  {
+    "id": "accessory",
+    "name": "Life Trace Pendant",
+    "type": "equipment",
+    "slot": "accessory",
+    "icon": "icon.gem-necklace",
+    "price": 75,
+    "currency": "gold",
+    "description": "ช่องเครื่องประดับต้นแบบ ยังไม่เพิ่มค่าพลัง"
+  },
+  {
+    "id": "pet_fox",
+    "name": "Trail Fox · Auto Loot Pet",
+    "type": "pet",
+    "icon": "icon.fox-head",
+    "model": "pet.fox",
+    "price": 200,
+    "currency": "gold",
+    "description": "เรียกจิ้งจอกเดินตาม กดใช้ Auto Loot Stone เพื่อให้เก็บของ ต้องมีอาหารเหลือ"
+  },
+  {
+    "id": "pet_food",
+    "name": "Pet Food",
+    "type": "consumable",
+    "icon": "icon.meat",
+    "effect": "food",
+    "price": 10,
+    "currency": "gold",
+    "description": "เพิ่มความอิ่ม 30 และความสนิท 1 ให้สัตว์เลี้ยงที่เรียกอยู่"
+  },
+  {
+    "id": "loot_stone",
+    "name": "Auto Loot Stone",
+    "type": "consumable",
+    "icon": "icon.cut-diamond",
+    "effect": "autoLoot",
+    "price": 50,
+    "currency": "gold",
+    "description": "เปิด Auto Loot ถาวรในเซฟทดลองนี้ สัตว์เลี้ยงวิ่งไปเก็บดรอปในระยะ 10 เมตร"
+  },
+  {
+    "id": "bond_treat",
+    "name": "Friendship Treat",
+    "type": "consumable",
+    "icon": "icon.hearts",
+    "effect": "bond",
+    "price": 15,
+    "currency": "gold",
+    "description": "เพิ่มความสนิทสัตว์เลี้ยง 10 (สูงสุด 100)"
+  },
+  {
+    "id": "enhance_stone",
+    "name": "Imprint Enhance Stone",
+    "type": "material",
+    "icon": "icon.anvil-impact",
+    "price": 30,
+    "currency": "gold",
+    "description": "ใช้เสริมอุปกรณ์ +1 ถึง +10 พลาดลด 1 ขั้น ไม่ทำลายไอเทม"
+  },
+  {
+    "id": "material",
+    "name": "Life Trace Fragment",
+    "type": "material",
+    "icon": "icon.stone-block",
+    "price": 5,
+    "currency": "gold",
+    "description": "วัตถุดิบที่ดรอปจากมอนสเตอร์ ใช้ทดลองการเก็บของจริง"
+  }
+]

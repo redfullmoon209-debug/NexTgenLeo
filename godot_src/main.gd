@@ -20,6 +20,12 @@ var target_marker: Node3D
 var target_health_label: Label3D
 var auto_attack := false
 var attack_timer := 0.0
+var combo_step := 0
+var combo_window := 0.0
+var skill_cooldowns := [0.0, 0.0, 0.0]
+const SKILL_COSTS = [18.0, 25.0, 35.0]
+const SKILL_DELAYS = [6.0, 9.0, 14.0]
+var skill_feedback_timer := 0.0
 var dash_timer := 0.0
 var attack_lock := 0.0
 var jump_queued := false
@@ -66,7 +72,7 @@ func _ready() -> void:
     _build_fox()
     _build_ui()
     _update_camera(1.0)
-    _set_status("3D Starter Forest พร้อมเล่น • Tab เลือกมอนสเตอร์ • F โจมตี")
+    _set_status("Starter Forest • Tab ล็อก • F ตี • 1/2/3 ใช้สกิล")
 
 func _install_movement_actions() -> void:
     # Web builds need explicit actions and physical-key support, independent of keyboard layout.
@@ -78,6 +84,9 @@ func _install_movement_actions() -> void:
     }
     bindings["leo_attack"] = [KEY_F, KEY_ENTER, KEY_KP_ENTER]
     bindings["leo_lock"] = [KEY_TAB]
+    bindings["leo_skill1"] = [KEY_1]
+    bindings["leo_skill2"] = [KEY_2]
+    bindings["leo_skill3"] = [KEY_3]
     for action_name in bindings:
         if not InputMap.has_action(action_name):
             InputMap.add_action(action_name)
@@ -349,6 +358,7 @@ func _build_ui() -> void:
     hud.set_anchors_preset(Control.PRESET_FULL_RECT)
     hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
     root.add_child(hud)
+    hud.call("set_skills", skill_cooldowns, stamina)
     _refresh_ui()
 
 func _set_status(message: String) -> void:
@@ -419,6 +429,11 @@ func _physics_process(delta: float) -> void:
     if lock_down and not pc_lock_was_down:
         _select_nearest()
     pc_lock_was_down = lock_down
+    combo_window = maxf(0.0, combo_window - delta)
+    for skill_index in range(3):
+        skill_cooldowns[skill_index] = maxf(0.0, float(skill_cooldowns[skill_index]) - delta)
+    if hud != null:
+        hud.call("set_skills", skill_cooldowns, stamina)
     attack_timer = maxf(0.0, attack_timer - delta)
     attack_lock = maxf(0.0, attack_lock - delta)
     dash_timer = maxf(0.0, dash_timer - delta)
@@ -557,27 +572,99 @@ func _perform_hit() -> void:
         return
     if player.position.distance_to(target.position) > 2.8:
         return
-    attack_timer = 0.8
-    attack_lock = 0.48
-    var remaining := int(target.get_meta("hp")) - 24
-    target.set_meta("hp", remaining)
-    if remaining <= 0:
-        var drop := Node3D.new()
-        drop.name = "GoldDrop"
-        drop.position = target.position + Vector3(0, 0.4, 0)
-        add_child(drop)
-        _sphere(drop, 0.28, Vector3.ZERO, Color(1.0, 0.8, 0.15))
-        drops.append(drop)
-        target.visible = false
-        target.set_meta("respawn_at", Time.get_ticks_msec() / 1000.0 + 8.0)
+    combo_step = (combo_step % 3) + 1 if combo_window > 0.0 else 1
+    combo_window = 2.0
+    attack_timer = 0.62
+    attack_lock = 0.38
+    _damage_monster(target, 24, false)
+    if is_instance_valid(target) and target.visible:
+        _set_status("Basic Combo %d/3 • มอนสเตอร์ HP %d" % [combo_step, int(target.get_meta("hp"))])
+
+func _damage_monster(mob: Node3D, damage: int, critical: bool = false) -> void:
+    if not is_instance_valid(mob) or not mob.visible:
+        return
+    var remaining := int(mob.get_meta("hp")) - damage
+    mob.set_meta("hp", remaining)
+    _show_damage(mob, damage, critical)
+    if remaining > 0:
+        return
+    var drop := Node3D.new()
+    drop.name = "GoldDrop"
+    drop.position = mob.position + Vector3(0, 0.4, 0)
+    add_child(drop)
+    _sphere(drop, 0.28, Vector3.ZERO, Color(1.0, 0.8, 0.15))
+    drops.append(drop)
+    mob.visible = false
+    mob.set_meta("respawn_at", Time.get_ticks_msec() / 1000.0 + 8.0)
+    if mob == target:
         target = null
         auto_attack = false
-        kills += 1
-        _gain_xp(35)
-        _save_progress()
-        _set_status("กำจัดมอนสเตอร์แล้ว • จิ้งจอกกำลังเก็บของ")
+    kills += 1
+    _gain_xp(35)
+    _save_progress()
+    _set_status("กำจัดมอนสเตอร์แล้ว • จิ้งจอกกำลังเก็บของ")
+
+func _show_damage(mob: Node3D, damage: int, critical: bool) -> void:
+    var popup := Label3D.new()
+    popup.name = "DamagePopup"
+    popup.text = ("CRIT " if critical else "-") + str(damage)
+    popup.font_size = 52
+    popup.pixel_size = 0.008
+    popup.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    popup.modulate = Color(1.0, 0.77, 0.2) if critical else Color(1.0, 0.94, 0.85)
+    popup.position = mob.global_position + Vector3(0, 2.1, 0)
+    add_child(popup)
+    var tween := create_tween()
+    tween.set_parallel(true)
+    tween.tween_property(popup, "position:y", popup.position.y + 1.3, 0.75)
+    tween.tween_property(popup, "modulate:a", 0.0, 0.75)
+    tween.set_parallel(false)
+    tween.tween_callback(popup.queue_free)
+
+func _use_skill(index: int) -> void:
+    if index < 0 or index >= 3:
+        return
+    if not is_instance_valid(target) or not target.visible:
+        _set_status("ต้องล็อกมอนสเตอร์ก่อนใช้สกิล (Tab / LOCK)")
+        return
+    if float(skill_cooldowns[index]) > 0.0:
+        _set_status("Skill %d คูลดาวน์อีก %.1f วินาที" % [index + 1, float(skill_cooldowns[index])])
+        return
+    if stamina < float(SKILL_COSTS[index]):
+        _set_status("Stamina ไม่เพียงพอสำหรับ Skill %d" % [index + 1])
+        return
+    var max_range := 5.0 if index == 0 else (9.0 if index == 1 else 11.0)
+    if player.global_position.distance_to(target.global_position) > max_range:
+        _set_status("Skill %d: เป้าหมายอยู่นอกระยะ %.0f เมตร" % [index + 1, max_range])
+        return
+    stamina -= float(SKILL_COSTS[index])
+    skill_cooldowns[index] = float(SKILL_DELAYS[index])
+    attack_lock = 0.5
+    attack_timer = maxf(attack_timer, 0.5)
+    var main_target := target
+    if index == 0:
+        # Skill 1: circular area attack centered on selected enemy.
+        var center := main_target.global_position
+        for mob in monsters:
+            if mob.visible and mob.global_position.distance_to(center) <= 4.0:
+                _damage_monster(mob, 30)
+    elif index == 1:
+        # Skill 2: line strike, up to nine meters in the selected direction.
+        var origin := player.global_position
+        var forward := (main_target.global_position - origin).normalized()
+        for mob in monsters:
+            if not mob.visible:
+                continue
+            var offset := mob.global_position - origin
+            var along := offset.dot(forward)
+            if along >= 0.0 and along <= 9.0 and (offset - forward * along).length() <= 1.7:
+                _damage_monster(mob, 38)
     else:
-        _set_status("โจมตีสำเร็จ • HP มอนสเตอร์ %d" % remaining)
+        # Skill 3: single-target focused critical strike.
+        _damage_monster(main_target, 55, true)
+    if hud != null:
+        hud.call("set_skills", skill_cooldowns, stamina)
+    _set_status("Skill %d ใช้สำเร็จ • SP -%d" % [index + 1, int(SKILL_COSTS[index])])
 
 func _jump() -> void:
     if attack_lock > 0.0:
@@ -610,6 +697,12 @@ func _input(event: InputEvent) -> void:
                 _select_nearest()
             KEY_F, KEY_ENTER, KEY_KP_ENTER:
                 _attack()
+            KEY_1, KEY_KP_1:
+                _use_skill(0)
+            KEY_2, KEY_KP_2:
+                _use_skill(1)
+            KEY_3, KEY_KP_3:
+                _use_skill(2)
             KEY_SPACE:
                 _jump()
             KEY_SHIFT:
@@ -680,6 +773,9 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 
 func _handle_action_touch(point: Vector2, size: Vector2) -> bool:
     var actions := [
+        [Vector2(size.x * 0.60, size.y * 0.48), 38.0, "skill1"],
+        [Vector2(size.x * 0.75, size.y * 0.48), 38.0, "skill2"],
+        [Vector2(size.x * 0.90, size.y * 0.48), 38.0, "skill3"],
         [Vector2(size.x * 0.76, size.y * 0.68), 46.0, "lock"],
         [Vector2(size.x * 0.76, size.y * 0.83), 54.0, "attack"],
         [Vector2(size.x * 0.91, size.y * 0.68), 46.0, "jump"],
@@ -688,6 +784,9 @@ func _handle_action_touch(point: Vector2, size: Vector2) -> bool:
     for action in actions:
         if point.distance_to(action[0]) <= float(action[1]):
             match String(action[2]):
+                "skill1": _use_skill(0)
+                "skill2": _use_skill(1)
+                "skill3": _use_skill(2)
                 "lock": _select_nearest()
                 "attack": _attack()
                 "jump": _jump()

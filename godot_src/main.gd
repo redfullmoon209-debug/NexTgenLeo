@@ -586,7 +586,9 @@ func _input(event: InputEvent) -> void:
         _update_key_state(event)
         if not event.pressed or event.echo:
             return
-        match event.keycode:
+        # Physical keys keep PC controls working when the OS keyboard layout is Thai.
+        var action_code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+        match action_code:
             KEY_TAB:
                 _select_nearest()
             KEY_F:

@@ -1027,7 +1027,7 @@ func _refresh_character_status() -> void:
 
 func _build_character_preview(status_column: VBoxContainer) -> void:
     var preview_area := Control.new()
-    preview_area.custom_minimum_size = Vector2(330, 285)
+    preview_area.custom_minimum_size = Vector2(330, 326)
     status_column.add_child(preview_area)
     # Center: live 3D preview from the same player mesh resource, not a drawn silhouette.
     var viewport_box := SubViewportContainer.new()
@@ -1050,9 +1050,9 @@ func _build_character_preview(status_column: VBoxContainer) -> void:
         model_copy.scale = Vector3.ONE
     var preview_camera := Camera3D.new()
     preview_camera.position = Vector3(0, 1.0, 3.6)
+    preview_world.add_child(preview_camera)
     preview_camera.look_at(Vector3(0, 0.95, 0), Vector3.UP)
     preview_camera.current = true
-    preview_world.add_child(preview_camera)
     var light := DirectionalLight3D.new()
     light.rotation_degrees = Vector3(-35, -30, 0)
     light.light_energy = 2.0

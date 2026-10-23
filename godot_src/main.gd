@@ -1,6 +1,7 @@
 extends Node3D
 ## Real Godot 4.4.1 3D prototype. The original Work/Three.js game is not modified.
 const TOUCH_HUD = preload("res://godot_src/touch_hud.gd")
+const SAVE_PATH = "user://nextgenleo_godot_playtest_v1.json"
 const HUMAN_M = "res://assets/models/mini-dungeon/character-human.glb"
 const HUMAN_F = "res://assets/models/mini-forest/character-archer.glb"
 const ORC = "res://assets/models/mini-dungeon/character-orc.glb"
@@ -51,12 +52,34 @@ var player_animation: AnimationPlayer
 func _ready() -> void:
     _build_world()
     _build_player()
+    _load_progress()
     _build_monsters()
     _build_target_marker()
     _build_fox()
     _build_ui()
     _update_camera(1.0)
     _set_status("3D Starter Forest พร้อมเล่น • Tab เลือกมอนสเตอร์ • F โจมตี")
+
+func _load_progress() -> void:
+    if not FileAccess.file_exists(SAVE_PATH):
+        return
+    var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+    if file == null:
+        return
+    var data = JSON.parse_string(file.get_as_text())
+    if not (data is Dictionary) or data.get("version") != 1:
+        return
+    player_level = clampi(int(data.get("level", 1)), 1, 100)
+    player_xp = clampi(int(data.get("xp", 0)), 0, player_level * 100 - 1)
+    gold = clampi(int(data.get("gold", 0)), 0, 100000000)
+    kills = clampi(int(data.get("kills", 0)), 0, 100000000)
+    _apply_level_scale()
+
+func _save_progress() -> void:
+    var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+    if file == null:
+        return
+    file.store_string(JSON.stringify({"version": 1, "level": player_level, "xp": player_xp, "gold": gold, "kills": kills}))
 
 func _material(color: Color) -> StandardMaterial3D:
     var mat := StandardMaterial3D.new()
@@ -422,6 +445,7 @@ func _update_fox(delta: float) -> void:
         drops.erase(pickup)
         pickup.queue_free()
         gold += 10
+        _save_progress()
         _set_status("จิ้งจอก Auto Loot เก็บ Gold +10")
     if fox.position.distance_to(player.position) > 30:
         fox.position = player.position + Vector3(1, 0, 1)
@@ -485,6 +509,7 @@ func _perform_hit() -> void:
         auto_attack = false
         kills += 1
         _gain_xp(35)
+        _save_progress()
         _set_status("กำจัดมอนสเตอร์แล้ว • จิ้งจอกกำลังเก็บของ")
     else:
         _set_status("โจมตีสำเร็จ • HP มอนสเตอร์ %d" % remaining)

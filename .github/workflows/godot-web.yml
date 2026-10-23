@@ -52,6 +52,29 @@ jobs:
           timeout 180s godot --headless --path . --export-release Web build/godot-playtest/index.html
           test -s build/godot-playtest/index.html
           test -s build/godot-playtest/index.wasm
+          # Version the actual engine, WASM and PCK asset URLs so browser caches
+          # cannot serve the previous game after a successful Pages deploy.
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          directory = Path("build/godot-playtest")
+          version = os.environ["GITHUB_SHA"][:12]
+          html_file = directory / "index.html"
+          html = html_file.read_text()
+          for extension in ("js", "wasm", "pck"):
+              original = directory / ("index." + extension)
+              renamed = "leo-" + version + "." + extension
+              if not original.exists():
+                  raise SystemExit("Missing export asset: " + str(original))
+              original.rename(directory / renamed)
+              html = html.replace("index." + extension, renamed)
+          html = html.replace('"executable":"index"', '"executable":"leo-' + version + '"')
+          html = html.replace("<title>NexTgenLeo", "<title>NexTgenLeo " + version)
+          html_file.write_text(html)
+          assert '"executable":"leo-' + version + '"' in html
+          assert ("leo-" + version + ".pck") in html
+          print("Versioned Web assets for", version)
+          PY
       - name: Upload playable Web export
         uses: actions/upload-artifact@v4
         with:

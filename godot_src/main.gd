@@ -41,6 +41,7 @@ var joystick_axis := Vector2.ZERO
 var look_id := -1
 var last_look := Vector2.ZERO
 var touches: Dictionary = {}
+var action_touches: Dictionary = {}
 var pinch_distance := -1.0
 var fox_animation: AnimationPlayer
 var player_animation: AnimationPlayer
@@ -503,44 +504,63 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
         if event.position.x < size.x * 0.43 and event.position.y > size.y * 0.38 and joystick_id == -1:
             joystick_id = event.index
             joystick_origin = event.position
-        elif event.position.x > size.x * 0.62 and event.position.y > size.y * 0.57:
-            if event.position.x > size.x * 0.84 and event.position.y < size.y * 0.82:
-                _jump()
-            elif event.position.x > size.x * 0.83:
-                _dash()
-            else:
-                _attack()
+        elif _handle_action_touch(event.position, size):
+            action_touches[event.index] = true
         elif look_id == -1:
             look_id = event.index
             last_look = event.position
-        if touches.size() == 2:
-            var points := touches.values()
-            pinch_distance = (points[0] as Vector2).distance_to(points[1] as Vector2)
+        _reset_pinch()
     else:
         touches.erase(event.index)
+        action_touches.erase(event.index)
         if event.index == joystick_id:
             joystick_id = -1
             joystick_axis = Vector2.ZERO
         if event.index == look_id:
             look_id = -1
-        if touches.size() < 2:
-            pinch_distance = -1.0
+        _reset_pinch()
     if hud != null:
         hud.set_joystick(joystick_axis)
 
+func _handle_action_touch(point: Vector2, size: Vector2) -> bool:
+    var actions := [
+        [Vector2(size.x * 0.76, size.y * 0.68), 46.0, "lock"],
+        [Vector2(size.x * 0.76, size.y * 0.83), 54.0, "attack"],
+        [Vector2(size.x * 0.91, size.y * 0.68), 46.0, "jump"],
+        [Vector2(size.x * 0.91, size.y * 0.90), 46.0, "dash"]
+    ]
+    for action in actions:
+        if point.distance_to(action[0]) <= float(action[1]):
+            match String(action[2]):
+                "lock": _select_nearest()
+                "attack": _attack()
+                "jump": _jump()
+                "dash": _dash()
+            return true
+    return false
+
+func _reset_pinch() -> void:
+    pinch_distance = -1.0
+    if joystick_id != -1 or not action_touches.is_empty() or touches.size() != 2:
+        return
+    var points := touches.values()
+    pinch_distance = (points[0] as Vector2).distance_to(points[1] as Vector2)
+
 func _handle_drag(event: InputEventScreenDrag) -> void:
     touches[event.index] = event.position
-    if touches.size() == 2:
+    if event.index == joystick_id:
+        var drag := (event.position - joystick_origin) / 65.0
+        joystick_axis = Vector2(clampf(drag.x, -1, 1), clampf(-drag.y, -1, 1)).limit_length(1.0)
+        if hud != null:
+            hud.set_joystick(joystick_axis)
+    elif action_touches.has(event.index):
+        return
+    elif touches.size() == 2 and joystick_id == -1 and action_touches.is_empty():
         var points := touches.values()
         var dist := (points[0] as Vector2).distance_to(points[1] as Vector2)
         if pinch_distance > 0.0:
             camera_distance = clampf(camera_distance - (dist - pinch_distance) * 0.025, 3.0, 19.0)
         pinch_distance = dist
-    elif event.index == joystick_id:
-        var drag := (event.position - joystick_origin) / 65.0
-        joystick_axis = Vector2(clampf(drag.x, -1, 1), clampf(-drag.y, -1, 1)).limit_length(1.0)
-        if hud != null:
-            hud.set_joystick(joystick_axis)
     elif event.index == look_id:
         camera_yaw -= event.relative.x * 0.007
         camera_pitch = clampf(camera_pitch + event.relative.y * 0.005, 0.1, 1.2)

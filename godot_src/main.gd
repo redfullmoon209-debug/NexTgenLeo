@@ -41,6 +41,11 @@ var hud: Control
 var joystick_id := -1
 var joystick_origin := Vector2.ZERO
 var joystick_axis := Vector2.ZERO
+var keyboard_axis := Vector2.ZERO
+var held_keys: Dictionary = {}
+var mouse_joystick := false
+var mouse_joystick_origin := Vector2.ZERO
+var input_debug_timer := 0.0
 var look_id := -1
 var last_look := Vector2.ZERO
 var touches: Dictionary = {}
@@ -50,6 +55,7 @@ var fox_animation: AnimationPlayer
 var player_animation: AnimationPlayer
 
 func _ready() -> void:
+    _install_movement_actions()
     _build_world()
     _build_player()
     _load_progress()
@@ -59,6 +65,45 @@ func _ready() -> void:
     _build_ui()
     _update_camera(1.0)
     _set_status("3D Starter Forest พร้อมเล่น • Tab เลือกมอนสเตอร์ • F โจมตี")
+
+func _install_movement_actions() -> void:
+    # Web builds need explicit actions and physical-key support, independent of keyboard layout.
+    var bindings := {
+        "leo_left": [KEY_A, KEY_LEFT],
+        "leo_right": [KEY_D, KEY_RIGHT],
+        "leo_forward": [KEY_W, KEY_UP],
+        "leo_back": [KEY_S, KEY_DOWN]
+    }
+    for action_name in bindings:
+        if not InputMap.has_action(action_name):
+            InputMap.add_action(action_name)
+        for code in bindings[action_name]:
+            var key := InputEventKey.new()
+            key.physical_keycode = code
+            InputMap.action_add_event(action_name, key)
+            var logical_key := InputEventKey.new()
+            logical_key.keycode = code
+            InputMap.action_add_event(action_name, logical_key)
+
+func _update_key_state(event: InputEventKey) -> void:
+    var code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+    if code in [KEY_A, KEY_D, KEY_W, KEY_S, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]:
+        held_keys[code] = event.pressed
+    keyboard_axis = Vector2.ZERO
+    if held_keys.get(KEY_A, false) or held_keys.get(KEY_LEFT, false):
+        keyboard_axis.x -= 1.0
+    if held_keys.get(KEY_D, false) or held_keys.get(KEY_RIGHT, false):
+        keyboard_axis.x += 1.0
+    if held_keys.get(KEY_W, false) or held_keys.get(KEY_UP, false):
+        keyboard_axis.y += 1.0
+    if held_keys.get(KEY_S, false) or held_keys.get(KEY_DOWN, false):
+        keyboard_axis.y -= 1.0
+
+func _set_mouse_stick(point: Vector2) -> void:
+    var delta := (point - mouse_joystick_origin) / 65.0
+    joystick_axis = Vector2(clampf(delta.x, -1.0, 1.0), clampf(-delta.y, -1.0, 1.0)).limit_length(1.0)
+    if hud != null:
+        hud.call("set_joystick", joystick_axis)
 
 func _load_progress() -> void:
     if not FileAccess.file_exists(SAVE_PATH):
@@ -347,7 +392,9 @@ func _update_camera(delta: float) -> void:
     camera.look_at(focus, Vector3.UP)
 
 func _move_input() -> Vector2:
-    var axis := Vector2.ZERO
+    var actions := Input.get_vector("leo_left", "leo_right", "leo_back", "leo_forward")
+    var axis := actions + keyboard_axis
+    # Keep polling as a fallback for browsers that do not deliver key-up consistently.
     if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
         axis.x -= 1.0
     if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
@@ -367,6 +414,10 @@ func _physics_process(delta: float) -> void:
         jump_queued = false
         _jump()
     var axis := _move_input()
+    input_debug_timer -= delta
+    if axis.length_squared() > 0.02 and input_debug_timer <= 0.0:
+        input_debug_timer = 0.45
+        _set_status("MOVE INPUT %.2f %.2f • Position %.1f %.1f" % [axis.x, axis.y, player.position.x, player.position.z])
     var forward := Vector3(sin(camera_yaw), 0, -cos(camera_yaw))
     var right := Vector3(cos(camera_yaw), 0, sin(camera_yaw))
     var direction := (right * axis.x + forward * axis.y).normalized()
@@ -531,7 +582,10 @@ func _dash() -> void:
     dash_timer = 0.26
 
 func _input(event: InputEvent) -> void:
-    if event is InputEventKey and event.pressed and not event.echo:
+    if event is InputEventKey:
+        _update_key_state(event)
+        if not event.pressed or event.echo:
+            return
         match event.keycode:
             KEY_TAB:
                 _select_nearest()
@@ -547,6 +601,21 @@ func _input(event: InputEvent) -> void:
                 jump_queued = false
                 _set_status("ยกเลิกเป้าหมาย")
     elif event is InputEventMouseButton:
+        if event.button_index == MOUSE_BUTTON_LEFT and mouse_joystick and not event.pressed:
+            mouse_joystick = false
+            joystick_axis = Vector2.ZERO
+            if hud != null:
+                hud.call("set_joystick", joystick_axis)
+            return
+        if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+            var size := get_viewport().get_visible_rect().size
+            if event.position.x < size.x * 0.43 and event.position.y > size.y * 0.38:
+                mouse_joystick = true
+                mouse_joystick_origin = event.position
+                _set_mouse_stick(event.position)
+                return
+            if _handle_action_touch(event.position, size):
+                return
         if event.pressed:
             if event.button_index == MOUSE_BUTTON_WHEEL_UP:
                 camera_distance = maxf(3.0, camera_distance - 0.8)
@@ -554,9 +623,12 @@ func _input(event: InputEvent) -> void:
                 camera_distance = minf(19.0, camera_distance + 0.8)
             elif event.button_index == MOUSE_BUTTON_LEFT:
                 _select_at_screen(event.position)
-    elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-        camera_yaw -= event.relative.x * 0.006
-        camera_pitch = clampf(camera_pitch + event.relative.y * 0.004, 0.1, 1.2)
+    elif event is InputEventMouseMotion:
+        if mouse_joystick:
+            _set_mouse_stick(event.position)
+        elif Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+            camera_yaw -= event.relative.x * 0.006
+            camera_pitch = clampf(camera_pitch + event.relative.y * 0.004, 0.1, 1.2)
     elif event is InputEventScreenTouch:
         _handle_touch(event)
     elif event is InputEventScreenDrag:

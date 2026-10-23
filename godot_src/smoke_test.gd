@@ -51,6 +51,16 @@ func _run() -> void:
             await physics_frame
         game.set("joystick_axis", Vector2.ZERO)
         _check(actor.position.x > start_x + 0.05, "virtual joystick moves character in live physics")
+    if actor != null:
+        game.set("joystick_axis", Vector2.ZERO)
+        var dash_start := actor.position
+        game.set("stamina", 100.0)
+        game.call("_dash")
+        for tick in range(8):
+            await physics_frame
+        _check(actor.position.distance_to(dash_start) > 0.2, "dash moves character while no movement key is pressed")
+        _check(float(game.get("stamina")) < 100.0, "dash consumes stamina")
+        game.set("dash_timer", 0.0)
     game.call("_gain_xp", 100)
     _check(game.get("player_level") == 2, "XP advances player level")
     var visual := game.get("player_visual") as Node3D

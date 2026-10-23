@@ -24,7 +24,15 @@ func _run() -> void:
     var actor := game.get("player") as CharacterBody3D
     var cam := game.get("camera") as Camera3D
     var fox := game.get("fox") as Node3D
-    var mobs: Array = game.get("monsters")
+    var mobs: Array = []
+    var loaded_mobs = game.get("monsters")
+    if loaded_mobs is Array:
+        mobs = loaded_mobs
+    else:
+        _check(false, "gameplay script loaded and monsters array exists")
+        game.queue_free()
+        quit(1)
+        return
     _check(actor != null, "CharacterBody3D player created")
     _check(cam != null and cam.current, "third-person camera created")
     _check(fox != null, "Auto Loot fox created")
@@ -32,7 +40,8 @@ func _run() -> void:
     _check(game.get("player_level") == 1, "starts at level one")
     game.call("_gain_xp", 100)
     _check(game.get("player_level") == 2, "XP advances player level")
-    _check(game.get("player_visual").scale.x > 0.7, "level increases model height")
+    var visual := game.get("player_visual") as Node3D
+    _check(visual != null and visual.scale.x > 0.7, "level increases model height")
     if actor != null and mobs.size() > 0:
         var mob := mobs[0] as Node3D
         actor.position = mob.position + Vector3(0, 0, 2.0)

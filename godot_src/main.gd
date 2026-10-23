@@ -46,6 +46,8 @@ var held_keys: Dictionary = {}
 var mouse_joystick := false
 var mouse_joystick_origin := Vector2.ZERO
 var input_debug_timer := 0.0
+var pc_attack_was_down := false
+var pc_lock_was_down := false
 var look_id := -1
 var last_look := Vector2.ZERO
 var touches: Dictionary = {}
@@ -74,6 +76,8 @@ func _install_movement_actions() -> void:
         "leo_forward": [KEY_W, KEY_UP],
         "leo_back": [KEY_S, KEY_DOWN]
     }
+    bindings["leo_attack"] = [KEY_F, KEY_ENTER, KEY_KP_ENTER]
+    bindings["leo_lock"] = [KEY_TAB]
     for action_name in bindings:
         if not InputMap.has_action(action_name):
             InputMap.add_action(action_name)
@@ -406,6 +410,15 @@ func _move_input() -> Vector2:
     return (axis + joystick_axis).limit_length(1.0)
 
 func _physics_process(delta: float) -> void:
+    # Poll keyboard actions as well as events: web and non-English layouts can differ.
+    var attack_down := Input.is_action_pressed("leo_attack") or Input.is_physical_key_pressed(KEY_F) or Input.is_key_pressed(KEY_F)
+    if attack_down and not pc_attack_was_down:
+        _attack()
+    pc_attack_was_down = attack_down
+    var lock_down := Input.is_action_pressed("leo_lock") or Input.is_physical_key_pressed(KEY_TAB)
+    if lock_down and not pc_lock_was_down:
+        _select_nearest()
+    pc_lock_was_down = lock_down
     attack_timer = maxf(0.0, attack_timer - delta)
     attack_lock = maxf(0.0, attack_lock - delta)
     dash_timer = maxf(0.0, dash_timer - delta)
@@ -530,9 +543,10 @@ func _select_at_screen(point: Vector2) -> void:
 func _attack() -> void:
     if target == null or not is_instance_valid(target) or not target.visible:
         auto_attack = false
-        _set_status("ต้องล็อกเป้าหมายก่อนโจมตี (Tab)")
+        _set_status("ATK รับคำสั่งแล้ว แต่ต้องล็อกเป้าหมายก่อน (Tab)")
         return
     auto_attack = true
+    _set_status("ATK รับคำสั่ง • กำลังเข้าหา %s" % target.name)
     if player.position.distance_to(target.position) > 2.8:
         _set_status("วิ่งเข้าระยะโจมตีอัตโนมัติ")
         return
@@ -588,10 +602,13 @@ func _input(event: InputEvent) -> void:
             return
         # Physical keys keep PC controls working when the OS keyboard layout is Thai.
         var action_code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+        if event.keycode == KEY_F or event.physical_keycode == KEY_F or event.unicode == 102 or event.unicode == 70:
+            _attack()
+            return
         match action_code:
             KEY_TAB:
                 _select_nearest()
-            KEY_F:
+            KEY_F, KEY_ENTER, KEY_KP_ENTER:
                 _attack()
             KEY_SPACE:
                 _jump()

@@ -17,7 +17,7 @@ permissions:
   pages: write
 
 concurrency:
-  group: godot-web-playtest
+  group: godot-web-playtest-v2
   cancel-in-progress: true
 
 jobs:

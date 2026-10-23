@@ -114,11 +114,20 @@ test('all three skills spend SP, use real multipliers, and enforce cooldowns', (
     assert.ok(g.player.sp<=100-skill.sp+1);assert.equal(g.requestAttack(skill.id),false);
   }
 });
-test('PvE HP/Defense buffs expire, pet HP bonus and starter quest reward are functional', () => {
+test('PvE HP/Defense buffs expire, evolved pet HP bonus and starter quest reward are functional', () => {
   const g=fresh();g.addItem('buff_hp');g.use(find(g,'buff_hp').uid);assert.equal(g.maxHP(),120);
-  g.use(find(g,'pet_fox').uid);assert.equal(g.maxHP(),126);
+  g.use(find(g,'pet_fox').uid);assert.equal(g.maxHP(),120);assert.equal(g.evolvePet('hp'),true);assert.equal(g.evolvePet('def'),false);assert.equal(g.maxHP(),126);
   g.now=g.player.buffs.hp.endsAt+1;g.player.hp=126;step(g,0.05);assert.equal(g.maxHP(),105);assert.equal(g.player.hp,105);
   g.player.kills=5;assert.equal(g.claimStarterQuest(),true);assert.equal(g.claimStarterQuest(),false);assert.equal(g.player.cp,10);assert.equal(g.player.gold,1100);
   const a=fresh(),b=fresh();for(const t of [a,b]){t.player.x=5;t.player.z=-5;t.monsters[0].x=5;t.monsters[0].z=-5;t.monsters[0].elite=true;}
   b.addItem('buff_defense');b.use(find(b,'buff_defense').uid);step(a,0.05);step(b,0.05);assert.ok(b.player.hp>a.player.hp);
+});
+
+test('starter fox has zero stats; one permanent PvE evolution is saved', () => {
+  const g=fresh(); g.use(find(g,'pet_fox').uid);
+  assert.equal(g.maxHP(),100); assert.equal(g.petBonus('def'),0); assert.equal(g.petBonus('atk'),0);
+  assert.equal(g.evolvePet('atk'),true); assert.equal(g.evolvePet('hp'),false);
+  assert.equal(g.petBonus('atk'),0.05); assert.equal(g.maxHP(),100);
+  const h=fresh(); assert.equal(h.restore(g.snapshot(),'TestHero','male'),true);
+  assert.equal(h.player.pet.evolution,'atk'); assert.equal(h.evolvePet('def'),false);
 });

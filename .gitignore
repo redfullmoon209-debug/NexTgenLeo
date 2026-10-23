@@ -2,3 +2,7 @@ node_modules/
 test-results/
 .DS_Store
 *.log
+
+# Godot editor and local exports
+.godot/
+build/

@@ -585,7 +585,7 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
             look_id = -1
         _reset_pinch()
     if hud != null:
-        hud.set_joystick(joystick_axis)
+        hud.call("set_joystick", joystick_axis)
 
 func _handle_action_touch(point: Vector2, size: Vector2) -> bool:
     var actions := [
@@ -617,7 +617,7 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
         var drag := (event.position - joystick_origin) / 65.0
         joystick_axis = Vector2(clampf(drag.x, -1, 1), clampf(-drag.y, -1, 1)).limit_length(1.0)
         if hud != null:
-            hud.set_joystick(joystick_axis)
+            hud.call("set_joystick", joystick_axis)
     elif action_touches.has(event.index):
         return
     elif touches.size() == 2 and joystick_id == -1 and action_touches.is_empty():

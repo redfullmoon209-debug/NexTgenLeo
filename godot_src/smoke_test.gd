@@ -79,6 +79,22 @@ func _run() -> void:
         for i in range(40):
             game.call("_update_fox", 0.2)
         _check(int(game.get("gold")) > before_gold, "fox collects dropped gold")
+    if actor != null and mobs.size() > 1:
+        var second_mob := mobs[1] as Node3D
+        actor.position = second_mob.position + Vector3(0, 0, 2.0)
+        game.set("target", second_mob)
+        game.set("stamina", 100.0)
+        game.call("_use_skill", 0)
+        _check(int(second_mob.get_meta("hp")) == 20, "skill 1 deals area damage")
+        _check(float(game.get("stamina")) == 82.0, "skill 1 consumes stamina")
+        var cooldowns: Array = game.get("skill_cooldowns")
+        _check(float(cooldowns[0]) > 5.0, "skill 1 starts cooldown")
+        game.call("_use_skill", 0)
+        _check(int(second_mob.get_meta("hp")) == 20, "skill cooldown prevents repeat hit")
+        game.set("attack_lock", 0.0)
+        game.call("_use_skill", 2)
+        _check(not second_mob.visible, "skill 3 critical strike defeats monster")
+        _check(float(game.get("stamina")) == 47.0, "skill 3 consumes stamina")
     game.queue_free()
     await process_frame
     if failures > 0:

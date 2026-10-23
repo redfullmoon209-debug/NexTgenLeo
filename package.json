@@ -1,0 +1,12 @@
+{
+  "name": "nextgenleo-playtest",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/rules.test.mjs",
+    "test:browser": "node tests/browser.mjs",
+    "check:assets": "node scripts/check-assets.mjs"
+  },
+  "devDependencies": { "playwright": "1.61.0" }
+}

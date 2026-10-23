@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-23T11:17:05.415Z",
+  "browser": "153.0.8010.0",
+  "checks": [
+    "Desktop renders lit ground, sourced characters, trees and monsters at a repository subpath",
+    "Desktop WASD, Jump, wheel zoom, and no-target ATK",
+    "Actual raycast target, auto approach, real damage/EXP, drop, and manual pickup",
+    "Shop icons in all categories, four EXP durations, buying and using real timed buffs",
+    "Sword/Gun/Kunai attach to hand, equipment slots work, +1 consumes stone/Gold, inventory has two 100-slot pages",
+    "Visible animated Fox follows, consumes food/stone/treat, collects actual new loot once, and EXP ×2 doubles kill reward",
+    "Warp and reload preserve buffs, equipped item enhancement, pet state, currencies and position",
+    "mobile-portrait 393×851: real touch movement/ATK together, Pinch Zoom, camera, combat, and icon screenshots",
+    "mobile-landscape 844×390: real touch movement/ATK together, Pinch Zoom, camera, combat, and icon screenshots",
+    "corrupt-save: world starts without a blank screen or public GM button",
+    "blocked-storage: world starts without a blank screen or public GM button",
+    "gm-url: world starts without a blank screen or public GM button",
+    "missing-model: visible startup diagnostic",
+    "missing-texture: visible startup diagnostic"
+  ],
+  "errors": [],
+  "failedRequests": []
+}

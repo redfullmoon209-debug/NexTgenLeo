@@ -12,6 +12,7 @@ func _draw() -> void:
     draw_circle(base, 69.0, Color(0.04, 0.12, 0.22, 0.35))
     draw_arc(base, 69.0, 0, TAU, 64, Color(0.88, 0.94, 1.0, 0.7), 3.0, true)
     draw_circle(base + Vector2(stick.x, -stick.y) * 46.0, 27.0, Color(0.65, 0.82, 1.0, 0.76))
+    _button(Vector2(screen.x * 0.76, screen.y * 0.68), 40.0, "LOCK", Color(0.18, 0.51, 0.43, 0.72))
     _button(Vector2(screen.x * 0.76, screen.y * 0.83), 50.0, "ATK", Color(0.62, 0.25, 0.18, 0.73))
     _button(Vector2(screen.x * 0.91, screen.y * 0.68), 40.0, "JUMP", Color(0.24, 0.45, 0.73, 0.7))
     _button(Vector2(screen.x * 0.91, screen.y * 0.90), 40.0, "DASH", Color(0.38, 0.30, 0.65, 0.7))

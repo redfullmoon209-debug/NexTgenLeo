@@ -1,15 +1,22 @@
-# NexTgenLeo Thailand — Godot 4.4+ starter
+# NexTgenLeo Thailand - Godot 4 starter
 
-This is a separate Godot project inside the existing NexTgenLeo repository, on branch godot-thailand-3d. The old web demo is untouched.
+Open the godot folder with Godot 4.4+ and press F5.
 
-## Run on PC
-Open the godot/ folder with Godot 4.4 or later and press F6/F5. WASD moves, hold right mouse button to orbit, mouse wheel zooms. On touchscreens: drag on the left half to move, right half to rotate camera.
+Implemented in source:
+- 3D third-person placeholder player and follow camera
+- WASD, Space jump, right-mouse drag camera, wheel zoom, touch move/look
+- 10 placeholder monsters, nearest-target basic attack (J or ATK), EXP and Gold rewards
+- Starter Hunt quest (QUEST button): defeat 5 monsters for 100 Gold + 100 EXP
+- Potion (H or POTION), HP/Stamina/EXP/Gold status, local JSON save and load
+- Optional Thailand map load from res://assets/maps/thailand.glb
 
-## Import Thailand map
-Export the Blender scene to glTF Binary (.glb) as godot/assets/maps/thailand.glb. Check exported vertex colors and texture connections. A Blender Mix/Multiply shader does not automatically transfer as an equivalent Godot material. The map will be loaded at runtime if present.
+Limitations: NOT runtime tested yet. No Thailand mesh/texture file uploaded; temporary ground remains. Monster AI is placeholder chase without damage. No real multiplayer, character selection, shop, skills, equipment UI, mobile export preset, or server. Save is local only.
 
-## Browser testing
-In Godot, Project > Export > Add Web preset, export to a separate folder. Publish the generated web files with GitHub Pages or another static host. The GitHub repository alone does not execute Godot. Web export has browser and mobile GPU limitations.
+## Bring the real Thailand map
+In Blender select the desired 31 objects (if extracting just map 1), File > Export > glTF 2.0, Format glTF Binary (.glb), Selected Objects. Keep UVs, material images and vertex colors. Save as godot/assets/maps/thailand.glb. Check materials in Godot: Blender Mix/Multiply shader nodes may not transfer identically; bake the visible colors to textures or recreate material in Godot. Large files may require Git LFS or a release asset, not normal GitHub API uploads.
 
-## Current status
-Initial playable 3D controller and temporary ground only. Actual Thailand .glb asset is not included yet, so do not mistake the placeholder for the final map. Character animations, imported-map collision, and gameplay systems are future work.
+## Test and web export
+Import godot/project.godot in Godot, wait for import, press F5. Use Project > Export > Web to build HTML5. Publishing source files to GitHub Pages does not automatically compile Godot. Configure a hosting location for the exported build.
+
+## Safety
+Branch: godot-thailand-3d. Existing main branch browser demo remains unchanged. This is an incremental prototype, not a finished MMO.

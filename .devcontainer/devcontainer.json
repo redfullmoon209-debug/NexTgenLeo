@@ -1,0 +1,9 @@
+{
+  "name": "NexTgenLeo Godot Web",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {"label": "NexTgenLeo Web Test", "onAutoForward": "notify"}
+  }
+}

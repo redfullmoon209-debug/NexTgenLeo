@@ -83,7 +83,7 @@ func _make_player() -> void:
     player.add_child(mesh)
     camera_pivot = Node3D.new()
     camera_pivot.position.y = 1.4
-    player.add_child(camera_pivot)
+    add_child(camera_pivot)
     camera = Camera3D.new()
     camera.position = Vector3(0, 3.2, 8)
     camera.current = true
@@ -115,6 +115,7 @@ func _make_hud() -> void:
     layer.add_child(note)
 
 func _physics_process(delta: float) -> void:
+    camera_pivot.global_position = player.global_position + Vector3.UP * 1.4
     var axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     if touch_move.length() > 0.1:
         axis = touch_move

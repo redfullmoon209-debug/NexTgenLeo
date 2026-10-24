@@ -1,5 +1,6 @@
 extends Node
 ## Playable offline systems; procedural art is explicitly temporary.
+var last_touch_action := -1000
 var world: Node3D
 var network: Node
 var mobs: Array[Dictionary] = []
@@ -331,7 +332,9 @@ func _layout() -> void:
 func _tell(text: String) -> void:
 	notice.text = text
 
-func _action(index: int) -> void:
+func _action(index: int, from_touch := false) -> void:
+	if not from_touch and Time.get_ticks_msec() - last_touch_action < 200: return
+	if from_touch: last_touch_action = Time.get_ticks_msec()
 	match index:
 		0: _select_target()
 		1: _pickup()
@@ -580,6 +583,17 @@ func _save() -> void:
 	GameState.save_game()
 
 func _input(event: InputEvent) -> void:
+	# Handle each action finger independently; emulated mouse handles only one finger.
+	if event is InputEventScreenTouch and event.pressed and not panel.visible:
+		for i in range(skill_buttons.size()):
+			if skill_buttons[i].get_global_rect().has_point(event.position):
+				_action(i, true)
+				world.get_viewport().set_input_as_handled()
+				return
+		if world.jump_button.get_global_rect().has_point(event.position):
+			world.jump_requested = true
+			world.get_viewport().set_input_as_handled()
+			return
 	if layout_edit and event is InputEventMouseButton:
 		if event.pressed:
 			for button in skill_buttons:

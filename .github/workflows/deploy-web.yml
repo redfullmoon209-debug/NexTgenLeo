@@ -37,7 +37,23 @@ jobs:
       - name: Validate and export game
         env:
           GODOT_BIN: /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
-        run: bash tools/check_godot.sh
+        run: |
+          bash tools/check_godot.sh
+          python tools/test_network.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Browser acceptance (Chromium desktop and touch emulation)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.62.1
+          npx playwright install --with-deps chromium
+          node tests/browser_test.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Browser-QA
+          path: build/*.png
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: NexTgenLeo-Web

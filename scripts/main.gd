@@ -130,7 +130,7 @@ func _make_hud() -> void:
 	add_child(layer)
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hud.mouse_filter = Control.MOUSE_FILTER_PASS
+	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(hud)
 	var title := Label.new()
 	title.text = "NEX TGEN LEO   /   OFFLINE SANDBOX"
@@ -279,3 +279,14 @@ func _physics_process(delta: float) -> void:
 	if direction.length_squared() > 0.001:
 		player.rotation.y = atan2(-direction.x, -direction.z)
 	camera_pivot.global_position = player.global_position + Vector3(0, 0.7, 0)
+
+func _input(event: InputEvent) -> void:
+	# Release must work even when a finger ends over a GUI control.
+	if event is InputEventScreenTouch and not event.pressed:
+		touches.erase(event.index)
+		pinch_distance = 0.0
+		if event.index == joystick_finger:
+			joystick_finger = -1
+			joystick_vector = Vector2.ZERO
+			_update_knob()
+		if event.index == look_finger: look_finger = -1

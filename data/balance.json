@@ -1,0 +1,816 @@
+{
+  "version": 1,
+  "max_class": 10,
+  "max_level": 100,
+  "exp_base": 100,
+  "exp_per_level": 35,
+  "exp_per_class": 250,
+  "hp_base": 100,
+  "hp_per_level": 10,
+  "hp_per_class": 100,
+  "stamina_base": 100,
+  "stamina_per_level": 2,
+  "stamina_per_class": 20,
+  "attack_base": 18,
+  "attack_per_level": 3,
+  "attack_per_class": 25,
+  "defense_base": 3,
+  "critical_chance": 0.12,
+  "critical_multiplier": 1.7,
+  "height_min": 1.05,
+  "height_male_max": 1.75,
+  "height_female_max": 1.7,
+  "skills": [
+    {
+      "name": "Claymore",
+      "cost": 0,
+      "cooldown": 0.65,
+      "range": 2.6,
+      "power": 1.0,
+      "radius": 0
+    },
+    {
+      "name": "Crescent",
+      "cost": 18,
+      "cooldown": 4.0,
+      "range": 3.0,
+      "power": 1.8,
+      "radius": 4.0
+    },
+    {
+      "name": "Pierce",
+      "cost": 22,
+      "cooldown": 6.0,
+      "range": 8.0,
+      "power": 2.2,
+      "radius": 0
+    },
+    {
+      "name": "Judgment",
+      "cost": 30,
+      "cooldown": 9.0,
+      "range": 6.0,
+      "power": 3.0,
+      "radius": 0
+    }
+  ],
+  "elements": [
+    "Earth",
+    "Water",
+    "Wind",
+    "Fire",
+    "Lightning",
+    "Wood"
+  ],
+  "element_advantage": {},
+  "paths": [
+    "Earth",
+    "Water",
+    "Wind",
+    "Fire",
+    "Lightning",
+    "Wood"
+  ],
+  "professions": [
+    {
+      "id": "earth_fighter",
+      "name": "นักสู้พิภพ",
+      "element": "Earth",
+      "weapon": "knuckle",
+      "range": 2.5,
+      "interval": 0.45,
+      "skills": [
+        "Earth:0",
+        "Earth:1",
+        "Earth:2"
+      ]
+    },
+    {
+      "id": "mountain_fist",
+      "name": "จอมหมัดภูผา",
+      "element": "Earth",
+      "weapon": "fist",
+      "range": 2.5,
+      "interval": 0.9,
+      "skills": [
+        "Earth:0",
+        "Earth:1",
+        "Earth:2"
+      ]
+    },
+    {
+      "id": "water_mage",
+      "name": "จอมเวทวารี",
+      "element": "Water",
+      "weapon": "staff",
+      "range": 10,
+      "interval": 1.0,
+      "skills": [
+        "Water:0",
+        "Water:1",
+        "Water:2"
+      ]
+    },
+    {
+      "id": "ocean_lord",
+      "name": "จ้าวสมุทร",
+      "element": "Water",
+      "weapon": "spear",
+      "range": 4,
+      "interval": 0.8,
+      "skills": [
+        "Water:0",
+        "Water:1",
+        "Water:2"
+      ]
+    },
+    {
+      "id": "wind_assassin",
+      "name": "นักฆ่าวายุ",
+      "element": "Wind",
+      "weapon": "kunai",
+      "range": 7,
+      "interval": 0.65,
+      "skills": [
+        "Wind:0",
+        "Wind:1",
+        "Wind:2"
+      ]
+    },
+    {
+      "id": "wind_fan",
+      "name": "จอมยุทธ์พัดวายุ",
+      "element": "Wind",
+      "weapon": "fan",
+      "range": 8,
+      "interval": 0.85,
+      "skills": [
+        "Wind:0",
+        "Wind:1",
+        "Wind:2"
+      ]
+    },
+    {
+      "id": "flame_swords",
+      "name": "นักดาบเพลิง",
+      "element": "Fire",
+      "weapon": "dual_sword",
+      "range": 2.8,
+      "interval": 0.45,
+      "skills": [
+        "Fire:0",
+        "Fire:1",
+        "Fire:2"
+      ]
+    },
+    {
+      "id": "inferno_blade",
+      "name": "จอมดาบอัคคี",
+      "element": "Fire",
+      "weapon": "greatsword",
+      "range": 3,
+      "interval": 0.95,
+      "skills": [
+        "Fire:0",
+        "Fire:1",
+        "Fire:2"
+      ]
+    },
+    {
+      "id": "thunder_gunner",
+      "name": "พลปืนอัสนี",
+      "element": "Lightning",
+      "weapon": "pistol",
+      "range": 12,
+      "interval": 1.0,
+      "skills": [
+        "Lightning:0",
+        "Lightning:1",
+        "Lightning:2"
+      ]
+    },
+    {
+      "id": "lightning_dual",
+      "name": "มือปืนสายฟ้า",
+      "element": "Lightning",
+      "weapon": "dual_pistol",
+      "range": 10,
+      "interval": 0.45,
+      "skills": [
+        "Lightning:0",
+        "Lightning:1",
+        "Lightning:2"
+      ]
+    },
+    {
+      "id": "vine_guardian",
+      "name": "ผู้พิทักษ์พฤกษา",
+      "element": "Wood",
+      "weapon": "vine",
+      "range": 8,
+      "interval": 0.8,
+      "skills": [
+        "Wood:0",
+        "Wood:1",
+        "Wood:2"
+      ]
+    },
+    {
+      "id": "forest_lord",
+      "name": "จ้าวไพร",
+      "element": "Wood",
+      "weapon": "wood_staff",
+      "range": 10,
+      "interval": 0.95,
+      "skills": [
+        "Wood:0",
+        "Wood:1",
+        "Wood:2"
+      ]
+    }
+  ],
+  "maps": [
+    {
+      "name": "Starter Forest",
+      "color": "477d50",
+      "level": 1
+    },
+    {
+      "name": "Azure Coast",
+      "color": "b1ab73",
+      "level": 10
+    },
+    {
+      "name": "Amber Highlands",
+      "color": "967349",
+      "level": 25
+    },
+    {
+      "name": "Frost Hollow",
+      "color": "9bbbc5",
+      "level": 50
+    },
+    {
+      "name": "Twilight Reach",
+      "color": "63587d",
+      "level": 80
+    }
+  ],
+  "items": {
+    "potion": {
+      "name": "Healing potion",
+      "price": 15,
+      "sell": 5,
+      "stack": 99,
+      "kind": "heal",
+      "value": 60,
+      "icon": "+"
+    },
+    "stamina": {
+      "name": "Stamina tonic",
+      "price": 15,
+      "sell": 5,
+      "stack": 99,
+      "kind": "stamina",
+      "value": 60,
+      "icon": "S"
+    },
+    "herb": {
+      "name": "Forest herb",
+      "price": 8,
+      "sell": 4,
+      "stack": 99,
+      "kind": "material",
+      "icon": "*"
+    },
+    "ore": {
+      "name": "Enhancement ore",
+      "price": 30,
+      "sell": 8,
+      "stack": 99,
+      "kind": "material",
+      "icon": "◆"
+    },
+    "revive": {
+      "name": "Revive crystal",
+      "price": 100,
+      "sell": 20,
+      "stack": 99,
+      "kind": "revive",
+      "icon": "R"
+    },
+    "warp": {
+      "name": "City Warp Scroll",
+      "price": 25,
+      "sell": 5,
+      "stack": 99,
+      "kind": "warp",
+      "icon": "W"
+    },
+    "sword": {
+      "name": "Red Claymore",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "/",
+      "rarity": "Rare"
+    },
+    "gun": {
+      "name": "Ranger rifle",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "⌐",
+      "rarity": "Rare"
+    },
+    "kunai": {
+      "name": "Golden kunai",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "v",
+      "rarity": "Rare"
+    },
+    "hat": {
+      "name": "Scout crown",
+      "price": 40,
+      "sell": 10,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "hat",
+      "icon": "^",
+      "rarity": "Common"
+    },
+    "shirt": {
+      "name": "Azure tunic",
+      "price": 45,
+      "sell": 10,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "shirt",
+      "icon": "T",
+      "rarity": "Uncommon"
+    },
+    "gloves": {
+      "name": "Leather gloves",
+      "price": 30,
+      "sell": 8,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "gloves",
+      "icon": "G"
+    },
+    "pants": {
+      "name": "Ranger trousers",
+      "price": 35,
+      "sell": 8,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "pants",
+      "icon": "Π"
+    },
+    "shoes": {
+      "name": "Traveler boots",
+      "price": 30,
+      "sell": 8,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "shoes",
+      "icon": "L"
+    },
+    "hair": {
+      "name": "Silver hair",
+      "price": 30,
+      "sell": 8,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "hair",
+      "icon": "~"
+    },
+    "accessory": {
+      "name": "Moon pendant",
+      "price": 60,
+      "sell": 15,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "accessory",
+      "icon": "o"
+    },
+    "exp1": {
+      "name": "EXP x2 · 1 hour",
+      "price": 10,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "exp",
+      "duration": 3600,
+      "cash": true,
+      "icon": "2x"
+    },
+    "exp6": {
+      "name": "EXP x2 · 6 hours",
+      "price": 50,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "exp",
+      "duration": 21600,
+      "cash": true,
+      "icon": "2x"
+    },
+    "exp12": {
+      "name": "EXP x2 · 12 hours",
+      "price": 90,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "exp",
+      "duration": 43200,
+      "cash": true,
+      "icon": "2x"
+    },
+    "exp24": {
+      "name": "EXP x2 · 24 hours",
+      "price": 160,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "exp",
+      "duration": 86400,
+      "cash": true,
+      "icon": "2x"
+    },
+    "attack_buff": {
+      "name": "Attack +20% · 1 hour",
+      "price": 20,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "attack",
+      "duration": 3600,
+      "cash": true,
+      "icon": "A+"
+    },
+    "defense_buff": {
+      "name": "Defense +20% · 1 hour",
+      "price": 20,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "defense",
+      "duration": 3600,
+      "cash": true,
+      "icon": "D+"
+    },
+    "hp_buff": {
+      "name": "Max HP +20% · 1 hour",
+      "price": 20,
+      "sell": 0,
+      "stack": 99,
+      "kind": "buff",
+      "buff": "hp",
+      "duration": 3600,
+      "cash": true,
+      "icon": "H+"
+    },
+    "knuckle": {
+      "name": "Knuckle",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "fist": {
+      "name": "Fist",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "staff": {
+      "name": "Staff",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "spear": {
+      "name": "Spear",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "fan": {
+      "name": "Fan",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "dual_sword": {
+      "name": "Dual Sword",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "greatsword": {
+      "name": "Greatsword",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "pistol": {
+      "name": "Pistol",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "dual_pistol": {
+      "name": "Dual Pistol",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "vine": {
+      "name": "Vine",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    },
+    "wood_staff": {
+      "name": "Wood Staff",
+      "price": 80,
+      "sell": 20,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon",
+      "icon": "W",
+      "rarity": "Rare"
+    }
+  },
+  "skill_tiers": {
+    "initial": {
+      "name": "ขั้นแรก",
+      "unlock_class": 0
+    },
+    "sovereign": {
+      "name": "จอมจ้าว",
+      "unlock_class": null,
+      "status": "awaiting_user_rule"
+    }
+  },
+  "element_skills": {
+    "Earth": [
+      {
+        "name": "Earth Burst",
+        "tier": "initial",
+        "element": "Earth",
+        "role": "aoe",
+        "cost": 18,
+        "cooldown": 4,
+        "range": 3,
+        "power": 1.8,
+        "radius": 4
+      },
+      {
+        "name": "Earth Strike",
+        "tier": "initial",
+        "element": "Earth",
+        "role": "target",
+        "cost": 22,
+        "cooldown": 6,
+        "range": 8,
+        "power": 2.2,
+        "radius": 0
+      },
+      {
+        "name": "Earth Finale",
+        "tier": "initial",
+        "element": "Earth",
+        "role": "heavy",
+        "cost": 30,
+        "cooldown": 9,
+        "range": 6,
+        "power": 3,
+        "radius": 0
+      }
+    ],
+    "Water": [
+      {
+        "name": "Water Burst",
+        "tier": "initial",
+        "element": "Water",
+        "role": "aoe",
+        "cost": 18,
+        "cooldown": 4,
+        "range": 3,
+        "power": 1.8,
+        "radius": 4
+      },
+      {
+        "name": "Water Strike",
+        "tier": "initial",
+        "element": "Water",
+        "role": "target",
+        "cost": 22,
+        "cooldown": 6,
+        "range": 8,
+        "power": 2.2,
+        "radius": 0
+      },
+      {
+        "name": "Water Finale",
+        "tier": "initial",
+        "element": "Water",
+        "role": "heavy",
+        "cost": 30,
+        "cooldown": 9,
+        "range": 6,
+        "power": 3,
+        "radius": 0
+      }
+    ],
+    "Wind": [
+      {
+        "name": "Wind Burst",
+        "tier": "initial",
+        "element": "Wind",
+        "role": "aoe",
+        "cost": 18,
+        "cooldown": 4,
+        "range": 3,
+        "power": 1.8,
+        "radius": 4
+      },
+      {
+        "name": "Wind Strike",
+        "tier": "initial",
+        "element": "Wind",
+        "role": "target",
+        "cost": 22,
+        "cooldown": 6,
+        "range": 8,
+        "power": 2.2,
+        "radius": 0
+      },
+      {
+        "name": "Wind Finale",
+        "tier": "initial",
+        "element": "Wind",
+        "role": "heavy",
+        "cost": 30,
+        "cooldown": 9,
+        "range": 6,
+        "power": 3,
+        "radius": 0
+      }
+    ],
+    "Fire": [
+      {
+        "name": "Fire Burst",
+        "tier": "initial",
+        "element": "Fire",
+        "role": "aoe",
+        "cost": 18,
+        "cooldown": 4,
+        "range": 3,
+        "power": 1.8,
+        "radius": 4
+      },
+      {
+        "name": "Fire Strike",
+        "tier": "initial",
+        "element": "Fire",
+        "role": "target",
+        "cost": 22,
+        "cooldown": 6,
+        "range": 8,
+        "power": 2.2,
+        "radius": 0
+      },
+      {
+        "name": "Fire Finale",
+        "tier": "initial",
+        "element": "Fire",
+        "role": "heavy",
+        "cost": 30,
+        "cooldown": 9,
+        "range": 6,
+        "power": 3,
+        "radius": 0
+      }
+    ],
+    "Lightning": [
+      {
+        "name": "Lightning Burst",
+        "tier": "initial",
+        "element": "Lightning",
+        "role": "aoe",
+        "cost": 18,
+        "cooldown": 4,
+        "range": 3,
+        "power": 1.8,
+        "radius": 4
+      },
+      {
+        "name": "Lightning Strike",
+        "tier": "initial",
+        "element": "Lightning",
+        "role": "target",
+        "cost": 22,
+        "cooldown": 6,
+        "range": 8,
+        "power": 2.2,
+        "radius": 0
+      },
+      {
+        "name": "Lightning Finale",
+        "tier": "initial",
+        "element": "Lightning",
+        "role": "heavy",
+        "cost": 30,
+        "cooldown": 9,
+        "range": 6,
+        "power": 3,
+        "radius": 0
+      }
+    ],
+    "Wood": [
+      {
+        "name": "Wood Burst",
+        "tier": "initial",
+        "element": "Wood",
+        "role": "aoe",
+        "cost": 18,
+        "cooldown": 4,
+        "range": 3,
+        "power": 1.8,
+        "radius": 4
+      },
+      {
+        "name": "Wood Strike",
+        "tier": "initial",
+        "element": "Wood",
+        "role": "target",
+        "cost": 22,
+        "cooldown": 6,
+        "range": 8,
+        "power": 2.2,
+        "radius": 0
+      },
+      {
+        "name": "Wood Finale",
+        "tier": "initial",
+        "element": "Wood",
+        "role": "heavy",
+        "cost": 30,
+        "cooldown": 9,
+        "range": 6,
+        "power": 3,
+        "radius": 0
+      }
+    ]
+  }
+}

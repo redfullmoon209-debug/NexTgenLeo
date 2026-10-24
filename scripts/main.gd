@@ -22,12 +22,22 @@ var joystick_base: ColorRect
 var joystick_knob: ColorRect
 var jump_button: Button
 var run_button: Button
+var gameplay: Node
+var auto_destination := Vector3.INF
+var touches: Dictionary = {}
+var pinch_distance := 0.0
+var visual: Node3D
+var dash_time := 0.0
+var fly_enabled := false
 
 func _ready() -> void:
 	_make_world()
 	_make_player()
 	_make_hud()
 	get_viewport().size_changed.connect(_layout_touch_ui)
+	gameplay = load("res://scripts/gameplay.gd").new()
+	gameplay.world = self
+	add_child(gameplay)
 
 func _make_world() -> void:
 	var light := DirectionalLight3D.new()
@@ -123,19 +133,19 @@ func _make_hud() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_PASS
 	layer.add_child(hud)
 	var title := Label.new()
-	title.text = "NexTgenLeo  |  3D Web Prototype"
-	title.position = Vector2(16, 12)
-	title.add_theme_font_size_override("font_size", 22)
+	title.text = "NEX TGEN LEO   /   OFFLINE SANDBOX"
+	title.position = Vector2(18, 8)
+	title.add_theme_font_size_override("font_size", 18)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(title)
 	var help := Label.new()
 	help.text = "PC: WASD move | Shift run | Space jump | Drag to rotate camera"
-	help.position = Vector2(16, 46)
+	help.position = Vector2(18, 36)
 	help.add_theme_font_size_override("font_size", 14)
 	help.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(help)
 	joystick_base = ColorRect.new()
-	joystick_base.color = Color(0.08, 0.12, 0.18, 0.35)
+	joystick_base.color = Color(0.08, 0.12, 0.18, 0.0)
 	joystick_base.size = Vector2(128, 128)
 	joystick_base.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(joystick_base)
@@ -163,8 +173,8 @@ func _layout_touch_ui() -> void:
 	joystick_origin = Vector2(90, size.y - 110)
 	joystick_base.position = joystick_origin - joystick_base.size / 2.0
 	_update_knob()
-	jump_button.position = Vector2(size.x - 128, size.y - 110)
-	run_button.position = Vector2(size.x - 128, size.y - 180)
+	jump_button.position = Vector2(size.x - 125, size.y - 85)
+	run_button.position = Vector2(175, size.y - 70)
 
 func _update_knob() -> void:
 	joystick_knob.position = joystick_origin + joystick_vector * 42.0 - joystick_knob.size / 2.0
@@ -175,6 +185,11 @@ func _toggle_run() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
+		if event.pressed:
+			touches[event.index] = event.position
+		else:
+			touches.erase(event.index)
+			pinch_distance = 0.0
 		if event.pressed:
 			if event.position.x < get_viewport().get_visible_rect().size.x * 0.45 and joystick_finger == -1:
 				joystick_finger = event.index
@@ -190,6 +205,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.index == look_finger:
 				look_finger = -1
 	elif event is InputEventScreenDrag:
+		touches[event.index] = event.position
+		var camera_touches: Array = []
+		for finger in touches:
+			if finger != joystick_finger:
+				camera_touches.append(touches[finger])
+		if camera_touches.size() == 2:
+			var distance: float = camera_touches[0].distance_to(camera_touches[1])
+			if pinch_distance > 0:
+				camera.position.z = clampf(camera.position.z - (distance - pinch_distance) * 0.025, 2.5, 16.0)
+			pinch_distance = distance
+			return
 		if event.index == joystick_finger:
 			_set_joystick(event.position)
 		elif event.index == look_finger:
@@ -222,7 +248,20 @@ func _physics_process(delta: float) -> void:
 	var forward := Vector3(-sin(yaw), 0, -cos(yaw))
 	var right := Vector3(cos(yaw), 0, -sin(yaw))
 	var direction := (right * movement.x + forward * -movement.y).normalized()
+	if movement.length() > 0.05:
+		auto_destination = Vector3.INF
+	if auto_destination != Vector3.INF:
+		var offset := auto_destination - player.position
+		offset.y = 0
+		direction = offset.normalized() if offset.length() > 1.8 else Vector3.ZERO
+	if GameState.hp <= 0:
+		direction = Vector3.ZERO
+	dash_time = maxf(0, dash_time - delta)
 	var speed := RUN_SPEED if run_enabled or Input.is_key_pressed(KEY_SHIFT) else SPEED
+	if dash_time > 0:
+		speed = 20.0
+		if direction.is_zero_approx():
+			direction = -player.basis.z
 	player.velocity.x = direction.x * speed
 	player.velocity.z = direction.z * speed
 	if not player.is_on_floor():
@@ -230,7 +269,13 @@ func _physics_process(delta: float) -> void:
 	elif jump_requested or Input.is_key_pressed(KEY_SPACE):
 		player.velocity.y = JUMP_SPEED
 	jump_requested = false
+	if fly_enabled:
+		player.velocity.y = 5.0 if Input.is_key_pressed(KEY_SPACE) or jump_requested else -1.0
 	player.move_and_slide()
+	player.position.x = clampf(player.position.x, -38, 38)
+	player.position.z = clampf(player.position.z, -38, 38)
+	if player.position.y < -10:
+		player.position = Vector3(0, 2, 0)
 	if direction.length_squared() > 0.001:
 		player.rotation.y = atan2(-direction.x, -direction.z)
 	camera_pivot.global_position = player.global_position + Vector3(0, 0.7, 0)

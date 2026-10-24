@@ -123,7 +123,7 @@ func _make_player() -> void:
 	camera_pivot = Node3D.new()
 	add_child(camera_pivot)
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 2.5, 6.5)
+	camera.position = Vector3(0, 0, 6.5)
 	camera.current = true
 	camera_pivot.add_child(camera)
 
@@ -233,7 +233,7 @@ func _set_joystick(position: Vector2) -> void:
 
 func _rotate_camera(delta: Vector2) -> void:
 	yaw -= delta.x * 0.005
-	pitch = clampf(pitch - delta.y * 0.004, -0.85, 0.4)
+	pitch = clampf(pitch - delta.y * 0.004, -0.85, -0.08)
 
 func _physics_process(delta: float) -> void:
 	var keyboard := Vector2(
@@ -275,7 +275,7 @@ func _physics_process(delta: float) -> void:
 		player.position = Vector3(0, 2, 0)
 	if direction.length_squared() > 0.001:
 		player.rotation.y = atan2(-direction.x, -direction.z)
-	camera_pivot.global_position = player.global_position + Vector3(0, 0.7, 0)
+	camera_pivot.global_position = player.global_position
 
 func _input(event: InputEvent) -> void:
 	# Camera wheel belongs to the world when menus are closed, independent of GUI focus.

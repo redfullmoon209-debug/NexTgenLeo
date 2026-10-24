@@ -2,6 +2,7 @@ name: Deploy NexTgenLeo Web
 on:
   push:
     branches: [main]
+    paths-ignore: ["**/*.md"]
   pull_request:
   workflow_dispatch:
 permissions:

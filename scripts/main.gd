@@ -42,7 +42,7 @@ func _ready() -> void:
 func _make_world() -> void:
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -35, 0)
-	light.shadow_enabled = true
+	light.shadow_enabled = GameState.settings.quality == "High"
 	add_child(light)
 	var environment := WorldEnvironment.new()
 	var env := Environment.new()
@@ -88,6 +88,8 @@ func _add_sphere(pos: Vector3, radius: float, color: Color) -> void:
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = radius
+	mesh.radial_segments = 16
+	mesh.rings = 8
 	mesh.height = radius * 2.0
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = _material(color)

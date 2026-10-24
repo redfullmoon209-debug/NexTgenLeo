@@ -89,8 +89,8 @@ func _tag(parent: Node3D, text: String, y: float, color := Color.WHITE) -> Label
 	var label := Label3D.new()
 	label.text = text
 	label.position.y = y
-	label.font_size = 32
-	label.pixel_size = 0.008
+	label.font_size = 24
+	label.pixel_size = 0.006
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = color
 	parent.add_child(label)
@@ -198,7 +198,9 @@ func _build_zone() -> void:
 			_mesh(camp, Vector3(-10 + i * 4, 1.1, -8), Vector3(3, 2.2, 2.5), Color("b5a380"))
 			_mesh(camp, Vector3(-10 + i * 4, 2.8, -8), Vector3(4, 1.5, 3.5), Color("4e686c"), "cone")
 		_mesh(camp, Vector3(8, 1.5, -6), Vector3(2, 3, 0.3), Color("669ed4"))
-		_tag(camp, "PORTAL\nOpen World Map", 4, Color("a8ceff"))
+		var portal_label := _tag(camp, "PORTAL\nOpen World Map", 4, Color("a8ceff"))
+		portal_label.position.x = 8
+		portal_label.position.z = -6
 		world._add_box(Vector3(0, 0.005, -15), Vector3(4, 0.03, 30), Color("9c966d"), false)
 	target = -1
 
@@ -280,7 +282,7 @@ func _build_ui() -> void:
 	for i in range(names.size()):
 		var name: String = names[i].split(" ")[0]
 		var button := _button(names[i], func(): _show_panel(name))
-		button.position = Vector2(18 + i % 3 * 90, 255 + int(i / 3.0) * 44)
+		button.position = Vector2(18 + i % 3 * 90, 285 + int(i / 3.0) * 44)
 		button.size = Vector2(86, 40)
 		buttons.append(button)
 	var controls := ["LOCK\n[TAB]", "PICK UP\n[E]", "ATK\n[F]", "1\nCrescent", "2\nPierce", "3\nJudgment", "DASH\n[R]", "HUNT\n[H]"]
@@ -313,9 +315,20 @@ func _build_ui() -> void:
 func _bar(parent: Node, color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(270, 20)
+	bar.show_percentage = false
 	bar.add_theme_stylebox_override("fill", _style(color, color, 4))
 	bar.add_theme_stylebox_override("background", _style(Color("0c1828"), Color("33475a"), 4))
+	for key in ["fill","background"]:
+		var box: StyleBoxFlat = bar.get_theme_stylebox(key)
+		box.content_margin_top = 0
+		box.content_margin_bottom = 0
 	parent.add_child(bar)
+	var value_label := _label("",13)
+	value_label.name = "Value"
+	bar.add_child(value_label)
+	value_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return bar
 
 func _layout() -> void:
@@ -559,7 +572,10 @@ func _refresh_hud() -> void:
 	stamina_bar.value = GameState.stamina
 	exp_bar.max_value = GameState.exp_required()
 	exp_bar.value = GameState.exp
-	quest_label.text = "%s\nStarter Hunt: %s  %d/5\nGold %d    Cash %d\nHP %d/%d · STA %d/%d" % [GameState.balance.maps[GameState.map_index].name, GameState.quest_state, GameState.quest_kills, GameState.gold, GameState.cash, GameState.hp, GameState.max_hp, int(GameState.stamina), GameState.max_stamina]
+	hp_bar.get_node("Value").text = "HP  %d / %d" % [GameState.hp, GameState.max_hp]
+	stamina_bar.get_node("Value").text = "Stamina  %d / %d" % [int(GameState.stamina),GameState.max_stamina]
+	exp_bar.get_node("Value").text = "EXP  %d / %d" % [GameState.exp,GameState.exp_required()]
+	quest_label.text = "%s\nStarter Hunt: %s  %d/5\nGold %d    Cash %d" % [GameState.balance.maps[GameState.map_index].name, GameState.quest_state, GameState.quest_kills, GameState.gold, GameState.cash]
 	target_label.text = "Select target: TAB / LOCK" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
 	for i in range(4):
 		var button := skill_buttons[i + 2]
@@ -699,7 +715,7 @@ func _show_panel(name: String) -> void:
 			_button("Edit button layout: drag action buttons", func(): layout_edit = not layout_edit; _close_panel(); _tell("Layout editing " + str(layout_edit)), menu)
 			_button("Reset button layout", func(): GameState.settings.button_offsets = {}; _layout(), menu)
 			for quality in ["Low", "Medium", "High"]:
-				_button(quality, func(): GameState.settings.quality = quality; world.get_viewport().scaling_3d_scale = 0.65 if quality == "Low" else 1.0; _tell("Quality: " + quality), menu)
+				_button(quality, func(): GameState.settings.quality = quality; world.get_viewport().scaling_3d_scale = 0.65 if quality == "Low" else 1.0; _set_shadows(quality == "High"); _tell("Quality: " + quality), menu)
 			menu.add_child(_label("FPS %d · Render objects %d\nStatic memory %.1f MB\nLocal sandbox saves use this browser only." % [Engine.get_frames_per_second(), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0]))
 		"Connect":
 			menu.add_child(_label("Optional separate server · offline save stays separate\nLocal: ws://127.0.0.1:8765/ws · Remote: wss://your-host/ws"))
@@ -904,3 +920,7 @@ func _online_panel(name: String) -> void:
 			_button("Send chat", func(): network.command("chat",{"text":field.text}), menu)
 			_button("Join party room", func(): network.command("party",{"code":field.text}), menu)
 			_button("Disconnect · return offline", func(): network.disconnect_server(); _close_panel(), menu)
+
+func _set_shadows(enabled: bool) -> void:
+	for child in world.get_children():
+		if child is DirectionalLight3D: child.shadow_enabled = enabled

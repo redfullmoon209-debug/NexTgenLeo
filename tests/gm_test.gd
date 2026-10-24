@@ -22,6 +22,10 @@ func run() -> void:
 	game._show_panel("GM")
 	check(game.gm_choosers.size() == 3,"GM exposes all three selectors")
 	check(game.gm_choosers.job.item_count == 13,"Novice plus twelve professions")
+	check(not game.pointer_over_ui(Vector2(650,680)),"world space outside panel remains available")
+	game.gm_choosers.job.get_popup().show()
+	check(game.pointer_over_ui(Vector2(650,680)),"open dropdown reserves pointer outside parent panel")
+	game.gm_choosers.job.get_popup().hide()
 	check(game._gm_select("gender","Female",false) and state.gender == "Female","select Female")
 	check(game._gm_select("gender","Male",false) and state.gender == "Male","select Male")
 	for definition in state.balance.professions:

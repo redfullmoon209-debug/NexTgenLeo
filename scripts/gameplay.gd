@@ -597,12 +597,15 @@ func _refresh_hud() -> void:
 			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),Color("697d8f")))
 	if OS.has_feature("web"):
 		var gm_rects: Dictionary = {}
+		var gm_popups: Dictionary = {}
 		if active_panel == "GM":
 			for key in gm_choosers:
 				if is_instance_valid(gm_choosers[key]):
 					var center: Vector2 = gm_choosers[key].get_global_rect().get_center()
 					gm_rects[key] = [center.x,center.y]
-		var diagnostic := {"version":"gm-select-20261024-1","gm_controls":gm_rects,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+					var popup: PopupMenu = gm_choosers[key].get_popup()
+					gm_popups[key] = {"visible":popup.visible,"position":[popup.position.x,popup.position.y],"size":[popup.size.x,popup.size.y]}
+		var diagnostic := {"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -951,6 +954,9 @@ func _set_shadows(enabled: bool) -> void:
 		if child is DirectionalLight3D: child.shadow_enabled = enabled
 
 func pointer_over_ui(point: Vector2) -> bool:
+	# Popup windows can extend beyond their parent panel; reserve pointer input until dismissed.
+	for chooser in gm_choosers.values():
+		if is_instance_valid(chooser) and chooser.get_popup().visible: return true
 	if panel.visible and panel.get_global_rect().has_point(point): return true
 	for button in buttons + skill_buttons + [world.jump_button, world.run_button]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(point): return true

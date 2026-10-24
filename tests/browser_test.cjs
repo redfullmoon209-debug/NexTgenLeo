@@ -33,7 +33,10 @@ const {spawn} = require('child_process');
  for(const [kind,expected] of [['gender','Female'],['job','forest_lord'],['faction','Dark']]){
   await page.waitForFunction(k=>!!window.leoDiagnostics.gm_controls[k],kind,{timeout:15000});
   const point=(await page.evaluate(()=>window.leoDiagnostics)).gm_controls[kind];
-  await page.mouse.click(point[0],point[1]);await page.keyboard.press('End');await page.keyboard.press('Enter');
+  await page.mouse.click(point[0],point[1]);
+  await page.waitForFunction(k=>window.leoDiagnostics.gm_popups[k].visible,kind,{timeout:15000});
+  const popup=(await page.evaluate(()=>window.leoDiagnostics)).gm_popups[kind];
+  await page.mouse.click(popup.position[0]+popup.size[0]/2,popup.position[1]+popup.size[1]-14);
   await page.waitForFunction(({k,v})=>window.leoDiagnostics[k]===v,{k:kind,v:expected},{timeout:15000});
  }
  await page.waitForFunction(()=>window.leoDiagnostics.class_rank>=7,null,{timeout:15000});

@@ -37,10 +37,17 @@ This is a playable **development sandbox**, not a complete or production MMORPG.
 - Production authentication, operational deployment, TLS hosting, backups/migrations, load/soak/security review and large player counts.
 - Real Android/iPhone testing and measured mobile FPS/memory. Desktop software renderer figures cannot predict phone performance.
 
-## Deployment and browser evidence
-- Initial integrated sandbox commit 3b197d3: GitHub Actions deployment completed successfully.
-- Cloud-browser attempt reached the Godot loader but that environment reports missing WebGL2. This does not verify 3D rendering.
-- Local Chromium installation could not start because this execution environment disallows required Unix socket operations.
-- A Chromium acceptance job is included in CI to test actual desktop and emulated touch input in a supported runner. Its final run result must be checked before claiming browser acceptance.
+## Browser acceptance and deployment
+- Actual Chromium WebGL2 rendering tested at 1280×720 on desktop and with emulated touch.
+- Passed movement, Bag open/close, target selection, wheel zoom, joystick, concurrent joystick + attack, release, pinch zoom and keeping the player visible after zoom. No captured JavaScript or GDScript errors in the successful browser run.
+- CI also passed the browser acceptance step in run 40103691445. That run's publication failed only at an attempted Pages administration change; that step has been removed.
+- Final release workflow: https://github.com/redfullmoon209-debug/NexTgenLeo/actions/runs/40104267080 . Consult the live run for final publication status.
+- Software-rendered test observations ranged from 1–2 FPS during initialization to roughly 12–22 FPS in later touch samples. These are not a controlled benchmark or a prediction for the user's GPU/phone. Release static-memory reporting returned zero (unavailable); complete browser/WASM memory consumption was not established.
+- Physical Android/iPhone and mobile Safari acceptance remain unverified.
 
-- Chromium CI attempt loaded the actual WebGL game and passed movement/menu checks, then caught a wheel zoom failure. Wheel routing was corrected and regression checks added; acceptance rerun required.
+## Pages source permission limitation
+The final workflow reads repository contents and publishes a validated Pages artifact. It does not request repository administration permission or push commits back to main.
+
+An owner should select Settings → Pages → Build and deployment → Source → GitHub Actions. Until that is set, GitHub's implicit branch/Jekyll build can compete with the custom game deployment and replace it with README content on later pushes. The owner setting could not be changed with the available CI integration token (HTTP 403).
+
+A proposed automatic root-export commit path was rejected by automatic approval review because it added contents-write permission and automatic pushes to main. That proposal was not committed or enabled. The safer existing artifact deployment was retained.

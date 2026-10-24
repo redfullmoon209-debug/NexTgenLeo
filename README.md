@@ -14,7 +14,7 @@ Mobile: left joystick, right action buttons, drag empty screen for camera, two c
 
 Class 3: select element and freely assign initial skills. Class 5: select one of that element's two professions; skill assignment then locks to profession. Class 7: faction. Sovereign skill unlock remains unspecified.
 
-**Skills > Settings** contains quality, save, button layout and optional server connection. GM is an offline testing menu. Local saves stay in the current browser; browser private mode or clearing site data may remove them.
+**Skills > Settings** contains quality, save, button layout and optional server connection. GM is an offline testing menu. Its top three dropdowns select Male/Female, Novice or any of the twelve professions, and None/Light/Dark. Profession choices raise Class to at least 5 and faction choices to at least 7; existing equipment is preserved while GM weapon previews can be switched repeatedly. Local saves stay in the current browser; browser private mode or clearing site data may remove them.
 
 ## Build and tests
 

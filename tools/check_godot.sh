@@ -11,6 +11,7 @@ check_run() {
 }
 check_run --headless --editor --path . --quit
 check_run --headless --path . --script res://tests/game_test.gd
+check_run --headless --path . --script res://tests/gm_test.gd
 check_run --headless --path . --quit-after 120
 mkdir -p build/web
 # New URLs prevent a browser/CDN mixing the new HTML with cached old game code.

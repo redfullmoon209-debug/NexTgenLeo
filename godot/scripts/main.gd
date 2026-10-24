@@ -25,7 +25,7 @@ func _ready() -> void:
     _spawn_mobs()
 
 func _setup_input() -> void:
-    for item in [{"action":"move_forward","key":KEY_W},{"action":"move_back","key":KEY_S},{"action":"move_left","key":KEY_A},{"action":"move_right","key":KEY_D}]:
+    for item in [{"action":"move_forward","key":KEY_W},{"action":"move_back","key":KEY_S},{"action":"move_left","key":KEY_A},{"action":"move_right","key":KEY_D},{"action":"jump","key":KEY_SPACE},{"action":"attack","key":KEY_J},{"action":"potion","key":KEY_H}]:
         if not InputMap.has_action(item.action):
             InputMap.add_action(item.action)
         var key := InputEventKey.new()
@@ -143,6 +143,8 @@ func _physics_process(delta: float) -> void:
     var direction := (right * axis.x + forward * axis.y).normalized()
     player.velocity.x = direction.x * SPEED
     player.velocity.z = direction.z * SPEED
+    if Input.is_action_just_pressed("jump") and player.is_on_floor():
+        player.velocity.y = 7.5
     if not player.is_on_floor():
         player.velocity.y -= 20.0 * delta
     else:
@@ -152,6 +154,10 @@ func _physics_process(delta: float) -> void:
         player.rotation.y = lerp_angle(player.rotation.y, atan2(-direction.x, -direction.z), min(delta * 12.0, 1.0))
 
 func _input(event: InputEvent) -> void:
+    if event.is_action_pressed("attack"):
+        _attack()
+    if event.is_action_pressed("potion"):
+        _potion()
     if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
         _rotate_camera(event.relative)
     elif event is InputEventMouseButton and event.pressed:
@@ -235,3 +241,7 @@ func _quest() -> void:
 func _save() -> void:
     state.player_position = player.global_position
     state.save_game()
+
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_WM_CLOSE_REQUEST and is_instance_valid(player):
+        _save()

@@ -10,6 +10,11 @@ func _initialize() -> void:
 	call_deferred("run")
 func run() -> void:
 	var state = root.get_node("GameState")
+	state.gender = "Male"
+	state.selected_job = ""
+	state.selected_element = ""
+	state.equipped.clear()
+	state.buffs.clear()
 	state.inventory.clear()
 	check(state.add_item("herb", 199), "grant multiple stacks")
 	check(state.inventory.size() == 3 and state.inventory[0].count == 99, "99 stack cap")
@@ -43,6 +48,10 @@ func run() -> void:
 	state.class_rank = 5
 	check(not state.select_job("water_mage"), "profession must match element")
 	check(state.select_job("wind_assassin"), "Class 5 profession")
+	state.equipped.weapon.enhancement = 3
+	var inventory_before: int = state.inventory.size()
+	check(state.select_job("wind_assassin") and state.equipped.weapon.enhancement == 3, "repeat profession preserves equipment")
+	check(state.inventory.size() == inventory_before, "repeat profession never duplicates equipment")
 	check(not state.set_skill_slot(0,1), "Class 5 fixed loadout")
 	check(not state.select_element("Water"), "element locked to profession")
 	check(not state.select_faction("Light"), "faction locked before Class 7")
@@ -99,6 +108,18 @@ func run() -> void:
 	game._revive()
 	check(state.hp > 0, "revive")
 
+	var wheel_start: float = scene.camera.position.z
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	wheel.position = Vector2(700,400)
+	root.push_input(wheel, true)
+	check(scene.camera.position.z < wheel_start, "wheel zoom after closing a menu")
+	game._show_panel("Bag")
+	var blocked_zoom: float = scene.camera.position.z
+	root.push_input(wheel.duplicate(),true)
+	check(is_equal_approx(scene.camera.position.z,blocked_zoom), "bag scroll does not zoom camera")
+	game._close_panel()
 	# Real input dispatch: joystick and a second action finger must coexist.
 	var origin: Vector2 = scene.joystick_origin
 	var touch := InputEventScreenTouch.new()

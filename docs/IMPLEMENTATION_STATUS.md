@@ -22,7 +22,7 @@ This is a playable **development sandbox**, not a complete or production MMORPG.
 
 ## Verification performed locally
 - Exact Godot 4.4.1 editor import, runtime smoke and Web release export.
-- 49 gameplay checks: stack/capacity atomicity, purchases/sales, EXP/class gates, element/profession/faction rules, free/fixed skill assignment, height caps, quest lifecycle, actual menu opening, scene spawning, combat, loot, equipment, revive, dispatched multitouch action/joystick isolation, release-over-GUI, pinch input and save/load round-trip.
+- 53 gameplay checks: stack/capacity atomicity, purchases/sales, EXP/class gates, element/profession/faction rules, free/fixed skill assignment, height caps, quest lifecycle, actual menu opening, scene spawning, combat, loot, equipment, revive, dispatched multitouch action/joystick isolation, release-over-GUI, pinch input and save/load round-trip.
 - 11 Python unittest cases, including two live WebSocket clients, snapshots/chat, persistence/reconnect, duplicate requests, invalid quantities/movement, forged economy/GM, attack range/cooldown, and class/job gates.
 - Godot client live WebSocket test: guest handshake/snapshot, authoritative purchase, disconnect/offline restore.
 - Browser acceptance and deployment results are recorded separately when completed. Headless checks do not establish device performance or mobile Safari compatibility.
@@ -42,3 +42,5 @@ This is a playable **development sandbox**, not a complete or production MMORPG.
 - Cloud-browser attempt reached the Godot loader but that environment reports missing WebGL2. This does not verify 3D rendering.
 - Local Chromium installation could not start because this execution environment disallows required Unix socket operations.
 - A Chromium acceptance job is included in CI to test actual desktop and emulated touch input in a supported runner. Its final run result must be checked before claiming browser acceptance.
+
+- Chromium CI attempt loaded the actual WebGL game and passed movement/menu checks, then caught a wheel zoom failure. Wheel routing was corrected and regression checks added; acceptance rerun required.

@@ -67,6 +67,9 @@ class AuthorityTests(unittest.TestCase):
         self.a.players[self.id]['class_rank']=5
         with self.assertRaises(Rejected):self.command('job',value='water_mage')
         self.command('job',value='wind_assassin')
+        self.a.players[self.id]['equipped']['weapon']['enhancement']=3
+        self.command('job',value='wind_assassin')
+        self.assertEqual(self.a.players[self.id]['equipped']['weapon']['enhancement'],3)
         with self.assertRaises(Rejected):self.command('faction',value='Light')
         self.a.players[self.id]['class_rank']=7
         self.command('faction',value='Light')

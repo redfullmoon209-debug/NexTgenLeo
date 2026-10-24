@@ -224,7 +224,12 @@ class Authority:
         elif op=='job':
             job=next((j for j in BALANCE['professions'] if j['id']==m.get('value')),None)
             if s['class_rank']<5 or not job or job['element']!=s['selected_element']:raise Rejected('Profession locked')
-            if s['selected_job'] and s['selected_job']!=job['id']:raise Rejected('Profession already chosen')
+            if s['selected_job']:
+                if s['selected_job']!=job['id']:raise Rejected('Profession already chosen')
+                return 'Already selected'
+            if 'weapon' in s['equipped']:
+                if len(s['inventory'])>=200:raise Rejected('Bag full')
+                s['inventory'].append(s['equipped']['weapon'])
             s['selected_job']=job['id']
             s['equipped']['weapon']=dict(id=job['weapon'],count=1,enhancement=0)
         elif op=='skill':

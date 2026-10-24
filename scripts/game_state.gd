@@ -100,11 +100,14 @@ func select_path(value: String) -> bool:
 	return true
 
 func select_job(job: String) -> bool:
-	if not selected_job.is_empty() and selected_job != job:
-		return false
+	if not selected_job.is_empty():
+		return selected_job == job
 	var definition := job_definition(job)
 	if class_rank < 5 or definition.is_empty() or definition.element != selected_element:
 		return false
+	if "weapon" in equipped:
+		if inventory.size() >= 200: return false
+		inventory.append(equipped.weapon)
 	selected_job = job
 	equipped["weapon"] = {"id":definition.weapon,"count":1,"enhancement":0}
 	appearance_changed.emit()

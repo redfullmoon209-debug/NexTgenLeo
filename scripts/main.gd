@@ -224,11 +224,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		if event.position.x > get_viewport().get_visible_rect().size.x * 0.45:
 			_rotate_camera(event.relative)
-	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			camera.position.z = maxf(2.5, camera.position.z - 0.6)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera.position.z = minf(12.0, camera.position.z + 0.6)
 
 func _set_joystick(position: Vector2) -> void:
 	joystick_vector = ((position - joystick_origin) / 55.0).limit_length(1.0)
@@ -281,6 +276,12 @@ func _physics_process(delta: float) -> void:
 	camera_pivot.global_position = player.global_position + Vector3(0, 0.7, 0)
 
 func _input(event: InputEvent) -> void:
+	# Camera wheel belongs to the world when menus are closed, independent of GUI focus.
+	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
+		if is_instance_valid(gameplay) and not gameplay.panel.visible:
+			camera.position.z = clampf(camera.position.z + (-0.6 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 0.6),2.5,16.0)
+			get_viewport().set_input_as_handled()
+			return
 	# Release must work even when a finger ends over a GUI control.
 	if event is InputEventScreenTouch and not event.pressed:
 		touches.erase(event.index)

@@ -2,12 +2,12 @@ const { chromium } = require('playwright');
 const {spawn} = require('child_process');
 (async()=>{
  const server=spawn('python',['-m','http.server','8060','--bind','127.0.0.1','--directory','build/web']);
- let browser;
+ let browser; let currentPage; let completed=false;
  const logs=[];
  try{
  browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  const context=await browser.newContext({viewport:{width:1280,height:720}});
- const page=await context.newPage();
+ const page=await context.newPage();currentPage=page;
  page.on('console',m=>logs.push({type:m.type(),text:m.text()}));page.on('pageerror',e=>logs.push({type:'pageerror',text:e.message}));
  await page.goto('http://127.0.0.1:8060');
  await page.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
@@ -26,7 +26,7 @@ const {spawn} = require('child_process');
  console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
  await context.close();
  const mobile=await browser.newContext({viewport:{width:1280,height:720},isMobile:true,hasTouch:true});
- const p=await mobile.newPage();p.on('console',m=>{if(m.type()==='error')logs.push({type:'mobile-error',text:m.text()})});
+ const p=await mobile.newPage();currentPage=p;p.on('console',m=>{if(m.type()==='error')logs.push({type:'mobile-error',text:m.text()})});
  await p.goto('http://127.0.0.1:8060');await p.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
  const cdp=await mobile.newCDPSession(p);
  const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([id,x,y])=>({id,x,y}))});
@@ -51,6 +51,7 @@ const {spawn} = require('child_process');
  console.log(JSON.stringify({mobile:{mstart,stick,multitouch,released,pinch},errors:logs.filter(x=>['error','pageerror','mobile-error'].includes(x.type))},null,2));
  const errors=logs.filter(x=>x.type==='pageerror'||(x.type==='error' && /SCRIPT ERROR|Parse Error|ERROR:/.test(x.text)));
  if(errors.length)throw Error(JSON.stringify(errors));
+ completed=true;
  console.log('BROWSER TESTS: PC movement, menu, wheel, target, mobile joystick, concurrent action touch, release, pinch passed');
- }finally{if(browser)await browser.close();server.kill();}
+ }finally{if(!completed && currentPage && !currentPage.isClosed()){console.log('FAILURE_DIAGNOSTICS',JSON.stringify(await currentPage.evaluate(()=>window.leoDiagnostics||{status:document.body.innerText})));console.log('FAILURE_LOGS',JSON.stringify(logs));await currentPage.screenshot({path:'build/browser-failure.png'});}if(browser)await browser.close();server.kill();}
 })().catch(e=>{console.error(e);process.exit(1)});

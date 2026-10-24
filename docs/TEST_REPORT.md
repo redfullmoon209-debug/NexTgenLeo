@@ -38,3 +38,6 @@ npm install --no-save --no-package-lock playwright@1.62.1
 npx playwright install --with-deps chromium
 node tests/browser_test.cjs
 ```
+
+## Mouse input regression — 2026-10-24
+Native PC mouse clicks open/close menus. Left drag works on empty world on either side of the screen; right drag also orbits. UI presses are reserved for controls, and camera drag clears when application focus is lost. Browser export asset names include the release SHA to prevent cached game bundles being reused after updates. Acceptance also covers resize from 1280×720 to 1920×1080; touch regression checks remain enabled.

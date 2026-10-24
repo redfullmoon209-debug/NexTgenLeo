@@ -240,6 +240,7 @@ func _label(text: String, size := 16) -> Label:
 
 func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.text = text
 	button.custom_minimum_size = Vector2(74, 40)
 	button.add_theme_stylebox_override("normal", _style(Color("182b40e8"), Color("697d8f")))
@@ -256,11 +257,13 @@ func _build_ui() -> void:
 	theme.default_font = font
 	world.hud.theme = theme
 	var plate := PanelContainer.new()
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.position = Vector2(14, 64)
 	plate.size = Vector2(305, 134)
 	plate.add_theme_stylebox_override("panel", _style(Color("142436dd"), Color("9c9276")))
 	world.hud.add_child(plate)
 	var stack := VBoxContainer.new()
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.add_child(stack)
 	stats_label = _label("", 18)
 	stack.add_child(stats_label)
@@ -316,6 +319,7 @@ func _bar(parent: Node, color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(270, 20)
 	bar.show_percentage = false
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_theme_stylebox_override("fill", _style(color, color, 4))
 	bar.add_theme_stylebox_override("background", _style(Color("0c1828"), Color("33475a"), 4))
 	for key in ["fill","background"]:
@@ -588,7 +592,7 @@ func _refresh_hud() -> void:
 	else:
 		world.joystick_base.color.a = 0
 	if OS.has_feature("web"):
-		var diagnostic := {"version":"sandbox-20261024","position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var diagnostic := {"version":"mouse-20261024-1","screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -924,3 +928,9 @@ func _online_panel(name: String) -> void:
 func _set_shadows(enabled: bool) -> void:
 	for child in world.get_children():
 		if child is DirectionalLight3D: child.shadow_enabled = enabled
+
+func pointer_over_ui(point: Vector2) -> bool:
+	if panel.visible and panel.get_global_rect().has_point(point): return true
+	for button in buttons + skill_buttons + [world.jump_button, world.run_button]:
+		if button.is_visible_in_tree() and button.get_global_rect().has_point(point): return true
+	return false

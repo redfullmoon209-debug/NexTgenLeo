@@ -29,6 +29,7 @@ var pinch_distance := 0.0
 var visual: Node3D
 var dash_time := 0.0
 var fly_enabled := false
+var mouse_look_button := 0
 
 func _ready() -> void:
 	_make_world()
@@ -141,7 +142,7 @@ func _make_hud() -> void:
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(title)
 	var help := Label.new()
-	help.text = "PC: WASD move | Shift run | Space jump | Drag to rotate camera"
+	help.text = "PC: WASD move | Shift run | Space jump | Left / right drag on world: camera"
 	help.position = Vector2(18, 36)
 	help.add_theme_font_size_override("font_size", 14)
 	help.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -223,9 +224,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.index == look_finger:
 			_rotate_camera(event.position - look_previous)
 			look_previous = event.position
-	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		if event.position.x > get_viewport().get_visible_rect().size.x * 0.45:
-			_rotate_camera(event.relative)
 
 func _set_joystick(position: Vector2) -> void:
 	joystick_vector = ((position - joystick_origin) / 55.0).limit_length(1.0)
@@ -278,6 +276,20 @@ func _physics_process(delta: float) -> void:
 	camera_pivot.global_position = player.global_position
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT]:
+		if not event.pressed:
+			if event.button_index == mouse_look_button: mouse_look_button = 0
+		elif is_instance_valid(gameplay) and not gameplay.pointer_over_ui(event.position) and not gameplay.layout_edit:
+			mouse_look_button = event.button_index
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion and mouse_look_button != 0:
+		if is_instance_valid(gameplay) and (gameplay.panel.visible or gameplay.layout_edit):
+			mouse_look_button = 0
+		else:
+			_rotate_camera(event.relative)
+			get_viewport().set_input_as_handled()
+		return
 	# Camera wheel belongs to the world when menus are closed, independent of GUI focus.
 	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
 		if is_instance_valid(gameplay) and not gameplay.panel.visible:
@@ -293,3 +305,12 @@ func _input(event: InputEvent) -> void:
 			joystick_vector = Vector2.ZERO
 			_update_knob()
 		if event.index == look_finger: look_finger = -1
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		mouse_look_button = 0
+		joystick_finger = -1
+		look_finger = -1
+		joystick_vector = Vector2.ZERO
+		touches.clear()
+		if is_instance_valid(joystick_knob): _update_knob()

@@ -8,7 +8,7 @@ The current build uses procedural placeholder art. It is not a finished MMORPG. 
 
 ## Controls
 
-PC: WASD move, Shift run, Space jump, drag right side to orbit, wheel zoom, TAB lock target, F basic attack, 1–3 skills, R dash, H auto hunt, E pickup, B bag, P shop, C status, Q quest, M world, Esc close/cancel.
+PC: WASD move, Shift run, Space jump, left/right drag on empty world to orbit, wheel zoom, TAB lock target, F basic attack, 1–3 skills, R dash, H auto hunt, E pickup, B bag, P shop, C status, Q quest, M world, Esc close/cancel.
 
 Mobile: left joystick, right action buttons, drag empty screen for camera, two camera fingers for pinch zoom. Accept Starter Hunt using Quest > AUTO TO NPC, then Talk to Elara. Select a target before attacking. Pet automatically collects nearby drops while summoned.
 

@@ -16,6 +16,13 @@ const {spawn} = require('child_process');
  await page.keyboard.down('w');try{await page.waitForFunction(s=>Math.hypot(window.leoDiagnostics.position[0]-s[0],window.leoDiagnostics.position[2]-s[2])>1.2,start.position,{timeout:20000});}finally{await page.keyboard.up('w');}
  let moved=await page.evaluate(()=>window.leoDiagnostics);
  if(Math.hypot(moved.position[0]-start.position[0],moved.position[2]-start.position[2])<1)throw Error('WASD failed');
+ await page.mouse.click(55,305);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ await page.mouse.click(370,230);await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ for(const [button,x] of [['left',340],['right',780]]){
+  const beforeYaw=(await page.evaluate(()=>window.leoDiagnostics)).yaw;
+  await page.mouse.move(x,460);await page.mouse.down({button});await page.mouse.move(x+130,470,{steps:8});await page.mouse.up({button});
+  await page.waitForFunction(y=>Math.abs(window.leoDiagnostics.yaw-y)>.2,beforeYaw,{timeout:15000});
+ }
  await page.keyboard.press('b');await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
  let bag=await page.evaluate(()=>window.leoDiagnostics);if(bag.panel!=='Bag')throw Error('Bag menu failed');
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});await page.mouse.move(700,400);await page.mouse.wheel(0,-300);await page.waitForFunction(z=>window.leoDiagnostics.camera_zoom<z,start.camera_zoom,{timeout:15000});
@@ -24,6 +31,11 @@ const {spawn} = require('child_process');
  let target=await page.evaluate(()=>window.leoDiagnostics);if(target.target<0)throw Error('Target select failed');
  await page.screenshot({path:'build/leo-desktop.png'});
  console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
+ await page.setViewportSize({width:1920,height:1080});
+ await page.waitForFunction(()=>window.leoDiagnostics.screen_size[0]===1920,null,{timeout:15000});
+ await page.mouse.click(55*1.5,305*1.5);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ console.log('MOUSE TESTS: native menu clicks, close, left/right world drag, 1920x1080 click passed');
  await context.close();
  const mobile=await browser.newContext({viewport:{width:1280,height:720},isMobile:true,hasTouch:true});
  const p=await mobile.newPage();currentPage=p;p.on('console',m=>{if(m.type()==='error')logs.push({type:'mobile-error',text:m.text()})});

@@ -10,13 +10,19 @@ var move_touch := -1
 var look_touch := -1
 var touch_move := Vector2.ZERO
 var pitch := -0.35
+var state := LeoGameState.new()
+var target: LeoMob
+var attack_timer := 0.0
+var status: Label
 
 func _ready() -> void:
+    state.load_game()
     _setup_input()
     _make_world()
     _make_player()
     _load_thailand()
     _make_hud()
+    _spawn_mobs()
 
 func _setup_input() -> void:
     for item in [{"action":"move_forward","key":KEY_W},{"action":"move_back","key":KEY_S},{"action":"move_left","key":KEY_A},{"action":"move_right","key":KEY_D}]:
@@ -62,7 +68,7 @@ func _make_world() -> void:
 func _make_player() -> void:
     player = CharacterBody3D.new()
     player.name = "Player"
-    player.position = Vector3(0, 2, 0)
+    player.position = state.player_position
     add_child(player)
     var collision := CollisionShape3D.new()
     var capsule := CapsuleShape3D.new()
@@ -113,8 +119,17 @@ func _make_hud() -> void:
     note.text = "Mobile: left thumb move, right thumb camera"
     note.position = Vector2(16, 42)
     layer.add_child(note)
+    status = Label.new()
+    status.position = Vector2(16, 70)
+    layer.add_child(status)
+    _button(layer, "ATK", Vector2(18, 135), _attack)
+    _button(layer, "POTION", Vector2(105, 135), _potion)
+    _button(layer, "QUEST", Vector2(205, 135), _quest)
+    _button(layer, "SAVE", Vector2(305, 135), _save)
 
 func _physics_process(delta: float) -> void:
+    attack_timer = maxf(0.0, attack_timer - delta)
+    status.text = "Lv.%d HP %d/%d SP %d EXP %d Gold %d Quest %d/5" % [state.level, state.hp, state.max_hp(), state.stamina, state.exp, state.gold, state.quest_kills]
     camera_pivot.global_position = player.global_position + Vector3.UP * 1.4
     var axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     if touch_move.length() > 0.1:
@@ -167,3 +182,56 @@ func _rotate_camera(relative: Vector2) -> void:
     camera_pivot.rotation.y -= relative.x * LOOK_SENSITIVITY
     pitch = clamp(pitch - relative.y * LOOK_SENSITIVITY, -1.15, 0.25)
     camera_pivot.rotation.x = pitch
+
+func _button(layer: CanvasLayer, title: String, pos: Vector2, callback: Callable) -> void:
+    var b := Button.new()
+    b.text = title
+    b.position = pos
+    layer.add_child(b)
+    b.pressed.connect(callback)
+
+func _spawn_mobs() -> void:
+    for i in range(10):
+        var mob := LeoMob.new()
+        mob.position = Vector3(cos(i * TAU / 10.0) * 12.0, 1.0, sin(i * TAU / 10.0) * 12.0)
+        mob.target = player
+        mob.defeated.connect(_mob_defeated)
+        add_child(mob)
+
+func _mob_defeated(mob: LeoMob) -> void:
+    state.gain_exp(30)
+    state.gold += 10
+    if state.quest_accepted:
+        state.quest_kills += 1
+        if state.quest_kills >= 5:
+            state.quest_accepted = false
+            state.gold += 100
+            state.gain_exp(100)
+    target = null
+    _save()
+
+func _attack() -> void:
+    if attack_timer > 0.0:
+        return
+    if not is_instance_valid(target):
+        var best := INF
+        for node in get_tree().get_nodes_in_group("monsters"):
+            var mob := node as LeoMob
+            var d := player.global_position.distance_to(mob.global_position)
+            if d < best:
+                best = d
+                target = mob
+    if is_instance_valid(target) and player.global_position.distance_to(target.global_position) < 3.2:
+        target.take_damage(25 + state.level * 2)
+        attack_timer = 0.6
+
+func _potion() -> void:
+    state.use_potion()
+
+func _quest() -> void:
+    state.quest_accepted = true
+    state.quest_kills = 0
+
+func _save() -> void:
+    state.player_position = player.global_position
+    state.save_game()

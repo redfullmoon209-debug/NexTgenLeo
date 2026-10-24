@@ -29,6 +29,16 @@ const {spawn} = require('child_process');
  let zoomed=await page.evaluate(()=>window.leoDiagnostics);if(zoomed.camera_zoom>=start.camera_zoom)throw Error('Wheel zoom failed');
  await page.keyboard.press('Tab');await page.waitForFunction(()=>window.leoDiagnostics.target>=0,null,{timeout:15000});
  let target=await page.evaluate(()=>window.leoDiagnostics);if(target.target<0)throw Error('Target select failed');
+ await page.mouse.click(240,393);await page.waitForFunction(()=>window.leoDiagnostics.panel==='GM',null,{timeout:15000});
+ for(const [kind,expected] of [['gender','Female'],['job','forest_lord'],['faction','Dark']]){
+  await page.waitForFunction(k=>!!window.leoDiagnostics.gm_controls[k],kind,{timeout:15000});
+  const point=(await page.evaluate(()=>window.leoDiagnostics)).gm_controls[kind];
+  await page.mouse.click(point[0],point[1]);await page.keyboard.press('End');await page.keyboard.press('Enter');
+  await page.waitForFunction(({k,v})=>window.leoDiagnostics[k]===v,{k:kind,v:expected},{timeout:15000});
+ }
+ await page.waitForFunction(()=>window.leoDiagnostics.class_rank>=7,null,{timeout:15000});
+ console.log('GM BROWSER TESTS: choose Female, profession and Dark via dropdowns passed');
+ await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await page.screenshot({path:'build/leo-desktop.png'});
  console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
  await page.setViewportSize({width:1920,height:1080});

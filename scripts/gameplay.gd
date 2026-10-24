@@ -42,6 +42,8 @@ var npc_navigation := false
 var layout_edit := false
 var dragging_button: Button
 var ui_refresh := 0.0
+var gm_choosers: Dictionary = {}
+var gm_summary: Label
 var selected_ring: MeshInstance3D
 var rng := RandomNumberGenerator.new()
 
@@ -585,14 +587,22 @@ func _refresh_hud() -> void:
 		var button := skill_buttons[i + 2]
 		button.text = str(GameState.skill_definition(i).name) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
 	var faction_color := Color("e4e5da") if GameState.faction == "Light" else Color("9a77c5")
-	if GameState.class_rank >= 7:
+	if GameState.class_rank >= 7 and GameState.faction in ["Light","Dark"]:
 		world.joystick_base.color = Color(faction_color, 0.25)
 		for button in skill_buttons:
 			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),faction_color))
 	else:
 		world.joystick_base.color.a = 0
+		for button in skill_buttons:
+			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),Color("697d8f")))
 	if OS.has_feature("web"):
-		var diagnostic := {"version":"mouse-20261024-1","screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var gm_rects: Dictionary = {}
+		if active_panel == "GM":
+			for key in gm_choosers:
+				if is_instance_valid(gm_choosers[key]):
+					var center: Vector2 = gm_choosers[key].get_global_rect().get_center()
+					gm_rects[key] = [center.x,center.y]
+		var diagnostic := {"version":"gm-select-20261024-1","gm_controls":gm_rects,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -812,6 +822,17 @@ func _warp(index: int) -> void:
 	_save()
 
 func _gm() -> void:
+	menu.add_child(_label("GM · เลือกตัวละคร / อาชีพ / ฝ่าย",20))
+	menu.add_child(_label("เลือกอาชีพ: Class ขั้นต่ำ 5 · เลือกฝ่าย: Class ขั้นต่ำ 7",14))
+	gm_summary = _label("")
+	menu.add_child(gm_summary)
+	_gm_choice_row("เพศ",[{"id":"Male","name":"ชาย / Male"},{"id":"Female","name":"หญิง / Female"}],GameState.gender,"gender")
+	var jobs: Array = [{"id":"","name":"Novice / เริ่มต้น"}]
+	for job in GameState.balance.professions:
+		jobs.append({"id":job.id,"name":str(job.name)+" · "+str(job.element)})
+	_gm_choice_row("อาชีพ",jobs,GameState.selected_job,"job")
+	_gm_choice_row("ฝ่าย",[{"id":"","name":"ไม่มีฝ่าย"},{"id":"Light","name":"Light / แสง"},{"id":"Dark","name":"Dark / มืด"}],GameState.faction,"faction")
+	_gm_update_summary()
 	menu.add_child(_label("OFFLINE TEST TOOLS · no production server connection"))
 	_button("+1 Level", func(): GameState.add_exp(GameState.exp_required()), menu)
 	_button("+1 Class (test override)", func(): GameState.class_rank = mini(10, GameState.class_rank + 1); GameState.level = 1; GameState._recalculate_stats(); _build_avatar(), menu)
@@ -934,3 +955,66 @@ func pointer_over_ui(point: Vector2) -> bool:
 	for button in buttons + skill_buttons + [world.jump_button, world.run_button]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(point): return true
 	return false
+
+func _gm_choice_row(title: String, options: Array, current: String, kind: String) -> void:
+	var row := HBoxContainer.new()
+	menu.add_child(row)
+	var label := _label(title)
+	label.custom_minimum_size.x = 70
+	row.add_child(label)
+	var chooser := OptionButton.new()
+	chooser.custom_minimum_size = Vector2(360,42)
+	chooser.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for option in options:
+		chooser.add_item(str(option.name))
+		var index := chooser.item_count - 1
+		chooser.set_item_metadata(index,option.id)
+		if option.id == current: chooser.select(index)
+	row.add_child(chooser)
+	gm_choosers[kind] = chooser
+	chooser.item_selected.connect(func(index):
+		if not _gm_select(kind,str(chooser.get_item_metadata(index))):
+			_tell("เปลี่ยนไม่ได้: กรุณาตรวจพื้นที่กระเป๋าหรือการเชื่อมต่อเซิร์ฟเวอร์")
+			var actual: String = GameState.gender if kind == "gender" else (GameState.selected_job if kind == "job" else GameState.faction)
+			for i in range(chooser.item_count):
+				if str(chooser.get_item_metadata(i)) == actual: chooser.select(i)
+	)
+
+func _gm_update_summary() -> void:
+	if is_instance_valid(gm_summary):
+		var job: Dictionary = GameState.job_definition()
+		gm_summary.text = "%s · %s · %s · Class %d" % ["ชาย" if GameState.gender == "Male" else "หญิง",str(job.get("name","Novice")),GameState.faction if not GameState.faction.is_empty() else "ไม่มีฝ่าย",GameState.class_rank]
+
+func _gm_select(kind: String, value: String, persist := true) -> bool:
+	if network.active or network.connecting: return false
+	match kind:
+		"gender":
+			if value not in ["Male","Female"]: return false
+			GameState.gender = value
+		"job":
+			var definition: Dictionary = GameState.job_definition(value)
+			if not value.is_empty() and definition.is_empty(): return false
+			var old: Dictionary = GameState.equipped.get("weapon",{})
+			# Preserve actual equipment once; replacing GM previews never grants extra items.
+			if not old.is_empty() and not old.get("gm_preview",false):
+				if GameState.inventory.size() >= 200: return false
+				GameState.inventory.append(old.duplicate(true))
+			GameState.selected_job = value
+			GameState.selected_element = str(definition.get("element",""))
+			GameState.selected_path = GameState.selected_element
+			GameState.equipped.weapon = {"id":definition.get("weapon","sword"),"count":1,"enhancement":0,"gm_preview":true}
+			if not value.is_empty(): GameState.class_rank = maxi(5,GameState.class_rank)
+			pending_skill = 0
+			cooldowns = [0.0,0.0,0.0,0.0]
+		"faction":
+			if value not in ["","Light","Dark"]: return false
+			GameState.faction = value
+			if not value.is_empty(): GameState.class_rank = maxi(7,GameState.class_rank)
+		_: return false
+	GameState._recalculate_stats(false)
+	GameState.appearance_changed.emit()
+	_gm_update_summary()
+	_refresh_hud()
+	if persist: _save()
+	_tell("GM: เปลี่ยน " + kind + " แล้ว")
+	return true

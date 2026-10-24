@@ -41,3 +41,6 @@ node tests/browser_test.cjs
 
 ## Mouse input regression — 2026-10-24
 Native PC mouse clicks open/close menus. Left drag works on empty world on either side of the screen; right drag also orbits. UI presses are reserved for controls, and camera drag clears when application focus is lost. Browser export asset names include the release SHA to prevent cached game bundles being reused after updates. Acceptance also covers resize from 1280×720 to 1920×1080; touch regression checks remain enabled.
+
+## GM character selectors — 2026-10-24
+Added three dropdowns at the top of GM: Male/Female, Novice plus twelve professions, and no faction/Light/Dark. Offline GM overrides set matching element and weapon, raise the required class minimum without resetting level, preserve the original weapon once, and reject online mutations. Dedicated GM regression checks cover all twelve profession swaps, both genders, both factions, clearing faction visuals, invalid inputs and the online guard. Browser acceptance exercises all three dropdowns through actual mouse/keyboard UI input.

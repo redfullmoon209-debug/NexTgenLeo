@@ -23,6 +23,8 @@ const {spawn} = require('child_process');
  if(drawer.drawer_rect[0]+drawer.drawer_rect[2]>drawer.player_screen[0]-20)throw Error('Inventory panel obscures the 3D player: '+JSON.stringify(drawer));
  if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must stay left of inventory: '+JSON.stringify(drawer));
  if(drawer.bag_right_rect[0]<200||drawer.bag_right_rect[0]>355||drawer.bag_columns!==5)throw Error('Inventory must occupy compact right column: '+JSON.stringify(drawer));
+ if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<150||drawer.bag_preview_rect[3]<150)throw Error('Left character 3D preview is missing or too small: '+JSON.stringify(drawer));
+ if(drawer.bag_preview_rect[0]<drawer.bag_left_rect[0]||drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]>drawer.bag_left_rect[0]+drawer.bag_left_rect[2]+2)throw Error('Player preview spills outside stat pane');
  if(drawer.drawer_close[0]<12||drawer.drawer_close[0]>drawer.drawer_rect[0]+drawer.drawer_rect[2])throw Error('Close button is outside the bag window');
  await page.screenshot({path:'build/leo-dual-bag-desktop.png'});
  await page.mouse.click(...drawer.drawer_close);await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});

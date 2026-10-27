@@ -19,13 +19,11 @@ func run() -> void:
 	root.add_child(scene)
 	await process_frame
 	var game = scene.gameplay
-	check(not game.owner_gm_button.visible, "guest cannot see owner-only GM button")
+	check(game.owner_gm_button.visible, "Offline Sandbox restores red GM button for local testing")
+	check(game._can_use_gm(), "local offline GM is enabled without an online owner role")
 	game._show_panel("GM")
-	check(not game.panel.visible and game.gm_choosers.size() == 0, "guest cannot open GM by invoking panel directly")
-	check(not game._gm_select("gender","Female",false), "guest cannot mutate GM state")
-	game._set_gm_authorized(true)
-	check(game.owner_gm_button.visible, "server-owner role displays red GM button")
-	game._show_panel("GM")
+	check(game.panel.visible, "Offline Sandbox GM panel is accessible")
+	check(not game.network.is_gm, "offline GM does not imply online/server GM privilege")
 	check(game.gm_choosers.size() == 3,"GM exposes all three selectors")
 	check(game.gm_choosers.job.item_count == 13,"Novice plus twelve professions")
 	check(not game.pointer_over_ui(Vector2(650,680)),"world space outside panel remains available")
@@ -47,10 +45,13 @@ func run() -> void:
 	check(not game._gm_select("job","invalid",false),"invalid job rejected")
 	check(not game._gm_select("faction","invalid",false),"invalid faction rejected")
 	game.network.active = true
+	game._set_gm_authorized(false)
+	check(not game.owner_gm_button.visible and not game.panel.visible, "unverified online client cannot see or open GM")
 	check(not game._gm_select("gender","Female",false) and state.gender == "Male","online GM mutations blocked")
 	game.network.active = false
 	game._set_gm_authorized(false)
-	check(not game.owner_gm_button.visible and not game.panel.visible, "owner role loss hides GM and closes its menu")
+	check(game.owner_gm_button.visible, "disconnect restores local GM button for sandbox testing")
+	check(not game.network.is_gm, "disconnect does not grant server privilege")
 	scene.queue_free()
 	await process_frame
 	print("GM TESTS: %d checks; %d failures" % [checks,failures])

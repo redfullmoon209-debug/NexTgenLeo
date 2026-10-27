@@ -1389,7 +1389,7 @@ func _show_panel(name: String) -> void:
 			_button("Edit button layout: drag action buttons", func(): layout_edit = not layout_edit; _close_panel(); _tell("Layout editing " + str(layout_edit)), menu)
 			_button("คืนตำแหน่งปุ่ม", func(): GameState.settings.button_offsets = {}; GameState.settings["button_offsets_portrait"] = {}; GameState.settings["button_offsets_landscape"] = {}; _layout(); _save(), menu)
 			for ui_pct in [90, 100, 110, 120]:
-				var pct := ui_pct
+				var pct: int = int(ui_pct)
 				_button("ขนาด UI %d%%" % pct, func(): _set_ui_scale(float(pct) / 100.0), menu)
 			for quality in ["Low", "Medium", "High"]:
 				_button(quality, func(): GameState.settings.quality = quality; world.get_viewport().scaling_3d_scale = 0.65 if quality == "Low" else 1.0; _set_shadows(quality == "High"); _tell("Quality: " + quality), menu)

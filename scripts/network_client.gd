@@ -4,6 +4,7 @@ var game: Node
 var socket := WebSocketPeer.new()
 var active := false
 var connecting := false
+var is_gm := false
 var id := ""
 var url := ""
 var request_sequence := 0
@@ -28,9 +29,24 @@ func connect_server(address: String) -> void:
 		game._tell("Connection failed: " + str(error))
 		return
 	connecting = true
+	is_gm = false
+	game._set_gm_authorized(false)
 	connection_timer = 0
 	have_snapshot = false
 	game._tell("Connecting to development server...")
+func authenticate_owner(secret: String) -> void:
+	if not active:
+		game._tell("ต้องเชื่อมต่อเซิร์ฟเวอร์ก่อนยืนยันสิทธิ์เจ้าของ")
+		return
+	if secret.length() < 24:
+		game._tell("รหัสเจ้าของต้องมีอย่างน้อย 24 ตัวอักษร")
+		return
+	# Only send credentials to a TLS-protected remote server or localhost.
+	if not url.begins_with("wss://") and not url.begins_with("ws://127.0.0.1") and not url.begins_with("ws://localhost"):
+		game._tell("ต้องเชื่อมต่อผ่าน WSS")
+		return
+	command("gm_auth", {"owner_secret":secret})
+
 func command(op: String, fields: Dictionary = {}) -> void:
 	if not active: return
 	request_sequence += 1
@@ -68,6 +84,10 @@ func _process(delta: float) -> void:
 				if file: file.store_string(data.token)
 				game._tell("Connected · SERVER AUTHORITY · guest " + id.substr(0,6))
 			"snapshot": _snapshot(data)
+			"gm_role":
+				is_gm = bool(data.get("authorized", false))
+				game._set_gm_authorized(is_gm)
+				if is_gm: game._tell("ยืนยันสิทธิ์เจ้าของแล้ว: เปิดเมนู GM สีแดงได้")
 			"error": game._tell("Server: " + str(data.message))
 			"chat": game._tell(str(data.id).substr(0,6) + ": " + str(data.text))
 			"result":
@@ -117,6 +137,8 @@ func _snapshot(data: Dictionary) -> void:
 func disconnect_server() -> void:
 	socket.close()
 	active = false
+	is_gm = false
+	game._set_gm_authorized(false)
 	connecting = false
 	have_snapshot = false
 	for node in peers.values():node.queue_free()

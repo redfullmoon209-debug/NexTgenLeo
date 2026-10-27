@@ -1,5 +1,6 @@
 extends Node
 ## Playable offline systems; procedural art is explicitly temporary.
+const ContentRegistry = preload("res://scripts/content_registry.gd")
 var last_touch_action := -1000
 var world: Node3D
 var network: Node
@@ -15,6 +16,8 @@ var hunt_radius := 18.0
 var npc: Node3D
 var pet: Node3D
 var avatar: Node3D
+var imported_avatar_visual: Node3D
+var imported_zone_visual: Node3D
 var limbs: Array[Node3D] = []
 var weapon: Node3D
 var stats_label: Label
@@ -195,7 +198,27 @@ func _build_avatar() -> void:
 		_mesh(limbs[2], Vector3(0, -0.43, -0.31), Vector3(0.10, 0.06, 0.60), Color("a1c6e6") if left_hand == "offhand_blade" else Color("d9bc85"))
 	if "accessory" in GameState.equipped:
 		_mesh(avatar, Vector3(0, 1.28, -0.16), Vector3.ONE * 0.09, Color("f4d36c"), "sphere")
+	_attach_optional_avatar_scene()
 	_sync_bag_avatar_preview()
+
+func _attach_optional_avatar_scene() -> void:
+	imported_avatar_visual = null
+	var scene: PackedScene = ContentRegistry.character_scene(GameState.gender)
+	if scene == null:
+		return
+	var instance: Node = scene.instantiate()
+	if not (instance is Node3D):
+		instance.queue_free()
+		_tell("ไฟล์โมเดลตัวละครต้องมี Node3D เป็นโหนดหลัก")
+		return
+	imported_avatar_visual = instance as Node3D
+	imported_avatar_visual.name = "ImportedCharacterVisual"
+	avatar.add_child(imported_avatar_visual)
+	# Preserve capsule collision, height growth, equipment and combat logic.
+	# Existing procedural mesh remains a non-rendered fallback, not deleted.
+	for child in avatar.get_children():
+		if child is Node3D and child != imported_avatar_visual:
+			(child as Node3D).visible = false
 
 func _sync_bag_avatar_preview() -> void:
 	# Clone the live player's visible mesh, not an unrelated placeholder portrait.
@@ -295,7 +318,30 @@ func _build_zone() -> void:
 		portal_label.position.x = 8
 		portal_label.position.z = -6
 		world._add_box(Vector3(0, 0.005, -15), Vector3(4, 0.03, 30), Color("9c966d"), false)
+	_attach_optional_zone_scene()
 	target = -1
+
+func _attach_optional_zone_scene() -> void:
+	if is_instance_valid(imported_zone_visual):
+		imported_zone_visual.queue_free()
+	imported_zone_visual = null
+	var scene: PackedScene = ContentRegistry.zone_scene(GameState.map_index)
+	if scene == null:
+		if world.has_node("Camp"):
+			world.get_node("Camp").visible = true
+		return
+	var instance: Node = scene.instantiate()
+	if not (instance is Node3D):
+		instance.queue_free()
+		_tell("ไฟล์แผนที่ต้องมี Node3D เป็นโหนดหลัก")
+		return
+	imported_zone_visual = instance as Node3D
+	imported_zone_visual.name = "ImportedZoneScenery"
+	world.add_child(imported_zone_visual)
+	# Hide generic placeholder camp when an authored map is supplied.
+	# Monster/quest spawn and movement remain owned by the gameplay systems.
+	if world.has_node("Camp"):
+		world.get_node("Camp").visible = false
 
 func _spawn_mob(index: int, kind: String) -> void:
 	var node := Node3D.new()

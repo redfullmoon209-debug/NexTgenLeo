@@ -99,7 +99,17 @@ func run() -> void:
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
 	check(game.bag_slot_grid != null and game.bag_slot_grid.columns == 5, "compact bag grid has five columns")
 	check(game.bag_slot_grid.get_child_count() == 100, "current bag page has 100 item slots")
-	check(game.bag_equipment_frame != null and game.bag_equipment_buttons.size() == 8, "all eight equipment buttons surround the 3D player model")
+	check(game.bag_equipment_frame != null and game.bag_equipment_buttons.size() == 19, "all 19 named equipment slots are created")
+	check(game.bag_slot_regions.size() == 19, "all equipment slots have a recorded region")
+	for armor_id in ["hat", "shirt", "gloves", "pants", "shoes"]:
+		check(game.bag_slot_regions.get(armor_id, "") == "armor", "right-hand armor slot " + armor_id)
+	for weapon_id in ["weapon", "weapon_left"]:
+		check(game.bag_slot_regions.get(weapon_id, "") == "weapon", "left-hand weapon slot " + weapon_id)
+	check(game.bag_slot_regions.get("mount", "") == "mount" and game.bag_slot_regions.get("loot_pet", "") == "pet", "mount and auto-loot pet have independent slots")
+	for jewel_id in ["ring", "bracelet_left", "accessory", "bracelet_right", "ring_right"]:
+		check(game.bag_slot_regions.get(jewel_id, "") == "jewelry", "silver jewelry slot " + jewel_id)
+	for fashion_id in ["fashion_hat", "fashion_shirt", "fashion_gloves", "fashion_pants", "fashion_shoes"]:
+		check(game.bag_slot_regions.get(fashion_id, "") == "fashion", "separate fashion slot " + fashion_id)
 	check(game.bag_character_preview != null and game.bag_preview_stage != null, "left character pane includes an isolated 3D avatar viewport")
 	check(is_instance_valid(game.bag_preview_model) and game.bag_preview_model.get_child_count() >= 6, "preview reuses the actual game player mesh")
 	var original_preview: Node3D = game.bag_preview_model
@@ -114,6 +124,36 @@ func run() -> void:
 	check(left_rect.position.x < right_rect.position.x and left_rect.end.x <= right_rect.position.x + 1, "stats on left and inventory on right")
 	check(right_rect.end.x <= game.panel.get_global_rect().end.x + 1, "inventory remains within panel bounds")
 	game._close_panel()
+	# New equipment categories can be equipped without altering combat stats.
+	var unmodified_defense: int = state.defense()
+	check(state.add_item("fashion_hat"), "fashion item can be obtained")
+	var fashion_index := -1
+	for i in range(state.inventory.size()):
+		if state.inventory[i].id == "fashion_hat":
+			fashion_index = i
+	check(fashion_index >= 0, "fashion item entered bag")
+	if fashion_index >= 0:
+		state.use_item(fashion_index)
+		check("fashion_hat" in state.equipped, "fashion item occupies its cosmetic slot")
+		check(state.defense() == unmodified_defense, "fashion is visual-only and does not boost defense")
+		check(state.unequip("fashion_hat"), "fashion can be removed")
+		for i in range(state.inventory.size()):
+			if state.inventory[i].id == "fashion_hat":
+				state.remove_item(i)
+				break
+	check(state.add_item("offhand_blade"), "left-hand weapon can be obtained")
+	var offhand_index := -1
+	for i in range(state.inventory.size()):
+		if state.inventory[i].id == "offhand_blade":
+			offhand_index = i
+	if offhand_index >= 0:
+		state.use_item(offhand_index)
+		check("weapon_left" in state.equipped, "left-hand weapon fits its own slot")
+		check(state.unequip("weapon_left"), "left-hand weapon can be unequipped")
+		for i in range(state.inventory.size()):
+			if state.inventory[i].id == "offhand_blade":
+				state.remove_item(i)
+				break
 	for name in ["Bag","Shop","Cash","Status","Quest","World","Pet","Auto","Skills","Settings","GM"]:
 		game._close_panel()
 		game._show_panel(name)

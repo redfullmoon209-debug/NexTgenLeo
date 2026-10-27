@@ -24,7 +24,23 @@ const {spawn} = require('child_process');
  if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must stay left of inventory: '+JSON.stringify(drawer));
  if(drawer.bag_right_rect[0]<200||drawer.bag_right_rect[0]>355||drawer.bag_columns!==5)throw Error('Inventory must occupy compact right column: '+JSON.stringify(drawer));
  if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<90||drawer.bag_preview_rect[3]<180)throw Error('Center character 3D preview is missing or too small: '+JSON.stringify(drawer));
- if(drawer.bag_equipment_count!==8||drawer.bag_equipment_visible!==8)throw Error('All eight equipment slots must be visible around the player model: '+JSON.stringify(drawer));
+ if(drawer.bag_equipment_count!==19||drawer.bag_equipment_visible!==19)throw Error('All nineteen equipment slots must fit on screen: '+JSON.stringify(drawer));
+ const equip=drawer.bag_equipment_rects;
+ const region=drawer.bag_equipment_regions;
+ const order=['hat','shirt','gloves','pants','shoes'];
+ const accessory=['ring','bracelet_left','accessory','bracelet_right','ring_right'];
+ const fashion=['fashion_hat','fashion_shirt','fashion_gloves','fashion_pants','fashion_shoes'];
+ for(const [id,area] of [...order.map(id=>[id,'armor']),...['weapon','weapon_left'].map(id=>[id,'weapon']),['mount','mount'],['loot_pet','pet'],...accessory.map(id=>[id,'jewelry']),...fashion.map(id=>[id,'fashion'])]){
+  if(!equip[id]||region[id]!==area)throw Error('Missing equipment region: '+id+' '+JSON.stringify(region));
+ }
+ for(let i=1;i<order.length;i++)if(equip[order[i]][1]<=equip[order[i-1]][1])throw Error('Armor needs to descend vertically on the right');
+ if(equip.weapon[0]+equip.weapon[2]>drawer.bag_preview_rect[0]+2||equip.weapon_left[0]+equip.weapon_left[2]>drawer.bag_preview_rect[0]+2)throw Error('Weapons not left of character preview');
+ if(equip.hat[0]<drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]-2)throw Error('Armor not right of the character preview');
+ if(equip.mount[1]<=equip.weapon_left[1]||equip.loot_pet[1]<=equip.mount[1])throw Error('Mount and loot pet must follow weapons downwards');
+ for(const row of [accessory,fashion]){
+   for(let i=1;i<row.length;i++)if(equip[row[i]][0]<=equip[row[i-1]][0])throw Error('Equipment row must read left to right: '+row);
+ }
+ if(equip.fashion_hat[1]<=equip.ring[1])throw Error('Fashion row should be below jewelry row');
  if(drawer.bag_preview_rect[0]<drawer.bag_left_rect[0]||drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]>drawer.bag_left_rect[0]+drawer.bag_left_rect[2]+2)throw Error('Player preview spills outside stat pane');
  if(drawer.drawer_close[0]<12||drawer.drawer_close[0]>drawer.drawer_rect[0]+drawer.drawer_rect[2])throw Error('Close button is outside the bag window');
  await page.screenshot({path:'build/leo-dual-bag-desktop.png'});

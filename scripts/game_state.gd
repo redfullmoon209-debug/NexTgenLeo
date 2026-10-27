@@ -8,6 +8,8 @@ const MAX_LEVEL := 100
 const ELEMENTS := ["Earth", "Water", "Wind", "Fire", "Lightning", "Wood"]
 const RARITIES := ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
 const SAVE_PATH := "user://character_v1.json"
+# Cosmetic fashion and companions are display-only and must not grant combat stats.
+const COMBAT_EQUIPMENT_SLOTS := ["weapon", "weapon_left", "hat", "shirt", "gloves", "pants", "shoes", "ring", "bracelet_left", "accessory", "bracelet_right", "ring_right"]
 var balance: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 var class_rank := 0
 var level := 1
@@ -130,12 +132,18 @@ func buff_active(id: String) -> bool:
 
 func attack_power() -> int:
 	var enhancement := 0
-	for item in equipped.values():
-		enhancement += int(item.get("enhancement", 0))
+	for slot_id in equipped:
+		if str(slot_id) in COMBAT_EQUIPMENT_SLOTS:
+			var item: Dictionary = equipped[slot_id]
+			enhancement += int(item.get("enhancement", 0))
 	return int((int(balance.attack_base) + level * int(balance.attack_per_level) + class_rank * int(balance.attack_per_class) + enhancement * 2) * (1.2 if buff_active("attack") else 1.0))
 
 func defense() -> int:
-	return int((int(balance.defense_base) + level + equipped.size() * 2) * (1.2 if buff_active("defense") else 1.0))
+	var armor_count := 0
+	for slot_id in equipped:
+		if str(slot_id) in COMBAT_EQUIPMENT_SLOTS:
+			armor_count += 1
+	return int((int(balance.defense_base) + level + armor_count * 2) * (1.2 if buff_active("defense") else 1.0))
 
 func add_item(id: String, count: int = 1) -> bool:
 	if id not in balance.items or count <= 0:

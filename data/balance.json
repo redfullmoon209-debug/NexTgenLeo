@@ -26,31 +26,31 @@
       "cost": 0,
       "cooldown": 0.65,
       "range": 2.6,
-      "power": 1.0,
+      "power": 1,
       "radius": 0
     },
     {
       "name": "Crescent",
       "cost": 18,
-      "cooldown": 4.0,
-      "range": 3.0,
+      "cooldown": 4,
+      "range": 3,
       "power": 1.8,
-      "radius": 4.0
+      "radius": 4
     },
     {
       "name": "Pierce",
       "cost": 22,
-      "cooldown": 6.0,
-      "range": 8.0,
+      "cooldown": 6,
+      "range": 8,
       "power": 2.2,
       "radius": 0
     },
     {
       "name": "Judgment",
       "cost": 30,
-      "cooldown": 9.0,
-      "range": 6.0,
-      "power": 3.0,
+      "cooldown": 9,
+      "range": 6,
+      "power": 3,
       "radius": 0
     }
   ],
@@ -104,7 +104,7 @@
       "element": "Water",
       "weapon": "staff",
       "range": 10,
-      "interval": 1.0,
+      "interval": 1,
       "skills": [
         "Water:0",
         "Water:1",
@@ -182,7 +182,7 @@
       "element": "Lightning",
       "weapon": "pistol",
       "range": 12,
-      "interval": 1.0,
+      "interval": 1,
       "skills": [
         "Lightning:0",
         "Lightning:1",
@@ -588,6 +588,126 @@
       "slot": "weapon",
       "icon": "W",
       "rarity": "Rare"
+    },
+    "offhand_blade": {
+      "name": "มีดสั้นมือซ้าย",
+      "price": 65,
+      "sell": 16,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "weapon_left",
+      "icon": "◁",
+      "rarity": "Uncommon"
+    },
+    "mount_foal": {
+      "name": "สัตว์ขี่ฝึกหัด",
+      "price": 120,
+      "sell": 30,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "mount",
+      "icon": "M",
+      "rarity": "Uncommon"
+    },
+    "loot_companion": {
+      "name": "สัตว์เลี้ยงเก็บของ",
+      "price": 90,
+      "sell": 22,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "loot_pet",
+      "icon": "P",
+      "rarity": "Uncommon"
+    },
+    "silver_ring": {
+      "name": "แหวนเงินมือซ้าย",
+      "price": 38,
+      "sell": 10,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "ring",
+      "icon": "○",
+      "rarity": "Uncommon"
+    },
+    "bracelet_left": {
+      "name": "กำไลเงินซ้าย",
+      "price": 40,
+      "sell": 11,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "bracelet_left",
+      "icon": "⊂",
+      "rarity": "Uncommon"
+    },
+    "bracelet_right": {
+      "name": "กำไลเงินขวา",
+      "price": 40,
+      "sell": 11,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "bracelet_right",
+      "icon": "⊃",
+      "rarity": "Uncommon"
+    },
+    "silver_ring_right": {
+      "name": "แหวนเงินมือขวา",
+      "price": 38,
+      "sell": 10,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "ring_right",
+      "icon": "○",
+      "rarity": "Uncommon"
+    },
+    "fashion_hat": {
+      "name": "หมวกแฟชั่นคราม",
+      "price": 45,
+      "sell": 12,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "fashion_hat",
+      "icon": "^",
+      "rarity": "Uncommon"
+    },
+    "fashion_shirt": {
+      "name": "เสื้อแฟชั่นคราม",
+      "price": 65,
+      "sell": 16,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "fashion_shirt",
+      "icon": "T",
+      "rarity": "Uncommon"
+    },
+    "fashion_gloves": {
+      "name": "ถุงมือแฟชั่นคราม",
+      "price": 40,
+      "sell": 10,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "fashion_gloves",
+      "icon": "G",
+      "rarity": "Uncommon"
+    },
+    "fashion_pants": {
+      "name": "กางเกงแฟชั่นคราม",
+      "price": 55,
+      "sell": 14,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "fashion_pants",
+      "icon": "Π",
+      "rarity": "Uncommon"
+    },
+    "fashion_shoes": {
+      "name": "รองเท้าแฟชั่นคราม",
+      "price": 45,
+      "sell": 12,
+      "stack": 1,
+      "kind": "equipment",
+      "slot": "fashion_shoes",
+      "icon": "L",
+      "rarity": "Uncommon"
     }
   },
   "skill_tiers": {

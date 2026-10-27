@@ -599,8 +599,8 @@ func _refresh_hud() -> void:
 		if bag_status_bars.size() == 3 and is_instance_valid(bag_status_bars[0]):
 			for i in range(3):
 				var bar := bag_status_bars[i]
-				var value := [float(GameState.hp), GameState.stamina, float(GameState.exp)][i]
-				var maximum := [float(GameState.max_hp), float(GameState.max_stamina), float(GameState.exp_required())][i]
+				var value: float = float([float(GameState.hp), float(GameState.stamina), float(GameState.exp)][i])
+				var maximum: float = float([float(GameState.max_hp), float(GameState.max_stamina), float(GameState.exp_required())][i])
 				bar.max_value = maxf(1.0, maximum)
 				bar.value = value
 				bar.get_node("Value").text = "%s  %d / %d" % [["HP", "พลังงาน", "EXP"][i], int(value), int(maximum)]

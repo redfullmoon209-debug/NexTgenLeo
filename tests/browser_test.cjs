@@ -36,6 +36,7 @@ const {spawn} = require('child_process');
  for(const [kind,expected] of [['gender','Female'],['job','forest_lord'],['faction','Dark']]){
   await page.waitForFunction(k=>!!window.leoDiagnostics.gm_controls[k],kind,{timeout:15000});
   const point=(await page.evaluate(()=>window.leoDiagnostics)).gm_controls[kind];
+  if(point[0]<12||point[0]>400)throw Error('GM dropdown outside left drawer: '+kind+' '+JSON.stringify(point));
   await page.mouse.click(point[0],point[1]);
   await page.waitForFunction(k=>window.leoDiagnostics.gm_popups[k].visible,kind,{timeout:15000});
   const popup=(await page.evaluate(()=>window.leoDiagnostics)).gm_popups[kind];

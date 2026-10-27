@@ -178,9 +178,10 @@ func _sync_bag_avatar_preview() -> void:
 	if not is_instance_valid(bag_preview_stage) or not is_instance_valid(avatar):
 		return
 	if is_instance_valid(bag_preview_model):
-		bag_preview_stage.remove_child(bag_preview_model)
+		if bag_preview_model.get_parent() != null:
+			bag_preview_model.get_parent().remove_child(bag_preview_model)
 		bag_preview_model.queue_free()
-	bag_preview_model = avatar.duplicate()
+	bag_preview_model = avatar.duplicate() as Node3D
 	bag_preview_model.name = "DisplayedPlayerAvatar"
 	bag_preview_model.position = Vector3.ZERO
 	bag_preview_model.rotation = Vector3.ZERO

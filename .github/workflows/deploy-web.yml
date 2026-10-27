@@ -106,7 +106,7 @@ jobs:
             exit 0
           fi
           while IFS= read -r -d '' source_file; do
-            destination="\${source_file#_pages_export/}"
+            destination="${source_file#_pages_export/}"
             mkdir -p "$(dirname "$destination")"
             cp -f "$source_file" "$destination"
             git add -f -- "$destination"

@@ -199,6 +199,44 @@ func sell(index: int, count: int) -> bool:
 	gold += value
 	return true
 
+# Transactional multi-select sale. Validates every quantity and slot before changing
+# the player's inventory or currency, then removes items from highest index down.
+# This function is offline-only; authoritative multiplayer sales remain server-owned.
+func sell_many(selections: Dictionary) -> int:
+	if selections.is_empty() or selections.size() > 200:
+		return -1
+	var sales: Array[Dictionary] = []
+	var total := 0
+	for raw_index in selections:
+		if typeof(raw_index) != TYPE_INT:
+			return -1
+		var index: int = int(raw_index)
+		if index < 0 or index >= inventory.size():
+			return -1
+		if typeof(selections[raw_index]) != TYPE_INT:
+			return -1
+		var amount: int = int(selections[raw_index])
+		var slot: Dictionary = inventory[index]
+		if amount <= 0 or amount > int(slot.get("count", 0)):
+			return -1
+		var id: String = str(slot.get("id", ""))
+		if not balance.items.has(id):
+			return -1
+		var value: int = int(balance.items[id].get("sell", 0))
+		if value <= 0 or value * amount > 1000000000 or total > 1000000000 - value * amount:
+			return -1
+		total += value * amount
+		sales.append({"index":index,"amount":amount})
+	sales.sort_custom(func(a,b): return int(a.index) > int(b.index))
+	for sale in sales:
+		var index: int = int(sale.index)
+		inventory[index].count = int(inventory[index].count) - int(sale.amount)
+		if int(inventory[index].count) == 0:
+			inventory.remove_at(index)
+	gold += total
+	inventory_changed.emit()
+	return total
+
 func use_item(index: int) -> String:
 	if index < 0 or index >= inventory.size():
 		return "Invalid item"

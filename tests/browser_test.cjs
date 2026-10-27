@@ -8,7 +8,7 @@ async function openPlayerMenu(page,entryName){
  await page.mouse.click((x+w/2)*sx,(y+h/2)*sy);
  await page.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
  const opened=await page.evaluate(()=>window.leoDiagnostics);
- if(opened.gm_button_visible)throw Error('Unverified public player should never see the GM orb');
+ if(!opened.gm_button_visible)throw Error('Offline sandbox should show red local GM test orb');
  if(opened.menu_dropdown_rect[0]+opened.menu_dropdown_rect[2]>opened.viewport_size[0]-180)throw Error('Dropdown overlaps minimap');
  if(!opened.menu_entry_rects[entryName])throw Error('Player menu missing '+entryName);
  if(entryName==='Bag' && opened.screen_size[0]===1280)
@@ -29,11 +29,20 @@ async function openPlayerMenu(page,entryName){
  await page.goto('http://127.0.0.1:8060');
  await page.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
  let start=await page.evaluate(()=>window.leoDiagnostics);
- if(start.gm_button_visible)throw Error('Guest sees red GM orb before owner verification');
+ if(!start.gm_button_visible)throw Error('Offline red GM test button is missing');
+ if(!(start.gm_button_rect[0]<start.menu_button_rect[0] && start.gm_button_rect[1]===start.menu_button_rect[1]))throw Error('Red GM button must sit immediately left of gold menu: '+JSON.stringify(start));
  await page.locator('canvas').click({position:{x:600,y:400}});
  await page.keyboard.down('w');try{await page.waitForFunction(s=>Math.hypot(window.leoDiagnostics.position[0]-s[0],window.leoDiagnostics.position[2]-s[2])>1.2,start.position,{timeout:20000});}finally{await page.keyboard.up('w');}
  let moved=await page.evaluate(()=>window.leoDiagnostics);
  if(Math.hypot(moved.position[0]-start.position[0],moved.position[2]-start.position[2])<1)throw Error('WASD failed');
+ const [gx,gy,gw,gh]=start.gm_button_rect;
+ await page.mouse.click(gx+gw/2,gy+gh/2);
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='GM',null,{timeout:15000});
+ const offlineGM=await page.evaluate(()=>window.leoDiagnostics);
+ if(Object.keys(offlineGM.gm_controls||{}).length!==3)throw Error('Offline GM selectors unavailable');
+ await page.screenshot({path:'build/leo-offline-gm-restored.png'});
+ await page.keyboard.press('Escape');
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await openPlayerMenu(page,'Bag');
  const drawer=await page.evaluate(()=>window.leoDiagnostics);
  if(drawer.drawer_rect[0]>16||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<540||drawer.drawer_rect[2]>620||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Full-height narrow bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
@@ -76,8 +85,8 @@ async function openPlayerMenu(page,entryName){
  let target=await page.evaluate(()=>window.leoDiagnostics);if(target.target<0)throw Error('Target select failed');
  await openPlayerMenu(page,'Settings');
  const publicSettings=await page.evaluate(()=>window.leoDiagnostics);
- if(publicSettings.gm_button_visible||Object.keys(publicSettings.menu_entry_rects).includes('GM'))throw Error('Public menu exposes GM');
- console.log('PUBLIC MENU TESTS: gold dropdown navigation passes; red GM button hidden for guests');
+ if(!publicSettings.gm_button_visible||Object.keys(publicSettings.menu_entry_rects).includes('GM'))throw Error('Offline GM must be a separate red button, not a player dropdown item');
+ console.log('OFFLINE UI TESTS: gold dropdown navigation and separate red GM test button pass');
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await page.screenshot({path:'build/leo-desktop.png'});
  console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
@@ -99,7 +108,7 @@ async function openPlayerMenu(page,entryName){
  const cdp=await mobile.newCDPSession(p);
  const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([id,x,y])=>({id,x,y}))});
  const mstart=await p.evaluate(()=>window.leoDiagnostics);
- if(mstart.gm_button_visible)throw Error('Mobile guest can see GM');
+ if(!mstart.gm_button_visible)throw Error('Mobile offline GM button is missing');
  const [mx,my,mw,mh]=mstart.menu_button_rect;
  await p.touchscreen.tap(mx+mw/2,my+mh/2);
  await p.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
@@ -132,6 +141,6 @@ async function openPlayerMenu(page,entryName){
  const errors=logs.filter(x=>x.type==='pageerror'||(x.type==='error' && /SCRIPT ERROR|Parse Error|ERROR:/.test(x.text)));
  if(errors.length)throw Error(JSON.stringify(errors));
  completed=true;
- console.log('BROWSER TESTS: PC movement, gold dropdown, private GM visibility, touch dropdown, mobile joystick, concurrent action touch, release, pinch passed');
+ console.log('BROWSER TESTS: PC movement, offline red GM, gold dropdown, touch dropdown, mobile joystick, concurrent action touch, release, pinch passed');
  }finally{if(!completed && currentPage && !currentPage.isClosed()){console.log('FAILURE_DIAGNOSTICS',JSON.stringify(await currentPage.evaluate(()=>window.leoDiagnostics||{status:document.body.innerText})));console.log('FAILURE_LOGS',JSON.stringify(logs));await currentPage.screenshot({path:'build/browser-failure.png'});}if(browser)await browser.close();server.kill();}
 })().catch(e=>{console.error(e);process.exit(1)});

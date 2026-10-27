@@ -798,7 +798,7 @@ func _bag_status_text() -> String:
 
 func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: float, title: String) -> void:
 	var bar := _bar(parent, color)
-	bar.custom_minimum_size.x = 184
+	bar.custom_minimum_size = Vector2(184, 18)
 	bar.max_value = maxf(1.0, maximum)
 	bar.value = current
 	bar.get_node("Value").text = "%s  %d / %d" % [title, int(current), int(maximum)]
@@ -809,8 +809,8 @@ func _bag_equipment_slot(slot_id: String, title: String) -> void:
 	var item: Dictionary = GameState.balance.items.get(str(equipped.get("id", "")), {})
 	var display_name := "ว่าง" if equipped.is_empty() else str(item.get("name", equipped.get("id", "")))
 	var button := _button("%s\n%s" % [title, display_name], func(): _bag_unequip(slot_id), bag_equipment_grid)
-	button.custom_minimum_size = Vector2(104, 51)
-	button.add_theme_font_size_override("font_size", 12)
+	button.custom_minimum_size = Vector2(100, 43)
+	button.add_theme_font_size_override("font_size", 11)
 	button.clip_text = true
 	button.tooltip_text = "กดถอดอุปกรณ์" if not equipped.is_empty() else "ยังไม่ได้สวมใส่"
 	button.disabled = equipped.is_empty()

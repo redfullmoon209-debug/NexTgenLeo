@@ -99,6 +99,36 @@ func run() -> void:
 	var asset_registry = load("res://scripts/content_registry.gd")
 	check(int(asset_registry.manifest().get("version",0)) == 1, "asset manifest exists and has a stable format")
 	check(asset_registry.character_scene("Male") == null and asset_registry.zone_scene(0) == null, "missing professional assets correctly use procedural fallbacks")
+	check(asset_registry.character_scene("Female") != null, "female artist model is connected in the content manifest")
+	var old_gender: String = state.gender
+	state.gender = "Female"
+	game._build_avatar()
+	var female_visual: Node3D = game.imported_avatar_visual
+	check(is_instance_valid(female_visual), "female avatar attaches a real GLB visual")
+	if is_instance_valid(female_visual):
+		check(bool(female_visual.get("visual_loaded")) and int(female_visual.get("rendered_mesh_count")) > 0, "female GLB imports usable MeshInstance3D geometry")
+		check(absf(float(female_visual.get("rendered_height_m")) - 1.72) < 0.03, "female GLB is normalized to playable body height")
+		check(female_visual.get_node_or_null("ModelFit") != null, "female art uses an independent fit transform without changing physics")
+		var hidden_helper: Node = female_visual.find_child("Cube", true, false)
+		check(hidden_helper is MeshInstance3D and not hidden_helper.visible, "female exported Cube helper must be hidden to reveal humanoid mesh")
+		check(int(female_visual.get("rendered_mesh_count")) == 1, "female only fits the authored humanoid mesh, not its helper cube")
+		var asset_walk: Array[Node] = [female_visual]
+		var mesh_report: Array[String] = []
+		var inspected_nodes := 0
+		while not asset_walk.is_empty() and inspected_nodes < 250:
+			var item: Node = asset_walk.pop_back()
+			inspected_nodes += 1
+			if item is MeshInstance3D:
+				var mesh_instance: MeshInstance3D = item as MeshInstance3D
+				if mesh_instance.mesh != null:
+					var mesh_box: AABB = mesh_instance.get_aabb()
+					mesh_report.append("%s aabb=%s surfaces=%d" % [str(item.get_path()), str(mesh_box), mesh_instance.mesh.get_surface_count()])
+			for child in item.get_children():
+				asset_walk.append(child)
+		print("FEMALE_GLTF_MESH_REPORT=" + JSON.stringify(mesh_report.slice(0, 60)))
+	state.gender = old_gender
+	game._build_avatar()
+	check(game.imported_avatar_visual == null, "male placeholder remains intact until male art is available")
 	var original_hunt_settings: Dictionary = state.settings.duplicate(true)
 	game._select_hunt_skill(1,false)
 	game._select_hunt_radius(36.0)

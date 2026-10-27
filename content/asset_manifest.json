@@ -2,7 +2,7 @@
   "version": 1,
   "characters": {
     "Male": "",
-    "Female": ""
+    "Female": "res://content/characters/female_visual.tscn"
   },
   "zones": {
     "0": "",
@@ -11,5 +11,5 @@
     "3": "",
     "4": ""
   },
-  "notes": "Set each scene path to res://content/.../*.tscn after import. Empty entries keep the procedural placeholder."
+  "notes": "Female model uses assets/characters/female/Female.glb through an auto-normalizing visual adapter. Male and unassigned zones retain procedural fallbacks."
 }

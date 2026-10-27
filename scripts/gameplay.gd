@@ -216,6 +216,13 @@ func _attach_optional_avatar_scene() -> void:
 	imported_avatar_visual = instance as Node3D
 	imported_avatar_visual.name = "ImportedCharacterVisual"
 	avatar.add_child(imported_avatar_visual)
+	# Keep procedural artwork visible when the referenced art fails to import.
+	# Older content scenes without the adapter's visual_loaded field still work.
+	var loaded: Variant = imported_avatar_visual.get("visual_loaded")
+	if loaded is bool and not loaded:
+		imported_avatar_visual.queue_free()
+		imported_avatar_visual = null
+		return
 	# Preserve capsule collision, height growth, equipment and combat logic.
 	# Existing procedural mesh remains a non-rendered fallback, not deleted.
 	for child in avatar.get_children():
@@ -231,6 +238,24 @@ func _sync_bag_avatar_preview() -> void:
 		if bag_preview_model.get_parent() != null:
 			bag_preview_model.get_parent().remove_child(bag_preview_model)
 		bag_preview_model.queue_free()
+	# Imported GLB rigs can contain BoneAttachment3D, skins and animation
+	# tracks that do not support Node.duplicate() reliably in Godot 4.4.
+	# Instantiate the authored PackedScene independently for the preview.
+	# The preview remains visual-only, with no collision or gameplay state.
+	if is_instance_valid(imported_avatar_visual):
+		var visual_scene: PackedScene = ContentRegistry.character_scene(GameState.gender)
+		if visual_scene != null:
+			var instance: Node = visual_scene.instantiate()
+			if instance is Node3D:
+				bag_preview_model = Node3D.new()
+				bag_preview_model.name = "DisplayedPlayerAvatar"
+				bag_preview_model.add_child(instance)
+				bag_preview_model.scale = Vector3.ONE * 0.94
+				bag_preview_stage.add_child(bag_preview_model)
+				return
+			instance.queue_free()
+	# Retain the existing modular placeholder preview for characters without
+	# imported art (including Male until a supported source model is added).
 	bag_preview_model = avatar.duplicate() as Node3D
 	bag_preview_model.name = "DisplayedPlayerAvatar"
 	bag_preview_model.position = Vector3.ZERO
@@ -1245,7 +1270,18 @@ func _refresh_hud() -> void:
 		var stat_rect := hud_status_panel.get_global_rect()
 		var quest_rect := hud_quest_panel.get_global_rect()
 		var target_rect := hud_target_panel.get_global_rect()
-		var diagnostic := {"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"celestial-steel-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var gender_toggle_rect := Rect2()
+		if active_panel == "Status":
+			for control in menu.get_children():
+				if control is Button and (control as Button).text == "Switch Male / Female":
+					gender_toggle_rect = (control as Button).get_global_rect()
+					break
+		var model_mesh_count := 0
+		if is_instance_valid(imported_avatar_visual):
+			var mesh_count_value: Variant = imported_avatar_visual.get("rendered_mesh_count")
+			if mesh_count_value != null:
+				model_mesh_count = int(mesh_count_value)
+		var diagnostic := {"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 

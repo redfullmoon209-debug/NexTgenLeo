@@ -17,7 +17,10 @@ const {spawn} = require('child_process');
  let moved=await page.evaluate(()=>window.leoDiagnostics);
  if(Math.hypot(moved.position[0]-start.position[0],moved.position[2]-start.position[2])<1)throw Error('WASD failed');
  await page.mouse.click(55,305);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
- await page.mouse.click(370,230);await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ const drawer=await page.evaluate(()=>window.leoDiagnostics);
+ if(drawer.drawer_rect[0]>16||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]>400||drawer.drawer_z<50)throw Error('Left drawer geometry/foreground failed: '+JSON.stringify(drawer.drawer_rect));
+ if(drawer.drawer_close[0]<12||drawer.drawer_close[0]>400)throw Error('Close button is outside the left drawer');
+ await page.mouse.click(...drawer.drawer_close);await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  for(const [button,x] of [['left',340],['right',780]]){
   const beforeYaw=(await page.evaluate(()=>window.leoDiagnostics)).yaw;
   await page.mouse.move(x,460);await page.mouse.down({button});await page.mouse.move(x+130,470,{steps:8});await page.mouse.up({button});

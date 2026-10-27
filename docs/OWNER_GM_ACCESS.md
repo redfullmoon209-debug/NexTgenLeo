@@ -1,21 +1,27 @@
-# Main dropdown and owner-only GM access
+# Yellow player dropdown and red GM test button
 
-The player HUD uses one yellow main-menu button next to the minimap. All standard menus—Bag, Shop, Character, Quest, World, Pet, Auto, Skills, Settings and Connect—are accessible through this dropdown. Keyboard shortcuts remain supported.
+The player HUD uses one yellow main-menu button next to the minimap. All standard menus (Bag, Shop, Character, Quest, World, Pet, Auto, Skills, Settings and Connect) are in this dropdown. Existing keyboard shortcuts still work.
 
-The adjacent red **GM** button is **hidden for every unauthenticated visitor** on GitHub Pages. The site is a public static offline sandbox, so it cannot identify a GitHub account on its own. Checking a username in public JavaScript or embedding an admin password in the Web export would be unsafe and would not make the button private.
+## Offline Sandbox (public GitHub Pages)
 
-## Owner activation (trusted development server only)
+The red **GM** button is now **visible next to the yellow button** for all visitors to the public **Offline Sandbox**, restoring the original local test workflow. It opens character gender/job/faction selectors and other test tools. These actions affect only the local offline simulation; they do not grant authority over a multiplayer server.
 
-1. Host the existing `server/server.py` WebSocket server behind TLS (`wss://`).
-2. Set `LEO_GM_OWNER_SECRET` **privately on the server** to a unique, random string of **at least 24 characters**. Never commit or put this secret in GitHub Pages, JavaScript, or documentation.
-3. From the game, use yellow Menu → Settings → Connect to connect to the server.
-4. Select yellow Menu → Settings → "เจ้าของ: ยืนยันสิทธิ์ GM". Enter the private owner secret.
-5. The server validates it. Only after a successful `gm_role` response does the separate red GM button appear. Guests, unverified users and disconnected sessions do not see the button.
+**Important:** The public static page has no owner login. All visitors can open this red offline-test button, not only the project owner. It cannot be made owner-only securely with client-side username checks, a hardcoded password or hidden JavaScript. For truly private GM privileges, use an authenticated server.
 
-The role is bound to the authenticated server connection and revoked on disconnect. `gm`/money grants are still rejected by the backend; this change does not introduce production administrator commands. The old GM gameplay panel remains a local test tool and its changes are not sent to the online server. Further production GM actions must be implemented on the authoritative server with explicit authorization checks.
+## Online servers: GM access remains restricted
 
-**Security:** Do not share the owner secret. This is server-secret authentication, not GitHub OAuth identity verification. Owner red-button activation on the public web is not possible until a compatible WSS server is actually configured and connected.
+When the client begins connecting to an online server, the red GM button is hidden. The server must explicitly confirm an owner's role to show it again. The server-side `gm` and money-grant commands remain blocked even for verified roles until privileged server operations are implemented safely.
 
-## QA
+1. Host `server/server.py` behind TLS (`wss://`).
+2. Set `LEO_GM_OWNER_SECRET` privately on that server to a unique random secret of at least 24 characters. Never commit it to public files.
+3. In the game use Yellow Menu → Connect to connect to this trusted server, then Yellow Menu → Settings → เจ้าของ: ยืนยันสิทธิ์ GM.
+4. Enter the owner secret. After a successful `gm_role` response the red button becomes visible; the offline GM action panel itself does not operate on online authoritative game state.
+5. On disconnect the online role is revoked and the game restores public Offline Sandbox mode.
 
-Godot tests verify public menu routing and guest GM denial, and local-only GM controls when the role is explicitly granted in the test. Chromium tests exercise the yellow dropdown on desktop and touch and confirm the GM button is hidden for guests. Python server tests validate owner authentication, rejection of invalid credentials and no privilege escalation via ordinary client commands.
+This owner-secret handshake is not GitHub OAuth identity verification. For a production game, implement server-backed account authentication and authorize every GM action server-side.
+
+## Tests
+
+- Godot: offline GM visibility and functionality, transition to restricted online mode, and button return on disconnect
+- Chromium: red GM placement and click on desktop; visible offline GM on mobile; yellow dropdown still works
+- Server: owner-secret validation; guests cannot forge online GM authority or run privileged commands

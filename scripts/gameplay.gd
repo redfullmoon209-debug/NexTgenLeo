@@ -432,15 +432,15 @@ func _build_player_dropdown() -> void:
 	owner_gm_button.name = "OwnerGMButton"
 	owner_gm_button.size = Vector2(52, 52)
 	owner_gm_button.z_index = 102
-	owner_gm_button.tooltip_text = "เครื่องมือเจ้าของระบบ — ต้องยืนยันตัวตน"
+	owner_gm_button.tooltip_text = "GM ทดสอบออฟไลน์ — คำสั่งไม่ส่งไปเซิร์ฟเวอร์"
 	owner_gm_button.set_meta("leo_fantasy_skin", true)
 	owner_gm_button.add_theme_font_size_override("font_size", 15)
 	owner_gm_button.add_theme_color_override("font_color", Color.WHITE)
 	owner_gm_button.add_theme_stylebox_override("normal", _menu_orb_style(Color("b51729"), Color("ffe1e3")))
 	owner_gm_button.add_theme_stylebox_override("hover", _menu_orb_style(Color("e03942"), Color("ffffff")))
 	owner_gm_button.add_theme_stylebox_override("pressed", _menu_orb_style(Color("7e101e"), Color("fff4f4")))
-	owner_gm_button.hide()
 	buttons.append(owner_gm_button)
+	_refresh_gm_button()
 
 func _toggle_player_dropdown() -> void:
 	if player_dropdown.visible:
@@ -476,12 +476,23 @@ func _player_entry_rects() -> Dictionary:
 			rects[str(menu_id)] = [rect.get_center().x, rect.get_center().y]
 	return rects
 
+func _can_use_gm() -> bool:
+	# Offline Sandbox is a PUBLIC playtest. Local GM is a development tool and
+	# cannot grant server authority; anyone visiting the sandbox can use it.
+	# While connecting/online, GM is strictly gated by server confirmation.
+	return (not network.active and not network.connecting) or gm_authorized
+
+func _refresh_gm_button() -> void:
+	var allowed := _can_use_gm()
+	if is_instance_valid(owner_gm_button):
+		owner_gm_button.visible = allowed
+		owner_gm_button.tooltip_text = "GM ทดสอบออฟไลน์ (สำหรับผู้ทดสอบทุกคน)" if not network.active and not network.connecting else "GM เจ้าของเซิร์ฟเวอร์ (ยืนยันสิทธิ์แล้ว)"
+	if not allowed and active_panel == "GM":
+		_close_panel()
+
 func _set_gm_authorized(authorized: bool) -> void:
 	gm_authorized = authorized
-	if is_instance_valid(owner_gm_button):
-		owner_gm_button.visible = authorized
-	if not authorized and active_panel == "GM":
-		_close_panel()
+	_refresh_gm_button()
 
 func _owner_login_panel() -> void:
 	menu.add_child(_label("ยืนยันเจ้าของระบบกับเซิร์ฟเวอร์ผ่าน WSS เท่านั้น\nเว็บไซต์สาธารณะไม่เก็บรหัส GM และไม่ให้สิทธิ์แก่ผู้เล่นทั่วไป", 14))
@@ -532,8 +543,9 @@ func _build_ui() -> void:
 	notice.size = Vector2(600, 75)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	world.hud.add_child(notice)
-	# One shared gold menu for every player; the separate red GM control
-	# is hidden until the trusted server confirms an owner-only role.
+	# The gold menu is shared by all players. In the public Offline Sandbox,
+	# the separate red GM orb exposes LOCAL TEST TOOLS to all visitors.
+	# Once a server connection begins, it requires server owner verification.
 	_build_player_dropdown()
 	var controls := ["LOCK\n[TAB]", "PICK UP\n[E]", "ATK\n[F]", "1\nCrescent", "2\nPierce", "3\nJudgment", "DASH\n[R]", "HUNT\n[H]"]
 	for i in range(controls.size()):
@@ -985,8 +997,8 @@ func _thai_panel_name(name: String) -> String:
 	return str(names.get(name, name))
 
 func _show_panel(name: String) -> void:
-	if name == "GM" and not gm_authorized:
-		_tell("เมนู GM ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
+	if name == "GM" and not _can_use_gm():
+		_tell("GM ออนไลน์ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
 		return
 	_close_player_dropdown()
 	if panel.visible and active_panel == name:
@@ -1373,8 +1385,9 @@ func _warp(index: int) -> void:
 	_save()
 
 func _gm() -> void:
-	if not gm_authorized: return
+	if not _can_use_gm() or network.active or network.connecting: return
 	menu.add_child(_label("GM · เลือกตัวละคร / อาชีพ / ฝ่าย",20))
+	menu.add_child(_label("โหมดทดสอบออฟไลน์: ผู้เข้าชมเว็บนี้ทุกคนสามารถใช้ GM ได้\nไม่มีผลต่อเซิร์ฟเวอร์เกมออนไลน์", 13))
 	menu.add_child(_label("เลือกอาชีพ: Class ขั้นต่ำ 5 · เลือกฝ่าย: Class ขั้นต่ำ 7",14))
 	gm_summary = _label("")
 	menu.add_child(gm_summary)
@@ -1549,7 +1562,7 @@ func _gm_update_summary() -> void:
 		gm_summary.text = "%s · %s · %s · Class %d" % ["ชาย" if GameState.gender == "Male" else "หญิง",str(job.get("name","Novice")),GameState.faction if not GameState.faction.is_empty() else "ไม่มีฝ่าย",GameState.class_rank]
 
 func _gm_select(kind: String, value: String, persist := true) -> bool:
-	if not gm_authorized or network.active or network.connecting: return false
+	if not _can_use_gm() or network.active or network.connecting: return false
 	match kind:
 		"gender":
 			if value not in ["Male","Female"]: return false

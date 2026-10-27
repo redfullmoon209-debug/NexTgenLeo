@@ -87,9 +87,10 @@ func run() -> void:
 	var game = scene.gameplay
 	check(game.mobs.size() == 14, "scene spawns monsters")
 	check(game.buttons.size() == 2, "nine menu shortcuts replaced by one player control and one owner-only control")
-	check(not game.owner_gm_button.visible and not game.gm_authorized, "guest never sees GM")
+	check(game.owner_gm_button.visible and not game.gm_authorized, "offline visitor sees red local GM control without online owner role")
 	game._show_panel("GM")
-	check(not game.panel.visible and game.active_panel != "GM", "direct GM panel opening rejected for guest")
+	check(game.panel.visible and game.active_panel == "GM", "offline GM is accessible for local testing")
+	game._close_panel()
 	game._toggle_player_dropdown()
 	check(game.player_dropdown.visible and game.dropdown_backdrop.visible, "yellow main-menu dropdown opens")
 	check(game.dropdown_entries.size() == 10, "all ten player menus are in dropdown")
@@ -170,13 +171,18 @@ func run() -> void:
 	for name in ["Bag","Shop","Cash","Status","Quest","World","Pet","Auto","Skills","Settings","OwnerLogin","GM"]:
 		game._close_panel()
 		if name == "GM":
-			game._set_gm_authorized(true)
-			check(game.owner_gm_button.visible, "owner authorization enables red GM button")
+			check(game.owner_gm_button.visible, "red GM button remains visible in offline sandbox")
 		game._show_panel(name)
 		check(game.panel.visible, "open " + name)
 	game._close_panel()
 	game._set_gm_authorized(false)
-	check(not game.owner_gm_button.visible, "logout hides red GM button again")
+	check(game.owner_gm_button.visible and not game.gm_authorized, "offline sandbox keeps GM test button after role reset")
+	game.network.active = true
+	game._set_gm_authorized(false)
+	check(not game.owner_gm_button.visible, "unverified online users cannot see GM")
+	game.network.active = false
+	game._set_gm_authorized(false)
+	check(game.owner_gm_button.visible, "restoring offline mode restores the local GM button")
 	game.target = 0
 	game.mobs[0].node.position = scene.player.position + Vector3(0,0,-1)
 	var before: int = game.mobs[0].hp

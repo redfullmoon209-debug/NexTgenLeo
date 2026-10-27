@@ -49,6 +49,12 @@ jobs:
           npm install --no-save --no-package-lock playwright@1.62.1
           npx playwright install --with-deps chromium
           node tests/browser_test.cjs
+      - name: Publish verified UI previews with the playable Web export
+        run: |
+          test -s build/leo-desktop.png
+          test -s build/leo-portrait.png
+          cp build/leo-desktop.png build/web/ui-landscape-preview.png
+          cp build/leo-portrait.png build/web/ui-portrait-preview.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

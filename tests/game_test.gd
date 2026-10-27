@@ -162,6 +162,9 @@ func run() -> void:
 	state.gender = "Male"
 	state.appearance_changed.emit()
 	check("คลาส" in game.bag_status_label.text, "left character pane shows Thai stats")
+	# Bulk-mode toggle recreates the container tree; let Godot compute the
+	# new layout before reading global rects (not stale frame-zero geometry).
+	await process_frame
 	var left_rect: Rect2 = game.bag_character_panel.get_global_rect()
 	var right_rect: Rect2 = game.bag_inventory_panel.get_global_rect()
 	check(left_rect.position.x < right_rect.position.x and left_rect.end.x <= right_rect.position.x + 1, "stats on left and inventory on right")

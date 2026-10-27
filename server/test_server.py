@@ -94,12 +94,16 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
                         await a.send_json({'op':'hello'});wa=await a.receive_json()
                         await b.send_json({'op':'hello'});wb=await b.receive_json()
                         self.assertNotEqual(wa['id'],wb['id'])
-                        async def until(ws,kind):
+                        async def until(ws,kind,predicate=None):
                             for _ in range(30):
                                 data=await asyncio.wait_for(ws.receive_json(),2)
-                                if data['type']==kind:return data
-                            self.fail('message not received')
-                        snapshot=await until(a,'snapshot');self.assertEqual(len(snapshot['players']),2)
+                                if data['type']==kind and (predicate is None or predicate(data)):
+                                    return data
+                            self.fail('matching message not received')
+                        # The first snapshot can precede the second player's hello.
+                        # Wait for a snapshot that proves both connected clients.
+                        snapshot=await until(a,'snapshot',lambda message: len(message['players'])==2)
+                        self.assertEqual(len(snapshot['players']),2)
                         await a.send_json({'op':'chat','text':'hello'})
                         self.assertEqual((await until(b,'chat'))['text'],'hello')
                         await a.send_json({'op':'buy','item':'potion','request':'test','count':1})

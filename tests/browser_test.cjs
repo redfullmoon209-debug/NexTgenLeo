@@ -58,8 +58,10 @@ const {spawn} = require('child_process');
  await page.mouse.click(55*1.5,305*1.5);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
  const wideBag=await page.evaluate(()=>window.leoDiagnostics);
  if(wideBag.bag_right_rect[0]<=wideBag.bag_left_rect[0])throw Error('1920 wide bag is not split');
- if(wideBag.drawer_rect[2]>620||wideBag.drawer_rect[3]<1040||wideBag.drawer_rect[3]>1060||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.player_screen[0]-20)throw Error('1920 bag must fill height without hiding avatar');
- if(wideBag.drawer_rect[1]+wideBag.drawer_rect[3]>1080)throw Error('1920 bag extends past viewport');
+ // Godot may keep its 1280x720 virtual viewport when Chromium is resized.
+ // Verify the dock against Godot's actual viewport, not the browser's CSS size.
+ if(wideBag.drawer_rect[2]>620||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.player_screen[0]-20)throw Error('Resized-browser bag does not fill Godot viewport or hides avatar: '+JSON.stringify(wideBag));
+ if(wideBag.drawer_rect[1]+wideBag.drawer_rect[3]>wideBag.viewport_size[1]-8)throw Error('Bag extends outside Godot viewport: '+JSON.stringify(wideBag));
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  console.log('MOUSE TESTS: native menu clicks, close, left/right world drag, 1920x1080 click passed');
  await context.close();

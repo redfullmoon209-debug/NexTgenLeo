@@ -6,7 +6,7 @@ check_run() {
   task_log=$(mktemp)
   if ! "$GODOT" "$@" > "$task_log" 2>&1; then cat "$task_log"; rm -f "$task_log"; return 1; fi
   cat "$task_log"
-  if rg -q 'SCRIPT ERROR:|Parse Error:|ERROR:' "$task_log"; then rm -f "$task_log"; return 1; fi
+  if grep -Eq 'SCRIPT ERROR:|Parse Error:|ERROR:' "$task_log"; then rm -f "$task_log"; return 1; fi
   rm -f "$task_log"
 }
 check_run --headless --editor --path . --quit

@@ -161,7 +161,24 @@ async function openPlayerMenu(page,entryName){
  console.log(JSON.stringify({mobile:{mstart,stick,multitouch,released,pinch},errors:logs.filter(x=>['error','pageerror','mobile-error'].includes(x.type))},null,2));
  const errors=logs.filter(x=>x.type==='pageerror'||(x.type==='error' && /SCRIPT ERROR|Parse Error|ERROR:/.test(x.text)));
  if(errors.length)throw Error(JSON.stringify(errors));
+ const portraitContext=await browser.newContext({viewport:{width:430,height:932},isMobile:true,hasTouch:true});
+ const portraitPage=await portraitContext.newPage();currentPage=portraitPage;
+ portraitPage.on('pageerror',e=>logs.push({type:'portrait-pageerror',text:e.message}));
+ await portraitPage.goto('http://127.0.0.1:8060');
+ await portraitPage.waitForFunction(()=>window.leoDiagnostics?.orientation==='portrait',null,{timeout:60000});
+ const portrait=await portraitPage.evaluate(()=>window.leoDiagnostics);
+ const xs=430/portrait.viewport_size[0],ys=932/portrait.viewport_size[1];
+ if(portrait.action_rects.length!==8)throw Error('Portrait action controls missing');
+ for(const box of portrait.action_rects){
+   if(box[0]<0||box[1]<0||box[0]+box[2]>portrait.viewport_size[0]+2||box[1]+box[3]>portrait.viewport_size[1]+2)throw Error('Portrait action outside viewport '+JSON.stringify(box));
+   if(box[2]*xs<43||box[3]*ys<43)throw Error('Portrait action too small for touch '+JSON.stringify({box,xs,ys}));
+ }
+ if(portrait.minimap_rect[0]<portrait.hud_status_rect[0]+portrait.hud_status_rect[2]-8)throw Error('Portrait minimap overlaps player status');
+ await portraitPage.screenshot({path:'build/leo-portrait.png'});
+ await portraitContext.close();
+ const finalErrors=logs.filter(x=>x.type==='portrait-pageerror');
+ if(finalErrors.length)throw Error(JSON.stringify(finalErrors));
  completed=true;
- console.log('BROWSER TESTS: PC movement, offline red GM, gold dropdown, touch dropdown, mobile joystick, concurrent action touch, release, pinch passed');
+ console.log('BROWSER TESTS: desktop, landscape touch and portrait 430x932 responsive geometry passed');
  }finally{if(!completed && currentPage && !currentPage.isClosed()){console.log('FAILURE_DIAGNOSTICS',JSON.stringify(await currentPage.evaluate(()=>window.leoDiagnostics||{status:document.body.innerText})));console.log('FAILURE_LOGS',JSON.stringify(logs));await currentPage.screenshot({path:'build/browser-failure.png'});}if(browser)await browser.close();server.kill();}
 })().catch(e=>{console.error(e);process.exit(1)});

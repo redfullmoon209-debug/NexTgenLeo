@@ -173,10 +173,10 @@ func _layout_touch_ui() -> void:
 	joystick_origin = Vector2(bounds.position.x + 78.0 * scale, bounds.end.y - 98.0 * scale)
 	joystick_base.position = joystick_origin - joystick_base.size / 2.0
 	_update_knob()
-	jump_button.size = Vector2(100.0, 72.0) * scale
-	run_button.size = Vector2(100.0, 55.0) * scale
+	jump_button.size = (Vector2(88.0, 66.0) if portrait else Vector2(100.0, 72.0)) * scale
+	run_button.size = (Vector2(84.0, 50.0) if portrait else Vector2(100.0, 55.0)) * scale
 	if portrait:
-		jump_button.position = Vector2(bounds.end.x - jump_button.size.x, bounds.end.y - 328.0 * scale)
+		jump_button.position = Vector2(bounds.end.x - jump_button.size.x, bounds.end.y - 330.0 * scale)
 		run_button.position = Vector2(bounds.position.x + 145.0 * scale, bounds.end.y - run_button.size.y)
 	else:
 		jump_button.position = Vector2(bounds.end.x - jump_button.size.x - 13.0 * scale, bounds.end.y - jump_button.size.y - 1.0 * scale)

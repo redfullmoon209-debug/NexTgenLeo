@@ -743,6 +743,7 @@ func _bar(parent: Node, color: Color) -> ProgressBar:
 	parent.add_child(bar)
 	var value_label := _label("",13)
 	value_label.name = "Value"
+	value_label.set_meta("leo_fantasy_skin", true)
 	bar.add_child(value_label)
 	value_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -772,40 +773,73 @@ func _layout() -> void:
 		button.position = responsive.keep_inside(requested, bounds).position
 	var visual_scale: float = responsive.input_scale(bounds, ui_scale) if portrait else 1.0
 	if portrait:
-		# Work in 390-unit portrait coordinates regardless of the Web canvas's
-		# internal rendering resolution. Position uses scaled outer rectangles.
-		var logical_width := bounds.size.x / visual_scale
-		var status_width := minf(222.0, logical_width * 0.59)
-		hud_status_panel.scale = Vector2.ONE * visual_scale
-		hud_quest_panel.scale = Vector2.ONE * visual_scale
-		hud_target_panel.scale = Vector2.ONE * visual_scale
-		hud_notice_panel.scale = Vector2.ONE * visual_scale
-		hud_state_label.scale = Vector2.ONE * visual_scale
+		# Use real canvas-sized controls and native-scale font rasterization.
+		# Scaling a 13px Label node 3x produces blurry letters in the Web
+		# canvas on narrow phones. Instead rasterize text at 40+ canvas px.
+		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label]:
+			node.scale = Vector2.ONE
 		map_display.scale = Vector2.ONE * (visual_scale * 0.60)
-		hud_status_panel.size = Vector2(status_width, 170.0)
+		var status_width := minf(bounds.size.x * 0.74, 920.0)
+		hud_status_panel.size = Vector2(status_width, 430.0)
+		hud_status_panel.position = bounds.position
 		var brand: Label = hud_status_panel.find_child("CelestialBrandLine", true, false)
 		if is_instance_valid(brand):
 			brand.text = "NEX TGEN LEO"
-			brand.add_theme_font_size_override("font_size", 13)
-		stats_label.add_theme_font_size_override("font_size", 16)
-		hud_currency_label.add_theme_font_size_override("font_size", 14)
-		quest_label.add_theme_font_size_override("font_size", 14)
-		notice.add_theme_font_size_override("font_size", 15)
-		hud_state_label.add_theme_font_size_override("font_size", 14)
-		hud_status_panel.position = bounds.position
+			brand.add_theme_font_size_override("font_size", roundi(12.0 * visual_scale))
+		stats_label.add_theme_font_size_override("font_size", roundi(15.0 * visual_scale))
+		hud_portrait_label.add_theme_font_size_override("font_size", roundi(20.0 * visual_scale))
+		var portrait_frame: Control = hud_portrait_label.get_parent()
+		portrait_frame.custom_minimum_size = Vector2(36.0, 36.0) * visual_scale
+		hud_currency_label.add_theme_font_size_override("font_size", roundi(13.0 * visual_scale))
+		quest_label.add_theme_font_size_override("font_size", roundi(14.0 * visual_scale))
+		target_label.add_theme_font_size_override("font_size", roundi(14.0 * visual_scale))
+		notice.add_theme_font_size_override("font_size", roundi(14.0 * visual_scale))
+		hud_state_label.add_theme_font_size_override("font_size", roundi(13.0 * visual_scale))
+		var profile = load("res://scripts/celestial_steel.gd")
+		for plate in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel]:
+			var old_style: StyleBoxFlat = plate.get_theme_stylebox("panel").duplicate()
+			old_style.content_margin_left = 8.0 * visual_scale
+			old_style.content_margin_right = 8.0 * visual_scale
+			old_style.content_margin_top = 6.0 * visual_scale
+			old_style.content_margin_bottom = 6.0 * visual_scale
+			old_style.set_corner_radius_all(roundi(10.0 * visual_scale))
+			old_style.set_border_width_all(maxi(1, roundi(visual_scale)))
+			old_style.border_width_top = maxi(2, roundi(2.0 * visual_scale))
+			plate.add_theme_stylebox_override("panel", old_style)
 		for bar in [hp_bar, stamina_bar, exp_bar]:
-			bar.custom_minimum_size.x = 0.0
-		hud_quest_panel.size = Vector2(status_width, 68.0)
-		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 176.0 * visual_scale)
-		hud_target_panel.size = Vector2(minf(310.0, logical_width - 8.0), 66.0)
-		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 251.0 * visual_scale)
+			bar.custom_minimum_size = Vector2(0.0, 17.0 * visual_scale)
+			var value_text: Label = bar.get_node("Value")
+			value_text.add_theme_font_size_override("font_size", roundi(12.0 * visual_scale))
+		hud_quest_panel.size = Vector2(minf(bounds.size.x * 0.59, 740.0), 166.0)
+		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 449.0)
+		hud_target_panel.size = Vector2(minf(bounds.size.x * 0.80, 960.0), 171.0)
+		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 630.0)
+		hud_target_hp.custom_minimum_size = Vector2(0.0, 17.0 * visual_scale)
+		var hp_text: Label = hud_target_hp.get_node("Value")
+		hp_text.add_theme_font_size_override("font_size", roundi(12.0 * visual_scale))
 		map_display.position = Vector2(bounds.end.x - map_display.size.x * map_display.scale.x, bounds.position.y)
-		hud_notice_panel.size = Vector2(minf(275.0, logical_width - 8.0), 62.0)
-		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + (327.0 if hud_target_panel.visible else 254.0) * visual_scale)
-		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 282.0 * visual_scale)
+		hud_notice_panel.size = Vector2(minf(bounds.size.x * 0.76, 930.0), 160.0)
+		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + (813.0 if target >= 0 else 631.0))
+		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 278.0 * visual_scale)
 	else:
 		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label, map_display]:
 			node.scale = Vector2.ONE
+		var steel = load("res://scripts/celestial_steel.gd")
+		hud_status_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#10233DF2"), Color("#B7D4ED"), 14))
+		hud_quest_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#0C233BE9"), Color("#6597C6"), 12))
+		hud_target_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#18273CF0"), Color("#D7BE8A"), 12))
+		hud_notice_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#132D48EF"), Color("#8FB9DD"), 12))
+		var portrait_frame: Control = hud_portrait_label.get_parent()
+		portrait_frame.custom_minimum_size = Vector2(42.0, 39.0)
+		hud_portrait_label.add_theme_font_size_override("font_size", 23)
+		target_label.add_theme_font_size_override("font_size", 16)
+		for bar in [hp_bar, stamina_bar, exp_bar]:
+			bar.custom_minimum_size = Vector2(270.0, 20.0)
+			var value_text: Label = bar.get_node("Value")
+			value_text.add_theme_font_size_override("font_size", 13)
+		hud_target_hp.custom_minimum_size = Vector2(270.0, 20.0)
+		var hp_text: Label = hud_target_hp.get_node("Value")
+		hp_text.add_theme_font_size_override("font_size", 13)
 		var brand: Label = hud_status_panel.find_child("CelestialBrandLine", true, false)
 		if is_instance_valid(brand):
 			brand.text = "N E X T G E N   L E O  /  ADVENTURE"

@@ -92,7 +92,7 @@ func _ready() -> void:
 	var saved: Array = GameState.location
 	if saved.size() == 3:
 		world.player.position = Vector3(float(saved[0]), maxf(1, float(saved[1])), float(saved[2]))
-	_tell("Welcome. Talk to Warden Elara to accept Starter Hunt. TAB selects a target.")
+	_tell("เริ่มต้นการผจญภัย! คุยกับผู้ดูแลเอลาราเพื่อรับเควสต์ และกด TAB เพื่อล็อกเป้าหมาย")
 
 func _mesh(parent: Node3D, pos: Vector3, size: Vector3, color: Color, shape := "box") -> MeshInstance3D:
 	var node := MeshInstance3D.new()
@@ -646,7 +646,7 @@ func _build_ui() -> void:
 	# the separate red GM orb exposes LOCAL TEST TOOLS to all visitors.
 	# Once a server connection begins, it requires server owner verification.
 	_build_player_dropdown()
-	var controls := ["LOCK\n[TAB]", "PICK UP\n[E]", "ATK\n[F]", "1\nCrescent", "2\nPierce", "3\nJudgment", "DASH\n[R]", "HUNT\n[H]"]
+	var controls := ["ล็อกเป้า\n[TAB]", "เก็บของ\n[E]", "โจมตี\n[F]", "สกิล 1\n[1]", "สกิล 2\n[2]", "สกิล 3\n[3]", "พุ่ง\n[R]", "ล่าอัตโนมัติ\n[H]"]
 	for i in range(controls.size()):
 		var index := i
 		var button := _button(controls[i], func(): _action(index))
@@ -988,10 +988,29 @@ func _tick_mobs(delta: float) -> void:
 		mob.label.modulate = Color("ffe2a4") if target >= 0 and mobs[target] == mob else Color.WHITE
 		mob.node.visible = mob.node.position.distance_squared_to(world.player.position) < 1600
 
+func _thai_skill_name(index: int) -> String:
+	var definition: Dictionary = GameState.skill_definition(index)
+	var raw: String = str(definition.get("name", "สกิล"))
+	var basic := {"Claymore":"ดาบใหญ่", "Crescent":"จันทร์เสี้ยว", "Pierce":"ทะลวง", "Judgment":"พิพากษา"}
+	if basic.has(raw):
+		return str(basic[raw])
+	var element: String = str(definition.get("element", ""))
+	var elements := {"Earth":"ดิน", "Water":"น้ำ", "Wind":"ลม", "Fire":"ไฟ", "Lightning":"สายฟ้า", "Wood":"พฤกษา"}
+	if not elements.has(element):
+		return raw
+	var suffix := "สกิล"
+	if raw.ends_with(" Burst"):
+		suffix = "ระเบิด"
+	elif raw.ends_with(" Strike"):
+		suffix = "โจมตี"
+	elif raw.ends_with(" Finale"):
+		suffix = "ท่าไม้ตาย"
+	return str(elements[element]) + suffix
+
 func _refresh_hud() -> void:
 	stats_label.text = "%s · คลาส %d / เลเวล %d" % ["ชาย" if GameState.gender == "Male" else "หญิง", GameState.class_rank, GameState.level]
-	hud_portrait_label.text = "♂" if GameState.gender == "Male" else "♀"
-	hud_currency_label.text = "◈ ทอง %d     ◇ แคช %d" % [GameState.gold, GameState.cash]
+	hud_portrait_label.text = "ช" if GameState.gender == "Male" else "ญ"
+	hud_currency_label.text = "ทอง %d   |   แคช %d" % [GameState.gold, GameState.cash]
 	hp_bar.max_value = GameState.max_hp
 	hp_bar.value = GameState.hp
 	stamina_bar.max_value = GameState.max_stamina
@@ -1026,7 +1045,7 @@ func _refresh_hud() -> void:
 	hud_state_label.text = "ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs]
 	for i in range(4):
 		var button := skill_buttons[i + 2]
-		button.text = str(GameState.skill_definition(i).name) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
+		button.text = _thai_skill_name(i) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
 	var active_faction := GameState.faction if GameState.class_rank >= 7 and GameState.faction in ["Light", "Dark"] else ""
 	var faction_color := Color("e4e5da") if active_faction == "Light" else Color("9a77c5")
 	world.joystick_base.color = Color(faction_color, 0.25) if not active_faction.is_empty() else Color.TRANSPARENT

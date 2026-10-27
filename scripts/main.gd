@@ -39,7 +39,7 @@ func _ready() -> void:
 	gameplay = load("res://scripts/gameplay.gd").new()
 	gameplay.world = self
 	add_child(gameplay)
-	var fantasy_skin := load("res://scripts/fantasy_ui_theme.gd").new()
+	var fantasy_skin: Node = load("res://scripts/fantasy_ui_theme.gd").new()
 	add_child(fantasy_skin)
 
 func _make_world() -> void:

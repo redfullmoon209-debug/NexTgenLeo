@@ -408,8 +408,16 @@ func _build_player_dropdown() -> void:
 		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("365e82ff")))
 		dropdown_entries[menu_id] = entry
 	player_dropdown.hide()
-	menu_toggle_button = _button("☰", _toggle_player_dropdown)
+	menu_toggle_button = _button("", _toggle_player_dropdown)
 	menu_toggle_button.name = "PlayerMainMenuButton"
+	# Draw a true three-bar hamburger; font glyph support varies on mobile.
+	for line_y in [15.0, 23.0, 31.0]:
+		var hamburger_line := ColorRect.new()
+		hamburger_line.color = Color("49391e")
+		hamburger_line.position = Vector2(15.0, line_y)
+		hamburger_line.size = Vector2(22.0, 3.0)
+		hamburger_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		menu_toggle_button.add_child(hamburger_line)
 	menu_toggle_button.size = Vector2(52, 52)
 	menu_toggle_button.z_index = 102
 	menu_toggle_button.tooltip_text = "เมนูหลักสำหรับผู้เล่นทุกคน"

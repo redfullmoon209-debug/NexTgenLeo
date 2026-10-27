@@ -164,12 +164,25 @@ func _make_hud() -> void:
 func _layout_touch_ui() -> void:
 	if hud == null:
 		return
-	var size := get_viewport().get_visible_rect().size
-	joystick_origin = Vector2(90, size.y - 110)
+	var responsive = load("res://scripts/responsive_ui.gd")
+	var bounds: Rect2 = responsive.safe_bounds(get_viewport())
+	var portrait: bool = responsive.is_portrait(bounds.size)
+	var scale: float = responsive.input_scale(bounds, float(GameState.settings.get("ui_scale", 1.0)))
+	joystick_base.size = Vector2.ONE * (128.0 * scale)
+	joystick_knob.size = Vector2.ONE * (52.0 * scale)
+	joystick_origin = Vector2(bounds.position.x + 78.0 * scale, bounds.end.y - 98.0 * scale)
 	joystick_base.position = joystick_origin - joystick_base.size / 2.0
 	_update_knob()
-	jump_button.position = Vector2(size.x - 125, size.y - 85)
-	run_button.position = Vector2(175, size.y - 70)
+	jump_button.size = Vector2(100.0, 72.0) * scale
+	run_button.size = Vector2(100.0, 55.0) * scale
+	if portrait:
+		jump_button.position = Vector2(bounds.end.x - jump_button.size.x, bounds.end.y - 328.0 * scale)
+		run_button.position = Vector2(bounds.position.x + 145.0 * scale, bounds.end.y - run_button.size.y)
+	else:
+		jump_button.position = Vector2(bounds.end.x - jump_button.size.x - 13.0 * scale, bounds.end.y - jump_button.size.y - 1.0 * scale)
+		run_button.position = Vector2(bounds.position.x + 163.0 * scale, bounds.end.y - run_button.size.y - 3.0 * scale)
+	jump_button.position = responsive.keep_inside(Rect2(jump_button.position, jump_button.size), bounds).position
+	run_button.position = responsive.keep_inside(Rect2(run_button.position, run_button.size), bounds).position
 
 func _update_knob() -> void:
 	joystick_knob.position = joystick_origin + joystick_vector * 42.0 - joystick_knob.size / 2.0

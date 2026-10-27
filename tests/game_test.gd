@@ -99,7 +99,7 @@ func run() -> void:
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
 	check(game.bag_slot_grid != null and game.bag_slot_grid.columns == 5, "compact bag grid has five columns")
 	check(game.bag_slot_grid.get_child_count() == 100, "current bag page has 100 item slots")
-	check(game.bag_equipment_grid != null and game.bag_equipment_grid.get_child_count() == 8, "character area includes eight equipment slots")
+	check(game.bag_equipment_frame != null and game.bag_equipment_buttons.size() == 8, "all eight equipment buttons surround the 3D player model")
 	check(game.bag_character_preview != null and game.bag_preview_stage != null, "left character pane includes an isolated 3D avatar viewport")
 	check(is_instance_valid(game.bag_preview_model) and game.bag_preview_model.get_child_count() >= 6, "preview reuses the actual game player mesh")
 	var original_preview: Node3D = game.bag_preview_model

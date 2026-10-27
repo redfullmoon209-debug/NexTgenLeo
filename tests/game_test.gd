@@ -109,6 +109,9 @@ func run() -> void:
 		check(bool(female_visual.get("visual_loaded")) and int(female_visual.get("rendered_mesh_count")) > 0, "female GLB imports usable MeshInstance3D geometry")
 		check(absf(float(female_visual.get("rendered_height_m")) - 1.72) < 0.03, "female GLB is normalized to playable body height")
 		check(female_visual.get_node_or_null("ModelFit") != null, "female art uses an independent fit transform without changing physics")
+		var hidden_helper: Node = female_visual.find_child("Cube", true, false)
+		check(hidden_helper is MeshInstance3D and not hidden_helper.visible, "female exported Cube helper must be hidden to reveal humanoid mesh")
+		check(int(female_visual.get("rendered_mesh_count")) == 1, "female only fits the authored humanoid mesh, not its helper cube")
 		var asset_walk: Array[Node] = [female_visual]
 		var mesh_report: Array[String] = []
 		var inspected_nodes := 0

@@ -74,3 +74,47 @@ jobs:
       - uses: actions/configure-pages@v5
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Keep branch-source Pages working even when GitHub's implicit Jekyll
+  # build supersedes the Actions deployment. Never publish untested PRs.
+  mirror:
+    name: Mirror verified web export to main for Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: NexTgenLeo-Web
+          path: _pages_export
+      - name: Verify and publish static Godot export
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s _pages_export/index.html
+          test -f _pages_export/.nojekyll
+          # Do not overwrite a newer source revision with a stale export.
+          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo "A newer main commit exists; skipping this older export."
+            exit 0
+          fi
+          while IFS= read -r -d '' source_file; do
+            destination="\${source_file#_pages_export/}"
+            mkdir -p "$(dirname "$destination")"
+            cp -f "$source_file" "$destination"
+            git add -f -- "$destination"
+          done < <(find _pages_export -type f -print0)
+          if git diff --cached --quiet; then
+            echo "Published web export is unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Publish playable Godot web export [skip ci]"
+          git push origin HEAD:main

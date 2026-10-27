@@ -671,7 +671,7 @@ func _build_ui() -> void:
 		button.text = ""
 		var art := Control.new()
 		art.set_script(load("res://scripts/celestial_action_icon.gd"))
-		art.action_id = i
+		art.set("action_id", i)
 		art.name = "ActionIcon"
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(art)
@@ -770,21 +770,33 @@ func _layout() -> void:
 		var offset: Array = saved_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		var requested := Rect2(base_rect.position + Vector2(float(offset[0]), float(offset[1])), base_rect.size)
 		button.position = responsive.keep_inside(requested, bounds).position
+	var visual_scale: float = responsive.input_scale(bounds, ui_scale) if portrait else 1.0
 	if portrait:
-		var hud_width := minf(bounds.size.x * 0.58, 324.0)
-		hud_status_panel.size = Vector2(hud_width, 155.0)
+		# Work in 390-unit portrait coordinates regardless of the Web canvas's
+		# internal rendering resolution. Position uses scaled outer rectangles.
+		var logical_width := bounds.size.x / visual_scale
+		var status_width := minf(238.0, logical_width * 0.59)
+		hud_status_panel.scale = Vector2.ONE * visual_scale
+		hud_quest_panel.scale = Vector2.ONE * visual_scale
+		hud_target_panel.scale = Vector2.ONE * visual_scale
+		hud_notice_panel.scale = Vector2.ONE * visual_scale
+		hud_state_label.scale = Vector2.ONE * visual_scale
+		map_display.scale = Vector2.ONE * (visual_scale * 0.72)
+		hud_status_panel.size = Vector2(status_width, 155.0)
 		hud_status_panel.position = bounds.position
 		for bar in [hp_bar, stamina_bar, exp_bar]:
 			bar.custom_minimum_size.x = 0.0
-		hud_quest_panel.size = Vector2(hud_width, 83.0)
-		hud_quest_panel.position = Vector2(bounds.position.x, hud_status_panel.position.y + 160.0)
-		hud_target_panel.size = Vector2(minf(bounds.size.x, 350.0), 80.0)
-		hud_target_panel.position = Vector2(bounds.position.x, hud_quest_panel.position.y + 90.0)
-		map_display.position = Vector2(bounds.end.x - map_display.size.x, bounds.position.y)
-		hud_notice_panel.size.x = minf(520.0, bounds.size.x)
-		hud_notice_panel.position = Vector2(bounds.position.x, hud_target_panel.position.y + 88.0)
-		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 275.0)
+		hud_quest_panel.size = Vector2(status_width, 83.0)
+		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 162.0 * visual_scale)
+		hud_target_panel.size = Vector2(minf(350.0, logical_width - 8.0), 80.0)
+		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 253.0 * visual_scale)
+		map_display.position = Vector2(bounds.end.x - map_display.size.x * map_display.scale.x, bounds.position.y)
+		hud_notice_panel.size = Vector2(minf(350.0, logical_width - 8.0), 74.0)
+		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + 344.0 * visual_scale)
+		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 282.0 * visual_scale)
 	else:
+		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label, map_display]:
+			node.scale = Vector2.ONE
 		hud_status_panel.size = Vector2(324, 155)
 		for bar in [hp_bar, stamina_bar, exp_bar]:
 			bar.custom_minimum_size.x = 270.0
@@ -797,21 +809,27 @@ func _layout() -> void:
 		hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
 		hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
 		map_display.position = Vector2(size.x - 175, 12)
-	var menu_top := bounds.position.y + (157.0 if portrait else 20.0)
+	var menu_top := bounds.position.y + (145.0 * visual_scale if portrait else 20.0)
 	if is_instance_valid(menu_toggle_button):
-		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x, menu_top) if portrait else Vector2(maxf(6.0, size.x - 243.0), 32.0)
+		menu_toggle_button.scale = Vector2.ONE * visual_scale
+		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x * visual_scale, menu_top) if portrait else Vector2(maxf(6.0, size.x - 243.0), 32.0)
 	if is_instance_valid(owner_gm_button):
-		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x - 10.0, menu_top) if portrait else Vector2(maxf(6.0, size.x - 305.0), 32.0)
+		owner_gm_button.scale = Vector2.ONE * visual_scale
+		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x * visual_scale - 10.0 * visual_scale, menu_top) if portrait else Vector2(maxf(6.0, size.x - 305.0), 32.0)
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
 	if is_instance_valid(player_dropdown):
-		var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
-		player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
-		player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
+		player_dropdown.scale = Vector2.ONE * visual_scale
 		if portrait:
-			player_dropdown.size = Vector2(minf(240.0, bounds.size.x), minf(475.0, bounds.size.y - 220.0))
-			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x, menu_top + 58.0)
+			var max_local_width := bounds.size.x / visual_scale
+			var max_local_height := bounds.size.y / visual_scale
+			player_dropdown.size = Vector2(minf(240.0, max_local_width), minf(475.0, max_local_height - 225.0))
+			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x * visual_scale, menu_top + 58.0 * visual_scale)
+		else:
+			var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
+			player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
+			player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
 	panel.position = bounds.position if portrait else Vector2(12, 12)
 	if active_panel == "Bag":
 		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
@@ -822,7 +840,10 @@ func _layout() -> void:
 	else:
 		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 	if portrait:
-		panel.size = bounds.size
+		panel.scale = Vector2.ONE * visual_scale
+		panel.size = bounds.size / visual_scale
+	else:
+		panel.scale = Vector2.ONE
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -1107,7 +1128,8 @@ func _refresh_hud() -> void:
 	for buff_id in GameState.buffs:
 		if GameState.buff_active(str(buff_id)):
 			active_buffs += 1
-	hud_state_label.text = "ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs]
+	hud_state_label.text = ("AUTO %s  /  PET %s  /  BUFF %d" % ["ON" if auto_hunt else "OFF", "ON" if GameState.pet_enabled else "OFF", active_buffs]) if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else ("ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs])
+	hud_target_panel.visible = target >= 0 or world.get_viewport().get_visible_rect().size.x >= world.get_viewport().get_visible_rect().size.y
 	for i in range(4):
 		var button := skill_buttons[i + 2]
 		var caption: Label = button.get_node_or_null("ActionCaption")

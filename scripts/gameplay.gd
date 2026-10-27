@@ -283,7 +283,7 @@ func _build_ui() -> void:
 	notice.size = Vector2(600, 75)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	world.hud.add_child(notice)
-	var names := ["Bag [B]", "Shop [P]", "Status [C]", "Quest [Q]", "World [M]", "Pet", "Auto", "Skills", "GM"]
+	var names := ["กระเป๋า [B]", "ร้านค้า [P]", "ตัวละคร [C]", "ภารกิจ [Q]", "แผนที่ [M]", "สัตว์เลี้ยง", "ล่าอัตโนมัติ", "ทักษะ", "GM"]
 	for i in range(names.size()):
 		var name: String = names[i].split(" ")[0]
 		var button := _button(names[i], func(): _show_panel(name))
@@ -677,6 +677,10 @@ func _close_panel() -> void:
 	panel.hide()
 	active_panel = ""
 
+func _thai_panel_name(name: String) -> String:
+	var names := {"Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
+	return str(names.get(name, name))
+
 func _show_panel(name: String) -> void:
 	if panel.visible and active_panel == name:
 		_close_panel()
@@ -686,8 +690,8 @@ func _show_panel(name: String) -> void:
 		menu.remove_child(child)
 		child.queue_free()
 	panel.show()
-	menu.add_child(_label(name.to_upper() + "   /   NEX TGEN LEO", 23))
-	_button("Close [Esc]", _close_panel, menu)
+	menu.add_child(_label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 23))
+	_button("ปิด [Esc]", _close_panel, menu)
 	if network.active:
 		_online_panel(name)
 		return
@@ -711,7 +715,7 @@ func _show_panel(name: String) -> void:
 				_button("Portal · " + str(GameState.balance.maps[i].name), func(): _warp(index), menu)
 		"Pet":
 			menu.add_child(_label("Companion Lv.%d  EXP %d  Evolution %d / 5\nAuto Loot active while summoned" % [GameState.pet_level, GameState.pet_exp, GameState.pet_stage]))
-			_button("Summon / dismiss", func(): GameState.pet_enabled = not GameState.pet_enabled, menu)
+			_button("เรียก / เก็บสัตว์เลี้ยง", func(): GameState.pet_enabled = not GameState.pet_enabled, menu)
 		"Auto":
 			for i in range(3):
 				var index := i
@@ -728,9 +732,9 @@ func _show_panel(name: String) -> void:
 			_button("Settings", func(): _show_panel("Settings"), menu)
 		"Settings":
 			_button("Multiplayer development server", func(): _show_panel("Connect"), menu)
-			_button("Save now", func(): _save(); _tell("Offline save written"), menu)
+			_button("บันทึกเกม", func(): _save(); _tell("Offline save written"), menu)
 			_button("Edit button layout: drag action buttons", func(): layout_edit = not layout_edit; _close_panel(); _tell("Layout editing " + str(layout_edit)), menu)
-			_button("Reset button layout", func(): GameState.settings.button_offsets = {}; _layout(), menu)
+			_button("คืนตำแหน่งปุ่ม", func(): GameState.settings.button_offsets = {}; _layout(), menu)
 			for quality in ["Low", "Medium", "High"]:
 				_button(quality, func(): GameState.settings.quality = quality; world.get_viewport().scaling_3d_scale = 0.65 if quality == "Low" else 1.0; _set_shadows(quality == "High"); _tell("Quality: " + quality), menu)
 			menu.add_child(_label("FPS %d · Render objects %d\nStatic memory %.1f MB\nLocal sandbox saves use this browser only." % [Engine.get_frames_per_second(), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0]))
@@ -747,20 +751,31 @@ func _show_panel(name: String) -> void:
 			_button("Revive here · requires crystal", func(): _revive(true), menu)
 
 func _bag() -> void:
-	menu.add_child(_label("Gold %d / Cash %d · Slots %d / 200 · Page %d / 2" % [GameState.gold, GameState.cash, GameState.inventory.size(), bag_page + 1]))
-	_button("Switch page", func(): bag_page = 1 - bag_page; _close_panel(); _show_panel("Bag"), menu)
-	_button("Sort by item", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), menu)
+	menu.add_child(_label("กระเป๋าสัมภาระ  •  %d / 200 ช่อง" % GameState.inventory.size(), 20))
+	menu.add_child(_label("ทอง %d   |   แคช %d   |   หน้า %d / 2" % [GameState.gold, GameState.cash, bag_page + 1]))
+	var actions := HBoxContainer.new()
+	menu.add_child(actions)
+	_button("◀ หน้า 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
+	_button("หน้า 2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
+	_button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
 	var grid := GridContainer.new()
-	grid.columns = 5
+	grid.columns = 8
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
 	menu.add_child(grid)
 	for offset in range(100):
 		var index := bag_page * 100 + offset
-		var text := "·"
+		var slot_text := "·"
+		var item_tip := "ช่องว่าง %d" % (index + 1)
 		if index < GameState.inventory.size():
 			var slot: Dictionary = GameState.inventory[index]
-			text = "%s\n%s x%d" % [GameState.balance.items[slot.id].icon, slot.id, int(slot.count)]
-		var button := _button(text, func(): _item_menu(index), grid)
-		button.custom_minimum_size = Vector2(100, 55)
+			var item: Dictionary = GameState.balance.items.get(slot.id, {})
+			slot_text = "%s\\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
+			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
+		var button := _button(slot_text, func(): _item_menu(index), grid)
+		button.custom_minimum_size = Vector2(58, 53)
+		button.tooltip_text = item_tip
+		button.add_theme_font_size_override("font_size", 13)
 
 func _item_menu(index: int) -> void:
 	if index >= GameState.inventory.size():
@@ -774,16 +789,16 @@ func _item_menu(index: int) -> void:
 	quantity.max_value = int(slot.count)
 	quantity.value = 1
 	menu.add_child(quantity)
-	_button("Use / equip", func():
+	_button("ใช้ / สวมใส่", func():
 		var result := GameState.use_item(selected_item)
 		_tell(result)
 		if result == "warp": _warp(0)
 		_close_panel(), menu)
-	_button("Sell quantity", func(): GameState.sell(selected_item, int(quantity.value)); _close_panel(); _show_panel("Bag"), menu)
-	_button("Drop quantity", func(): GameState.remove_item(selected_item, int(quantity.value)); _close_panel(); _show_panel("Bag"), menu)
+	_button("ขายตามจำนวน", func(): GameState.sell(selected_item, int(quantity.value)); _close_panel(); _show_panel("Bag"), menu)
+	_button("ทิ้งตามจำนวน", func(): GameState.remove_item(selected_item, int(quantity.value)); _close_panel(); _show_panel("Bag"), menu)
 
 func _shop(is_cash: bool) -> void:
-	_button("NPC Shop" if is_cash else "Cash Shop · test currency only", func(): _show_panel("Shop" if is_cash else "Cash"), menu)
+	_button("ร้านค้า NPC" if is_cash else "ร้านค้าแคช (ทดสอบ)", func(): _show_panel("Shop" if is_cash else "Cash"), menu)
 	menu.add_child(_label("Gold %d · Cash %d" % [GameState.gold, GameState.cash]))
 	for id in GameState.balance.items:
 		var item: Dictionary = GameState.balance.items[id]
@@ -913,7 +928,7 @@ func _online_panel(name: String) -> void:
 				var index := i
 				var slot: Dictionary = GameState.inventory[i]
 				menu.add_child(_label("%s x%d" % [GameState.balance.items[slot.id].name,int(slot.count)]))
-				_button("Use / equip", func(): network.command("equip" if GameState.balance.items[GameState.inventory[index].id].kind == "equipment" else "use",{"slot":index}), menu)
+				_button("ใช้ / สวมใส่", func(): network.command("equip" if GameState.balance.items[GameState.inventory[index].id].kind == "equipment" else "use",{"slot":index}), menu)
 				_button("Sell one", func(): network.command("sell",{"slot":index,"count":1}), menu)
 		"Shop":
 			for id in GameState.balance.items:

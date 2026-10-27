@@ -27,7 +27,11 @@ static func safe_bounds(viewport: Viewport, padding: float = 12.0) -> Rect2:
 
 static func input_scale(bounds: Rect2, requested: float = 1.0) -> float:
 	var user_scale := clampf(requested, 0.85, 1.20)
-	var height_factor := bounds.size.y / (570.0 if is_portrait(bounds.size) else 520.0)
+	if is_portrait(bounds.size):
+		# The Web canvas can retain a 720/1280-wide virtual viewport on a
+		# 390-pixel phone. Normalize to a 390-unit ergonomic portrait design.
+		return maxf(0.90, bounds.size.x / 390.0) * user_scale
+	var height_factor := bounds.size.y / 520.0
 	return minf(user_scale, maxf(0.72, height_factor))
 
 static func keep_inside(rect: Rect2, bounds: Rect2) -> Rect2:

@@ -304,11 +304,15 @@ func _build_ui() -> void:
 	map_display.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	world.hud.add_child(map_display)
 	panel = PanelContainer.new()
-	panel.position = Vector2(315, 170)
-	panel.size = Vector2(620, 440)
+	# Dock every opened menu within the far-left highlighted area.
+	panel.position = Vector2(12, 12)
+	panel.size = Vector2(390, 696)
+	panel.z_index = 100
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.add_theme_stylebox_override("panel", _style(Color("142435f5"), Color("b5a47a")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	panel.add_child(scroll)
 	menu = VBoxContainer.new()
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -345,8 +349,9 @@ func _layout() -> void:
 		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		button.position += Vector2(float(offset[0]), float(offset[1]))
 	map_display.position = Vector2(size.x - 175, 12)
-	panel.position = Vector2(305, 172)
-	panel.size = Vector2(minf(620, size.x - 320), minf(430, size.y - 190))
+	# Fit the left drawer within both landscape and narrow mobile viewports.
+	panel.position = Vector2(12, 12)
+	panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -605,7 +610,10 @@ func _refresh_hud() -> void:
 					gm_rects[key] = [center.x,center.y]
 					var popup: PopupMenu = gm_choosers[key].get_popup()
 					gm_popups[key] = {"visible":popup.visible,"position":[popup.position.x,popup.position.y],"size":[popup.size.x,popup.size.y]}
-		var diagnostic := {"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var close_center := Vector2.ZERO
+		if panel.visible and menu.get_child_count() > 1 and menu.get_child(1) is Button:
+			close_center = (menu.get_child(1) as Button).get_global_rect().get_center()
+		var diagnostic := {"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -689,8 +697,12 @@ func _show_panel(name: String) -> void:
 	for child in menu.get_children():
 		menu.remove_child(child)
 		child.queue_free()
+	_layout()
 	panel.show()
-	menu.add_child(_label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 23))
+	panel.move_to_front() # last sibling receives clicks before HUD controls beneath it
+	var heading := _label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 21)
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	menu.add_child(heading)
 	_button("ปิด [Esc]", _close_panel, menu)
 	if network.active:
 		_online_panel(name)
@@ -759,7 +771,8 @@ func _bag() -> void:
 	_button("หน้า 2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
 	_button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
 	var grid := GridContainer.new()
-	grid.columns = 8
+	# A narrow drawer can show five columns while retaining 100 slots per page.
+	grid.columns = clampi(int((panel.size.x - 54.0) / 64.0), 2, 5)
 	grid.add_theme_constant_override("h_separation", 5)
 	grid.add_theme_constant_override("v_separation", 5)
 	menu.add_child(grid)
@@ -984,7 +997,9 @@ func _gm_choice_row(title: String, options: Array, current: String, kind: String
 	label.custom_minimum_size.x = 70
 	row.add_child(label)
 	var chooser := OptionButton.new()
-	chooser.custom_minimum_size = Vector2(360,42)
+	chooser.custom_minimum_size = Vector2(190,42)
+	chooser.fit_to_longest_item = false
+	chooser.clip_text = true
 	chooser.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for option in options:
 		chooser.add_item(str(option.name))

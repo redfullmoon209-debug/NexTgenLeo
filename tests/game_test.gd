@@ -86,6 +86,19 @@ func run() -> void:
 	await process_frame
 	var game = scene.gameplay
 	check(game.mobs.size() == 14, "scene spawns monsters")
+	check(game.buttons.size() == 2, "nine menu shortcuts replaced by one player control and one owner-only control")
+	check(not game.owner_gm_button.visible and not game.gm_authorized, "guest never sees GM")
+	game._show_panel("GM")
+	check(not game.panel.visible and game.active_panel != "GM", "direct GM panel opening rejected for guest")
+	game._toggle_player_dropdown()
+	check(game.player_dropdown.visible and game.dropdown_backdrop.visible, "yellow main-menu dropdown opens")
+	check(game.dropdown_entries.size() == 10, "all ten player menus are in dropdown")
+	game._open_player_menu("Bag")
+	check(not game.player_dropdown.visible and game.active_panel == "Bag", "dropdown item opens original bag and closes overlay")
+	game._close_panel()
+	game._toggle_player_dropdown()
+	game._toggle_player_dropdown()
+	check(not game.player_dropdown.visible and not game.dropdown_backdrop.visible, "yellow menu toggles closed")
 	game._show_panel("Bag")
 	await process_frame
 	check(game.panel.position.x <= 16 and game.panel.position.y <= 16, "dual-pane menu docked at top-left")
@@ -154,11 +167,16 @@ func run() -> void:
 			if state.inventory[i].id == "offhand_blade":
 				state.remove_item(i)
 				break
-	for name in ["Bag","Shop","Cash","Status","Quest","World","Pet","Auto","Skills","Settings","GM"]:
+	for name in ["Bag","Shop","Cash","Status","Quest","World","Pet","Auto","Skills","Settings","OwnerLogin","GM"]:
 		game._close_panel()
+		if name == "GM":
+			game._set_gm_authorized(true)
+			check(game.owner_gm_button.visible, "owner authorization enables red GM button")
 		game._show_panel(name)
 		check(game.panel.visible, "open " + name)
 	game._close_panel()
+	game._set_gm_authorized(false)
+	check(not game.owner_gm_button.visible, "logout hides red GM button again")
 	game.target = 0
 	game.mobs[0].node.position = scene.player.position + Vector3(0,0,-1)
 	var before: int = game.mobs[0].hp

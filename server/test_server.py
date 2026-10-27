@@ -1,8 +1,10 @@
 import asyncio
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from aiohttp import ClientSession, web
 from server import Authority, Rejected, create_app
 
@@ -26,6 +28,7 @@ class AuthorityTests(unittest.TestCase):
         self.assertEqual(self.a.players[self.id]['gold'],150)
     def test_client_cannot_grant_money_or_gm(self):
         with self.assertRaises(Rejected):self.command('gm',gold=999999)
+        with self.assertRaises(Rejected):self.command('gm_auth',owner_secret='not a privileged command')
         self.command('buy',item='potion',gold=999999)
         self.assertEqual(self.a.players[self.id]['gold'],135)
     def test_overflow_transaction(self):
@@ -82,6 +85,38 @@ class AuthorityTests(unittest.TestCase):
         with self.assertRaises(Rejected):self.command('sell',slot=-1,count=1)
 
 class TransportTests(unittest.IsolatedAsyncioTestCase):
+    async def test_owner_gm_role_is_server_verified_and_not_a_guest_privilege(self):
+        owner_secret='unique-server-only-owner-secret-for-tests-32-chars'
+        with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,{'LEO_GM_OWNER_SECRET':owner_secret}):
+            app=await create_app(str(Path(tmp)/'gm_role.db'))
+            runner=web.AppRunner(app);await runner.setup();site=web.TCPSite(runner,'127.0.0.1',0);await site.start()
+            port=site._server.sockets[0].getsockname()[1]
+            try:
+                async with ClientSession() as http:
+                    async with http.ws_connect(f'http://127.0.0.1:{port}/ws') as guest, http.ws_connect(f'http://127.0.0.1:{port}/ws') as owner:
+                        await guest.send_json({'op':'hello'});guest_welcome=await guest.receive_json()
+                        await owner.send_json({'op':'hello'});owner_welcome=await owner.receive_json()
+                        self.assertNotIn(guest_welcome['id'],app['owner_sessions'])
+                        self.assertNotIn(owner_welcome['id'],app['owner_sessions'])
+                        async def next_type(ws,typ):
+                            for _ in range(35):
+                                message=await asyncio.wait_for(ws.receive_json(),2)
+                                if message['type']==typ:return message
+                            self.fail('Missing response type: '+typ)
+                        await guest.send_json({'op':'gm_auth','owner_secret':'incorrect-credential-of-proper-length'})
+                        await next_type(guest,'error')
+                        self.assertNotIn(guest_welcome['id'],app['owner_sessions'])
+                        await owner.send_json({'op':'gm_auth','owner_secret':owner_secret})
+                        result=await next_type(owner,'gm_role')
+                        self.assertTrue(result['authorized'])
+                        self.assertIn(owner_welcome['id'],app['owner_sessions'])
+                        self.assertNotIn(guest_welcome['id'],app['owner_sessions'])
+                        # Proving an owner role does not bypass all other authority checks.
+                        await owner.send_json({'op':'gm','gold':999999,'request':'unauthorized-direct-command'})
+                        await next_type(owner,'error')
+            finally:await runner.cleanup()
+            self.assertFalse(app['owner_sessions'])
+
     async def test_two_clients_sync_chat_and_persistence(self):
         with tempfile.TemporaryDirectory() as tmp:
             app=await create_app(str(Path(tmp)/'net.db'))

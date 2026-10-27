@@ -779,8 +779,8 @@ func _layout() -> void:
 		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label]:
 			node.scale = Vector2.ONE
 		map_display.scale = Vector2.ONE * (visual_scale * 0.60)
-		var status_width := minf(bounds.size.x * 0.74, 920.0)
-		hud_status_panel.size = Vector2(status_width, 430.0)
+		var status_width := minf(bounds.size.x * 0.74, 286.0 * visual_scale)
+		hud_status_panel.size = Vector2(status_width, 133.0 * visual_scale)
 		hud_status_panel.position = bounds.position
 		var brand: Label = hud_status_panel.find_child("CelestialBrandLine", true, false)
 		if is_instance_valid(brand):
@@ -795,9 +795,8 @@ func _layout() -> void:
 		target_label.add_theme_font_size_override("font_size", roundi(14.0 * visual_scale))
 		notice.add_theme_font_size_override("font_size", roundi(14.0 * visual_scale))
 		hud_state_label.add_theme_font_size_override("font_size", roundi(13.0 * visual_scale))
-		var profile = load("res://scripts/celestial_steel.gd")
 		for plate in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel]:
-			var old_style: StyleBoxFlat = plate.get_theme_stylebox("panel").duplicate()
+			var old_style: StyleBoxFlat = plate.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
 			old_style.content_margin_left = 8.0 * visual_scale
 			old_style.content_margin_right = 8.0 * visual_scale
 			old_style.content_margin_top = 6.0 * visual_scale
@@ -810,16 +809,16 @@ func _layout() -> void:
 			bar.custom_minimum_size = Vector2(0.0, 17.0 * visual_scale)
 			var value_text: Label = bar.get_node("Value")
 			value_text.add_theme_font_size_override("font_size", roundi(12.0 * visual_scale))
-		hud_quest_panel.size = Vector2(minf(bounds.size.x * 0.59, 740.0), 166.0)
-		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 449.0)
-		hud_target_panel.size = Vector2(minf(bounds.size.x * 0.80, 960.0), 171.0)
-		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 630.0)
+		hud_quest_panel.size = Vector2(minf(bounds.size.x * 0.59, 230.0 * visual_scale), 52.0 * visual_scale)
+		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 139.0 * visual_scale)
+		hud_target_panel.size = Vector2(minf(bounds.size.x * 0.80, 296.0 * visual_scale), 53.0 * visual_scale)
+		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 195.0 * visual_scale)
 		hud_target_hp.custom_minimum_size = Vector2(0.0, 17.0 * visual_scale)
 		var hp_text: Label = hud_target_hp.get_node("Value")
 		hp_text.add_theme_font_size_override("font_size", roundi(12.0 * visual_scale))
 		map_display.position = Vector2(bounds.end.x - map_display.size.x * map_display.scale.x, bounds.position.y)
-		hud_notice_panel.size = Vector2(minf(bounds.size.x * 0.76, 930.0), 160.0)
-		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + (813.0 if target >= 0 else 631.0))
+		hud_notice_panel.size = Vector2(minf(bounds.size.x * 0.76, 285.0 * visual_scale), 50.0 * visual_scale)
+		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + (253.0 if target >= 0 else 195.0) * visual_scale)
 		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 278.0 * visual_scale)
 	else:
 		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label, map_display]:

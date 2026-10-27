@@ -1135,7 +1135,7 @@ func _refresh_hud() -> void:
 		var caption: Label = button.get_node_or_null("ActionCaption")
 		if is_instance_valid(caption):
 			caption.text = ("%.1fs" % float(cooldowns[i])) if float(cooldowns[i]) > 0 else (["โจมตี", "สกิล 1", "สกิล 2", "สกิล 3"][i])
-		button.disabled = float(cooldowns[i]) > 0.0
+		button.disabled = i > 0 and float(cooldowns[i]) > 0.0
 	var active_faction := GameState.faction if GameState.class_rank >= 7 and GameState.faction in ["Light", "Dark"] else ""
 	var faction_color := Color("e4e5da") if active_faction == "Light" else Color("9a77c5")
 	world.joystick_base.color = Color(faction_color, 0.25) if not active_faction.is_empty() else Color.TRANSPARENT

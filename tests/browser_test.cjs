@@ -11,6 +11,8 @@ async function openPlayerMenu(page,entryName){
  if(opened.gm_button_visible)throw Error('Unverified public player should never see the GM orb');
  if(opened.menu_dropdown_rect[0]+opened.menu_dropdown_rect[2]>opened.viewport_size[0]-180)throw Error('Dropdown overlaps minimap');
  if(!opened.menu_entry_rects[entryName])throw Error('Player menu missing '+entryName);
+ if(entryName==='Bag' && opened.screen_size[0]===1280)
+  await page.screenshot({path:'build/leo-yellow-main-dropdown.png'});
  const point=opened.menu_entry_rects[entryName];
  await page.mouse.click(point[0]*sx,point[1]*sy);
  await page.waitForFunction(name=>window.leoDiagnostics.panel===name,entryName,{timeout:15000});

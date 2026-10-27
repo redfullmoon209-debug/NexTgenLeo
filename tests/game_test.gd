@@ -87,13 +87,19 @@ func run() -> void:
 	var game = scene.gameplay
 	check(game.mobs.size() == 14, "scene spawns monsters")
 	game._show_panel("Bag")
-	check(game.panel.position.x <= 16 and game.panel.position.y <= 16, "menu docked at far-left top")
-	check(game.panel.size.x <= 400, "menu fits highlighted left column")
-	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "menu brought to foreground above HUD")
-	var bag_grid: GridContainer = null
-	for child in game.menu.get_children():
-		if child is GridContainer: bag_grid = child
-	check(bag_grid != null and bag_grid.columns <= 5, "inventory grid fits left drawer")
+	await process_frame
+	check(game.panel.position.x <= 16 and game.panel.position.y <= 16, "dual-pane menu docked at top-left")
+	check(game.panel.size.x > 700 and game.panel.size.x <= 840, "dual-pane bag fits highlighted areas")
+	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "bag stays above other HUD elements")
+	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
+	check(game.bag_slot_grid != null and game.bag_slot_grid.columns == 5, "compact bag grid has five columns")
+	check(game.bag_slot_grid.get_child_count() == 100, "current bag page has 100 item slots")
+	check(game.bag_equipment_grid != null and game.bag_equipment_grid.get_child_count() == 8, "character area includes eight equipment slots")
+	check("คลาส" in game.bag_status_label.text, "left character pane shows Thai stats")
+	var left_rect: Rect2 = game.bag_character_panel.get_global_rect()
+	var right_rect: Rect2 = game.bag_inventory_panel.get_global_rect()
+	check(left_rect.position.x < right_rect.position.x and left_rect.end.x <= right_rect.position.x + 1, "stats on left and inventory on right")
+	check(right_rect.end.x <= game.panel.get_global_rect().end.x + 1, "inventory remains within panel bounds")
 	game._close_panel()
 	for name in ["Bag","Shop","Cash","Status","Quest","World","Pet","Auto","Skills","Settings","GM"]:
 		game._close_panel()

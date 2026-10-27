@@ -31,6 +31,12 @@ var buttons: Array[Button] = []
 var skill_buttons: Array[Button] = []
 var active_panel := ""
 var bag_page := 0
+var bag_character_panel: PanelContainer
+var bag_inventory_panel: PanelContainer
+var bag_equipment_grid: GridContainer
+var bag_slot_grid: GridContainer
+var bag_status_label: Label
+var bag_status_bars: Array[ProgressBar] = []
 var selected_item := -1
 var quantity: SpinBox
 var save_timer := 0.0
@@ -349,9 +355,11 @@ func _layout() -> void:
 		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		button.position += Vector2(float(offset[0]), float(offset[1]))
 	map_display.position = Vector2(size.x - 175, 12)
-	# Fit the left drawer within both landscape and narrow mobile viewports.
+	# A two-column equipment/inventory window fills the green/red regions.
+	# All other menus retain the existing compact left-side drawer.
 	panel.position = Vector2(12, 12)
-	panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
+	var panel_width := 824.0 if active_panel == "Bag" else 390.0
+	panel.size = Vector2(minf(panel_width, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -586,6 +594,16 @@ func _refresh_hud() -> void:
 	hp_bar.get_node("Value").text = "HP  %d / %d" % [GameState.hp, GameState.max_hp]
 	stamina_bar.get_node("Value").text = "Stamina  %d / %d" % [int(GameState.stamina),GameState.max_stamina]
 	exp_bar.get_node("Value").text = "EXP  %d / %d" % [GameState.exp,GameState.exp_required()]
+	if active_panel == "Bag" and is_instance_valid(bag_status_label):
+		bag_status_label.text = _bag_status_text()
+		if bag_status_bars.size() == 3 and is_instance_valid(bag_status_bars[0]):
+			for i in range(3):
+				var bar := bag_status_bars[i]
+				var value: float = float([float(GameState.hp), float(GameState.stamina), float(GameState.exp)][i])
+				var maximum: float = float([float(GameState.max_hp), float(GameState.max_stamina), float(GameState.exp_required())][i])
+				bar.max_value = maxf(1.0, maximum)
+				bar.value = value
+				bar.get_node("Value").text = "%s  %d / %d" % [["HP", "พลังงาน", "EXP"][i], int(value), int(maximum)]
 	quest_label.text = "%s\nStarter Hunt: %s  %d/5\nGold %d    Cash %d" % [GameState.balance.maps[GameState.map_index].name, GameState.quest_state, GameState.quest_kills, GameState.gold, GameState.cash]
 	target_label.text = "Select target: TAB / LOCK" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
 	for i in range(4):
@@ -613,7 +631,12 @@ func _refresh_hud() -> void:
 		var close_center := Vector2.ZERO
 		if panel.visible and menu.get_child_count() > 1 and menu.get_child(1) is Button:
 			close_center = (menu.get_child(1) as Button).get_global_rect().get_center()
-		var diagnostic := {"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var bag_left_rect := Rect2()
+		var bag_right_rect := Rect2()
+		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
+			bag_left_rect = bag_character_panel.get_global_rect()
+			bag_right_rect = bag_inventory_panel.get_global_rect()
+		var diagnostic := {"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -762,20 +785,115 @@ func _show_panel(name: String) -> void:
 			_button("Sanctuary · lose 2% EXP, no level down", func(): _revive(), menu)
 			_button("Revive here · requires crystal", func(): _revive(true), menu)
 
+func _bag_status_text() -> String:
+	var gender_text := "ชาย" if GameState.gender == "Male" else "หญิง"
+	var element_text := "ยังไม่เลือก" if GameState.selected_element.is_empty() else GameState.selected_element
+	var faction_text := "ไม่มีฝ่าย" if GameState.faction.is_empty() else GameState.faction
+	return "%s  •  คลาส %d / เลเวล %d\nโจมตี %d   ป้องกัน %d   สูง %.2f ม.\nธาตุ %s   ฝ่าย %s" % [gender_text, GameState.class_rank, GameState.level, GameState.attack_power(), GameState.defense(), GameState.height_meters(), element_text, faction_text]
+
+func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: float, title: String) -> void:
+	var bar := _bar(parent, color)
+	bar.custom_minimum_size.x = 240
+	bar.max_value = maxf(1.0, maximum)
+	bar.value = current
+	bar.get_node("Value").text = "%s  %d / %d" % [title, int(current), int(maximum)]
+	bag_status_bars.append(bar)
+
+func _bag_equipment_slot(slot_id: String, title: String) -> void:
+	var equipped: Dictionary = GameState.equipped.get(slot_id, {})
+	var item: Dictionary = GameState.balance.items.get(str(equipped.get("id", "")), {})
+	var display_name := "ว่าง" if equipped.is_empty() else str(item.get("name", equipped.get("id", "")))
+	var button := _button("%s\n%s" % [title, display_name], func(): _bag_unequip(slot_id), bag_equipment_grid)
+	button.custom_minimum_size = Vector2(145, 63)
+	button.add_theme_font_size_override("font_size", 13)
+	button.tooltip_text = "กดถอดอุปกรณ์" if not equipped.is_empty() else "ยังไม่ได้สวมใส่"
+	button.disabled = equipped.is_empty()
+
+func _bag_unequip(slot_id: String) -> void:
+	if GameState.unequip(slot_id):
+		_close_panel()
+		_show_panel("Bag")
+	else:
+		_tell("ถอดอุปกรณ์ไม่ได้: กรุณาตรวจช่องกระเป๋า")
+
 func _bag() -> void:
-	menu.add_child(_label("กระเป๋าสัมภาระ  •  %d / 200 ช่อง" % GameState.inventory.size(), 20))
-	menu.add_child(_label("ทอง %d   |   แคช %d   |   หน้า %d / 2" % [GameState.gold, GameState.cash, bag_page + 1]))
+	bag_status_bars.clear()
+	var wide := panel.size.x >= 730.0
+	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
+	panes.name = "BagTwoPane"
+	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panes.add_theme_constant_override("separation", 10)
+	panes.custom_minimum_size.y = maxf(260.0, panel.size.y - 132.0)
+	menu.add_child(panes)
+
+	# Green area: status and supported equipment slots, always visible
+	# while scrolling the inventory separately on the right.
+	bag_character_panel = PanelContainer.new()
+	bag_character_panel.name = "CharacterAndEquipment"
+	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if wide: bag_character_panel.custom_minimum_size.x = 365
+	panes.add_child(bag_character_panel)
+	var character_scroll := ScrollContainer.new()
+	character_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	character_scroll.custom_minimum_size.y = 270 if not wide else maxf(250.0, panel.size.y - 145.0)
+	bag_character_panel.add_child(character_scroll)
+	var character := VBoxContainer.new()
+	character.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character.add_theme_constant_override("separation", 7)
+	character_scroll.add_child(character)
+	character.add_child(_label("ข้อมูลตัวละคร / สเตตัส", 19))
+	bag_status_label = _label(_bag_status_text(), 15)
+	bag_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	character.add_child(bag_status_label)
+	_bag_bar(character, Color("d65b68"), float(GameState.hp), float(GameState.max_hp), "HP")
+	_bag_bar(character, Color("e6c85d"), GameState.stamina, float(GameState.max_stamina), "พลังงาน")
+	_bag_bar(character, Color("518fdb"), float(GameState.exp), float(GameState.exp_required()), "EXP")
+	character.add_child(_label("ช่องสวมใส่อุปกรณ์", 19))
+	bag_equipment_grid = GridContainer.new()
+	bag_equipment_grid.name = "EquipmentSlots"
+	bag_equipment_grid.columns = 2 if wide else 1
+	bag_equipment_grid.add_theme_constant_override("h_separation", 7)
+	bag_equipment_grid.add_theme_constant_override("v_separation", 7)
+	character.add_child(bag_equipment_grid)
+	for slot_def in [{"id":"weapon","title":"อาวุธ"},{"id":"hat","title":"หมวก"},{"id":"shirt","title":"เสื้อ"},{"id":"gloves","title":"ถุงมือ"},{"id":"pants","title":"กางเกง"},{"id":"shoes","title":"รองเท้า"},{"id":"ring","title":"แหวน"},{"id":"necklace","title":"สร้อย"}]:
+		_bag_equipment_slot(str(slot_def.id), str(slot_def.title))
+	character.add_child(_label("แตะอุปกรณ์ที่สวมอยู่เพื่อถอดออก", 13))
+
+	# Red area: smaller inventory cells with independent vertical scrolling.
+	bag_inventory_panel = PanelContainer.new()
+	bag_inventory_panel.name = "InventoryRight"
+	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if wide: bag_inventory_panel.custom_minimum_size.x = 360
+	panes.add_child(bag_inventory_panel)
+	var inventory_column := VBoxContainer.new()
+	inventory_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_column.add_theme_constant_override("separation", 5)
+	bag_inventory_panel.add_child(inventory_column)
+	inventory_column.add_child(_label("กระเป๋า  •  %d / 200 ช่อง" % GameState.inventory.size(), 18))
+	inventory_column.add_child(_label("ทอง %d   |   แคช %d   |   หน้า %d/2" % [GameState.gold, GameState.cash, bag_page + 1], 14))
 	var actions := HBoxContainer.new()
-	menu.add_child(actions)
-	_button("◀ หน้า 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
-	_button("หน้า 2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
-	_button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
-	var grid := GridContainer.new()
-	# A narrow drawer can show five columns while retaining 100 slots per page.
-	grid.columns = clampi(int((panel.size.x - 54.0) / 64.0), 2, 5)
-	grid.add_theme_constant_override("h_separation", 5)
-	grid.add_theme_constant_override("v_separation", 5)
-	menu.add_child(grid)
+	actions.add_theme_constant_override("separation", 4)
+	inventory_column.add_child(actions)
+	var first_page := _button("◀ 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
+	var second_page := _button("2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
+	var sort_button := _button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
+	for button in [first_page, second_page, sort_button]:
+		button.custom_minimum_size = Vector2(75, 37)
+		button.add_theme_font_size_override("font_size", 13)
+	var inventory_scroll := ScrollContainer.new()
+	inventory_scroll.name = "BagSlotsScroll"
+	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inventory_scroll.custom_minimum_size.y = maxf(150.0, panel.size.y - 245.0) if wide else 260.0
+	inventory_column.add_child(inventory_scroll)
+	bag_slot_grid = GridContainer.new()
+	bag_slot_grid.name = "InventorySlots"
+	bag_slot_grid.columns = 5 if wide else clampi(int((panel.size.x - 52.0) / 64.0), 2, 5)
+	bag_slot_grid.add_theme_constant_override("h_separation", 5)
+	bag_slot_grid.add_theme_constant_override("v_separation", 5)
+	inventory_scroll.add_child(bag_slot_grid)
 	for offset in range(100):
 		var index := bag_page * 100 + offset
 		var slot_text := "·"
@@ -785,8 +903,8 @@ func _bag() -> void:
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
 			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
-		var button := _button(slot_text, func(): _item_menu(index), grid)
-		button.custom_minimum_size = Vector2(58, 53)
+		var button := _button(slot_text, func(): _item_menu(index), bag_slot_grid)
+		button.custom_minimum_size = Vector2(55, 53)
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 13)
 

@@ -573,6 +573,7 @@ func _owner_login_panel() -> void:
 
 func _build_ui() -> void:
 	var theme := Theme.new()
+	var steel = load("res://scripts/celestial_steel.gd")
 	var font: FontFile = load("res://assets/fonts/NotoSansThai.ttf")
 	font.fallbacks = [ThemeDB.fallback_font]
 	theme.default_font = font
@@ -583,13 +584,18 @@ func _build_ui() -> void:
 	hud_status_panel.name = "HUDCharacterFrame"
 	hud_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_status_panel.set_meta("leo_fantasy_skin", true)
-	hud_status_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("0b1e37eb")))
+	hud_status_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#10233DF2"), Color("#B7D4ED"), 14))
 	hud_status_panel.size = Vector2(324, 155)
 	world.hud.add_child(hud_status_panel)
 	var stack := VBoxContainer.new()
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_theme_constant_override("separation", 3)
 	hud_status_panel.add_child(stack)
+	var brand_line := _label("N E X T G E N   L E O  /  ADVENTURE", 11)
+	brand_line.name = "CelestialBrandLine"
+	brand_line.set_meta("leo_fantasy_skin", true)
+	brand_line.add_theme_color_override("font_color", Color("#E4C987"))
+	stack.add_child(brand_line)
 	var identity_row := HBoxContainer.new()
 	identity_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(identity_row)
@@ -614,7 +620,7 @@ func _build_ui() -> void:
 	hud_quest_panel.name = "HUDQuestFrame"
 	hud_quest_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_quest_panel.set_meta("leo_fantasy_skin", true)
-	hud_quest_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102640df")))
+	hud_quest_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#0C233BE9"), Color("#6597C6"), 12))
 	hud_quest_panel.size = Vector2(324, 83)
 	world.hud.add_child(hud_quest_panel)
 	quest_label = _label("", 13)
@@ -623,7 +629,7 @@ func _build_ui() -> void:
 	hud_target_panel.name = "HUDTargetFrame"
 	hud_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_target_panel.set_meta("leo_fantasy_skin", true)
-	hud_target_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("0e2139e8")))
+	hud_target_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#18273CF0"), Color("#D7BE8A"), 12))
 	hud_target_panel.size = Vector2(350, 80)
 	world.hud.add_child(hud_target_panel)
 	var target_stack := VBoxContainer.new()
@@ -638,7 +644,7 @@ func _build_ui() -> void:
 	hud_notice_panel.size = Vector2(520, 74)
 	hud_notice_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_notice_panel.set_meta("leo_fantasy_skin", true)
-	hud_notice_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("152c47e7")))
+	hud_notice_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#132D48EF"), Color("#8FB9DD"), 12))
 	world.hud.add_child(hud_notice_panel)
 	notice = _label("", 14)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -661,6 +667,29 @@ func _build_ui() -> void:
 		button.set_meta("layout_id", "action_%d" % i)
 		button.set_meta("leo_fantasy_skin", true)
 		button.add_theme_font_size_override("font_size", 12)
+		button.tooltip_text = ["ล็อกเป้าหมาย", "เก็บของ", "โจมตีปกติ", "สกิล 1", "สกิล 2", "สกิล 3", "พุ่งหลบ", "ล่าอัตโนมัติ"][i]
+		button.text = ""
+		var art := Control.new()
+		art.set_script(load("res://scripts/celestial_action_icon.gd"))
+		art.set("action_id", i)
+		art.name = "ActionIcon"
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(art)
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var caption := Label.new()
+		caption.name = "ActionCaption"
+		caption.text = ["ล็อก", "เก็บ", "โจมตี", "สกิล 1", "สกิล 2", "สกิล 3", "พุ่ง", "ออโต้"][i]
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		caption.set_meta("leo_fantasy_skin", true)
+		caption.add_theme_color_override("font_color", Color("#F5F9FF"))
+		caption.add_theme_color_override("font_shadow_color", Color("#081122"))
+		caption.add_theme_constant_override("shadow_offset_x", 1)
+		caption.add_theme_constant_override("shadow_offset_y", 1)
+		caption.add_theme_font_size_override("font_size", 11)
+		button.add_child(caption)
+		caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		skill_buttons.append(button)
 	_style_hud_actions("")
 	map_display = Control.new()
@@ -689,28 +718,15 @@ func _build_ui() -> void:
 	_layout()
 
 func _style_hud_actions(faction_id: String) -> void:
-	var ring := Color("cbd8e8")
-	if faction_id == "Light":
-		ring = Color("f5ebce")
-	elif faction_id == "Dark":
-		ring = Color("a894d7")
+	var steel = load("res://scripts/celestial_steel.gd")
 	for i in range(skill_buttons.size()):
 		var button: Button = skill_buttons[i]
-		var base := Color("294764")
-		if i == 2:
-			base = Color("5c2639")
-		elif i in [3, 4, 5]:
-			base = Color("273b6a")
-		elif i == 6:
-			base = Color("275464")
-		elif i == 7:
-			base = Color("355640")
-		button.add_theme_stylebox_override("normal", _silver_panel_style(12, base))
-		var frame: StyleBoxFlat = button.get_theme_stylebox("normal")
-		frame.border_color = ring
-		button.add_theme_stylebox_override("hover", _silver_panel_style(12, base.lightened(0.15)))
-		button.add_theme_stylebox_override("pressed", _silver_panel_style(12, base.darkened(0.12)))
-		button.add_theme_color_override("font_color", Color("f2f6ff"))
+		for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+			button.add_theme_stylebox_override(state, steel.action_style(i, faction_id, state))
+		button.add_theme_color_override("font_color", Color("#F3F7FF"))
+		var art: Control = button.get_node_or_null("ActionIcon")
+		if is_instance_valid(art):
+			art.queue_redraw()
 	hud_action_style_key = faction_id
 
 func _bar(parent: Node, color: Color) -> ProgressBar:
@@ -734,44 +750,100 @@ func _bar(parent: Node, color: Color) -> ProgressBar:
 	return bar
 
 func _layout() -> void:
+	var responsive = load("res://scripts/responsive_ui.gd")
 	var size: Vector2 = world.get_viewport().get_visible_rect().size
+	var bounds: Rect2 = responsive.safe_bounds(world.get_viewport())
+	var portrait: bool = responsive.is_portrait(bounds.size)
+	var ui_scale: float = float(GameState.settings.get("ui_scale", 1.0))
+	var offset_key: String = responsive.offsets_key(size)
+	var saved_offsets: Dictionary = GameState.settings.get(offset_key, {})
+	# Older user saves remain compatible with the original landscape layout.
+	if not portrait and saved_offsets.is_empty():
+		saved_offsets = GameState.settings.get("button_offsets", {})
 	for i in range(skill_buttons.size()):
 		var button := skill_buttons[i]
-		button.position = Vector2(size.x - 330 + (i % 3) * 102, size.y - 240 + int(i / 3.0) * 73)
-		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
-		button.position += Vector2(float(offset[0]), float(offset[1]))
-		button.position.x = clampf(button.position.x, 0.0, maxf(0.0, size.x - button.size.x))
-		button.position.y = clampf(button.position.y, 0.0, maxf(0.0, size.y - button.size.y))
-	hud_status_panel.position = Vector2(12, 12)
-	hud_quest_panel.position = Vector2(12, 175)
-	hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
-	hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
-	# Keep the auto-hunt/pet/buff indicator outside the lower-left joystick zone.
-	hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
-	map_display.position = Vector2(size.x - 175, 12)
+		var base_rect: Rect2 = responsive.action_slot_rect(i, bounds, ui_scale)
+		button.size = base_rect.size
+		var caption: Label = button.get_node_or_null("ActionCaption")
+		if is_instance_valid(caption):
+			caption.add_theme_font_size_override("font_size", clampi(roundi(11.0 * responsive.input_scale(bounds, ui_scale)), 11, 48))
+		var offset: Array = saved_offsets.get(str(button.get_meta("layout_id")), [0, 0])
+		var requested := Rect2(base_rect.position + Vector2(float(offset[0]), float(offset[1])), base_rect.size)
+		button.position = responsive.keep_inside(requested, bounds).position
+	var visual_scale: float = responsive.input_scale(bounds, ui_scale) if portrait else 1.0
+	if portrait:
+		# Work in 390-unit portrait coordinates regardless of the Web canvas's
+		# internal rendering resolution. Position uses scaled outer rectangles.
+		var logical_width := bounds.size.x / visual_scale
+		var status_width := minf(238.0, logical_width * 0.59)
+		hud_status_panel.scale = Vector2.ONE * visual_scale
+		hud_quest_panel.scale = Vector2.ONE * visual_scale
+		hud_target_panel.scale = Vector2.ONE * visual_scale
+		hud_notice_panel.scale = Vector2.ONE * visual_scale
+		hud_state_label.scale = Vector2.ONE * visual_scale
+		map_display.scale = Vector2.ONE * (visual_scale * 0.72)
+		hud_status_panel.size = Vector2(status_width, 155.0)
+		hud_status_panel.position = bounds.position
+		for bar in [hp_bar, stamina_bar, exp_bar]:
+			bar.custom_minimum_size.x = 0.0
+		hud_quest_panel.size = Vector2(status_width, 83.0)
+		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 162.0 * visual_scale)
+		hud_target_panel.size = Vector2(minf(350.0, logical_width - 8.0), 80.0)
+		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 253.0 * visual_scale)
+		map_display.position = Vector2(bounds.end.x - map_display.size.x * map_display.scale.x, bounds.position.y)
+		hud_notice_panel.size = Vector2(minf(350.0, logical_width - 8.0), 74.0)
+		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + 344.0 * visual_scale)
+		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 282.0 * visual_scale)
+	else:
+		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label, map_display]:
+			node.scale = Vector2.ONE
+		hud_status_panel.size = Vector2(324, 155)
+		for bar in [hp_bar, stamina_bar, exp_bar]:
+			bar.custom_minimum_size.x = 270.0
+		hud_quest_panel.size = Vector2(324, 83)
+		hud_target_panel.size = Vector2(350, 80)
+		hud_notice_panel.size.x = 520.0
+		hud_status_panel.position = Vector2(12, 12)
+		hud_quest_panel.position = Vector2(12, 175)
+		hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
+		hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
+		hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
+		map_display.position = Vector2(size.x - 175, 12)
+	var menu_top := bounds.position.y + (145.0 * visual_scale if portrait else 20.0)
 	if is_instance_valid(menu_toggle_button):
-		menu_toggle_button.position = Vector2(maxf(6.0, size.x - 243.0), 32.0)
+		menu_toggle_button.scale = Vector2.ONE * visual_scale
+		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x * visual_scale, menu_top) if portrait else Vector2(maxf(6.0, size.x - 243.0), 32.0)
 	if is_instance_valid(owner_gm_button):
-		owner_gm_button.position = Vector2(maxf(6.0, size.x - 305.0), 32.0)
+		owner_gm_button.scale = Vector2.ONE * visual_scale
+		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x * visual_scale - 10.0 * visual_scale, menu_top) if portrait else Vector2(maxf(6.0, size.x - 305.0), 32.0)
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
 	if is_instance_valid(player_dropdown):
-		var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
-		player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
-		player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
-	# Keep the world character visible to the right of the open inventory.
-	# On landscape screens, the equipment and bag share a compact 2-column dock.
-	# On narrow screens the panes stack and each section scrolls independently.
-	panel.position = Vector2(12, 12)
+		player_dropdown.scale = Vector2.ONE * visual_scale
+		if portrait:
+			var max_local_width := bounds.size.x / visual_scale
+			var max_local_height := bounds.size.y / visual_scale
+			player_dropdown.size = Vector2(minf(240.0, max_local_width), minf(475.0, max_local_height - 225.0))
+			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x * visual_scale, menu_top + 58.0 * visual_scale)
+		else:
+			var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
+			player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
+			player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
+	panel.position = bounds.position if portrait else Vector2(12, 12)
 	if active_panel == "Bag":
 		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
-		# Extend to the viewport bottom while preserving the narrow left width
-		# so the character remains visible in the center of the 3D world.
+		if portrait:
+			bag_width = bounds.size.x
 		var bag_height: float = maxf(160.0, size.y - 24.0)
 		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), bag_height)
 	else:
 		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
+	if portrait:
+		panel.scale = Vector2.ONE * visual_scale
+		panel.size = bounds.size / visual_scale
+	else:
+		panel.scale = Vector2.ONE
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -1056,10 +1128,14 @@ func _refresh_hud() -> void:
 	for buff_id in GameState.buffs:
 		if GameState.buff_active(str(buff_id)):
 			active_buffs += 1
-	hud_state_label.text = "ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs]
+	hud_state_label.text = ("AUTO %s  /  PET %s  /  BUFF %d" % ["ON" if auto_hunt else "OFF", "ON" if GameState.pet_enabled else "OFF", active_buffs]) if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else ("ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs])
+	hud_target_panel.visible = target >= 0 or world.get_viewport().get_visible_rect().size.x >= world.get_viewport().get_visible_rect().size.y
 	for i in range(4):
 		var button := skill_buttons[i + 2]
-		button.text = _thai_skill_name(i) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
+		var caption: Label = button.get_node_or_null("ActionCaption")
+		if is_instance_valid(caption):
+			caption.text = ("%.1fs" % float(cooldowns[i])) if float(cooldowns[i]) > 0 else (["โจมตี", "สกิล 1", "สกิล 2", "สกิล 3"][i])
+		button.disabled = i > 0 and float(cooldowns[i]) > 0.0
 	var active_faction := GameState.faction if GameState.class_rank >= 7 and GameState.faction in ["Light", "Dark"] else ""
 	var faction_color := Color("e4e5da") if active_faction == "Light" else Color("9a77c5")
 	world.joystick_base.color = Color(faction_color, 0.25) if not active_faction.is_empty() else Color.TRANSPARENT
@@ -1109,7 +1185,12 @@ func _refresh_hud() -> void:
 				bulk_sell_center = (sell_node as Control).get_global_rect().get_center()
 			if is_instance_valid(bag_slot_grid) and bag_slot_grid.get_child_count() > 0:
 				bulk_first_slot_center = (bag_slot_grid.get_child(0) as Control).get_global_rect().get_center()
-		var diagnostic := {"hud_status_rect":[hud_status_panel.position.x,hud_status_panel.position.y,hud_status_panel.size.x,hud_status_panel.size.y],"hud_quest_rect":[hud_quest_panel.position.x,hud_quest_panel.position.y,hud_quest_panel.size.x,hud_quest_panel.size.y],"hud_target_rect":[hud_target_panel.position.x,hud_target_panel.position.y,hud_target_panel.size.x,hud_target_panel.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var action_rects: Array = []
+		for action_button in skill_buttons:
+			var action_rect := action_button.get_global_rect()
+			action_rects.append([action_rect.position.x, action_rect.position.y, action_rect.size.x, action_rect.size.y])
+		var mini_rect := map_display.get_global_rect()
+		var diagnostic := {"hud_status_rect":[hud_status_panel.position.x,hud_status_panel.position.y,hud_status_panel.size.x,hud_status_panel.size.y],"hud_quest_rect":[hud_quest_panel.position.x,hud_quest_panel.position.y,hud_quest_panel.size.x,hud_quest_panel.size.y],"hud_target_rect":[hud_target_panel.position.x,hud_target_panel.position.y,hud_target_panel.size.x,hud_target_panel.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"celestial-steel-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -1124,6 +1205,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed and not panel.visible and not player_dropdown.visible:
 		for i in range(skill_buttons.size()):
 			if skill_buttons[i].get_global_rect().has_point(event.position):
+				if skill_buttons[i].disabled:
+					return
 				_action(i, true)
 				world.get_viewport().set_input_as_handled()
 				return
@@ -1140,9 +1223,14 @@ func _input(event: InputEvent) -> void:
 			if is_instance_valid(dragging_button):
 				var i := skill_buttons.find(dragging_button)
 				var size: Vector2 = world.get_viewport().get_visible_rect().size
-				var base := Vector2(size.x - 330 + (i % 3) * 102, size.y - 240 + int(i / 3.0) * 73)
+				var responsive = load("res://scripts/responsive_ui.gd")
+				var bounds: Rect2 = responsive.safe_bounds(world.get_viewport())
+				var base: Vector2 = responsive.action_slot_rect(i, bounds, float(GameState.settings.get("ui_scale", 1.0))).position
 				var offset := dragging_button.position - base
-				GameState.settings.button_offsets[str(dragging_button.get_meta("layout_id"))] = [offset.x, offset.y]
+				var key: String = responsive.offsets_key(size)
+				var saved: Dictionary = GameState.settings.get(key, {}).duplicate(true)
+				saved[str(dragging_button.get_meta("layout_id"))] = [offset.x, offset.y]
+				GameState.settings[key] = saved
 				dragging_button = null
 				_save()
 	if layout_edit and event is InputEventMouseMotion and is_instance_valid(dragging_button):
@@ -1386,7 +1474,7 @@ func _bag() -> void:
 		bag_bulk_selection.clear()
 	bag_equipment_buttons.clear()
 	bag_slot_regions.clear()
-	var wide := panel.size.x >= 550.0
+	var wide := panel.size.x >= 550.0 and world.get_viewport().get_visible_rect().size.x >= world.get_viewport().get_visible_rect().size.y
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
 	panes.name = "BagTwoPane"
 	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL

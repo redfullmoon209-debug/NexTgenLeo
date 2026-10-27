@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "characters": {
+    "Male": "",
+    "Female": ""
+  },
+  "zones": {
+    "0": "",
+    "1": "",
+    "2": "",
+    "3": "",
+    "4": ""
+  },
+  "notes": "Set each scene path to res://content/.../*.tscn after import. Empty entries keep the procedural placeholder."
+}

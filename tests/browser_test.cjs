@@ -175,6 +175,19 @@ async function openPlayerMenu(page,entryName){
  }
  if(portrait.minimap_rect[0]<portrait.hud_status_rect[0]+portrait.hud_status_rect[2]-8)throw Error('Portrait minimap overlaps player status');
  await portraitPage.screenshot({path:'build/leo-portrait.png'});
+ const [pmx,pmy,pmw,pmh]=portrait.menu_button_rect;
+ await portraitPage.touchscreen.tap((pmx+pmw/2)*xs,(pmy+pmh/2)*ys);
+ await portraitPage.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
+ const mobileBagEntry=await portraitPage.evaluate(()=>window.leoDiagnostics.menu_entry_rects.Bag);
+ if(!mobileBagEntry)throw Error('Portrait player menu has no Bag entry');
+ await portraitPage.touchscreen.tap(mobileBagEntry[0]*xs,mobileBagEntry[1]*ys);
+ await portraitPage.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ const bagPortrait=await portraitPage.evaluate(()=>window.leoDiagnostics);
+ if(bagPortrait.bag_columns<3||bagPortrait.bag_columns>5)throw Error('Portrait inventory grid columns invalid: '+bagPortrait.bag_columns);
+ if(bagPortrait.bag_right_rect[1]>bagPortrait.bag_left_rect[1])throw Error('Portrait bag must show item grid before equipment: '+JSON.stringify(bagPortrait));
+ await portraitPage.screenshot({path:'build/leo-portrait-bag.png'});
+ await portraitPage.keyboard.press('Escape');
+ await portraitPage.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await portraitContext.close();
  const finalErrors=logs.filter(x=>x.type==='portrait-pageerror');
  if(finalErrors.length)throw Error(JSON.stringify(finalErrors));

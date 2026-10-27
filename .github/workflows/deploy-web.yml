@@ -55,6 +55,8 @@ jobs:
           test -s build/leo-portrait.png
           cp build/leo-desktop.png build/web/ui-landscape-preview.png
           cp build/leo-portrait.png build/web/ui-portrait-preview.png
+          test -s build/leo-portrait-bag.png
+          cp build/leo-portrait-bag.png build/web/ui-portrait-bag-preview.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -780,9 +780,9 @@ func _layout() -> void:
 		map_display.position = Vector2(size.x - 175, 12)
 	var menu_top := bounds.position.y + (157.0 if portrait else 20.0)
 	if is_instance_valid(menu_toggle_button):
-		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x, menu_top)
+		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x, menu_top) if portrait else Vector2(maxf(6.0, size.x - 243.0), 32.0)
 	if is_instance_valid(owner_gm_button):
-		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x - 10.0, menu_top)
+		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x - 10.0, menu_top) if portrait else Vector2(maxf(6.0, size.x - 305.0), 32.0)
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
@@ -1172,9 +1172,14 @@ func _input(event: InputEvent) -> void:
 			if is_instance_valid(dragging_button):
 				var i := skill_buttons.find(dragging_button)
 				var size: Vector2 = world.get_viewport().get_visible_rect().size
-				var base := Vector2(size.x - 330 + (i % 3) * 102, size.y - 240 + int(i / 3.0) * 73)
+				var responsive = load("res://scripts/responsive_ui.gd")
+				var bounds: Rect2 = responsive.safe_bounds(world.get_viewport())
+				var base: Vector2 = responsive.action_slot_rect(i, bounds, float(GameState.settings.get("ui_scale", 1.0))).position
 				var offset := dragging_button.position - base
-				GameState.settings.button_offsets[str(dragging_button.get_meta("layout_id"))] = [offset.x, offset.y]
+				var key: String = responsive.offsets_key(size)
+				var saved: Dictionary = GameState.settings.get(key, {}).duplicate(true)
+				saved[str(dragging_button.get_meta("layout_id"))] = [offset.x, offset.y]
+				GameState.settings[key] = saved
 				dragging_button = null
 				_save()
 	if layout_edit and event is InputEventMouseMotion and is_instance_valid(dragging_button):

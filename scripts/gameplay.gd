@@ -94,7 +94,7 @@ func _ready() -> void:
 	var saved: Array = GameState.location
 	if saved.size() == 3:
 		world.player.position = Vector3(float(saved[0]), maxf(1, float(saved[1])), float(saved[2]))
-	_tell("เริ่มต้นการผจญภัย! คุยกับผู้ดูแลเอลาราเพื่อรับเควสต์ และกด TAB เพื่อล็อกเป้าหมาย")
+	_tell("เริ่มผจญภัย! เปิดเควสต์เพื่อคุยกับ Elara")
 
 func _mesh(parent: Node3D, pos: Vector3, size: Vector3, color: Color, shape := "box") -> MeshInstance3D:
 	var node := MeshInstance3D.new()
@@ -775,28 +775,46 @@ func _layout() -> void:
 		# Work in 390-unit portrait coordinates regardless of the Web canvas's
 		# internal rendering resolution. Position uses scaled outer rectangles.
 		var logical_width := bounds.size.x / visual_scale
-		var status_width := minf(238.0, logical_width * 0.59)
+		var status_width := minf(222.0, logical_width * 0.59)
 		hud_status_panel.scale = Vector2.ONE * visual_scale
 		hud_quest_panel.scale = Vector2.ONE * visual_scale
 		hud_target_panel.scale = Vector2.ONE * visual_scale
 		hud_notice_panel.scale = Vector2.ONE * visual_scale
 		hud_state_label.scale = Vector2.ONE * visual_scale
-		map_display.scale = Vector2.ONE * (visual_scale * 0.72)
-		hud_status_panel.size = Vector2(status_width, 155.0)
+		map_display.scale = Vector2.ONE * (visual_scale * 0.68)
+		hud_status_panel.size = Vector2(status_width, 170.0)
+		var brand: Label = hud_status_panel.find_child("CelestialBrandLine", true, false)
+		if is_instance_valid(brand):
+			brand.text = "NEX TGEN LEO"
+			brand.add_theme_font_size_override("font_size", 13)
+		stats_label.add_theme_font_size_override("font_size", 16)
+		hud_currency_label.add_theme_font_size_override("font_size", 14)
+		quest_label.add_theme_font_size_override("font_size", 14)
+		notice.add_theme_font_size_override("font_size", 15)
+		hud_state_label.add_theme_font_size_override("font_size", 14)
 		hud_status_panel.position = bounds.position
 		for bar in [hp_bar, stamina_bar, exp_bar]:
 			bar.custom_minimum_size.x = 0.0
-		hud_quest_panel.size = Vector2(status_width, 83.0)
-		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 162.0 * visual_scale)
-		hud_target_panel.size = Vector2(minf(350.0, logical_width - 8.0), 80.0)
-		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 253.0 * visual_scale)
+		hud_quest_panel.size = Vector2(status_width, 68.0)
+		hud_quest_panel.position = Vector2(bounds.position.x, bounds.position.y + 176.0 * visual_scale)
+		hud_target_panel.size = Vector2(minf(310.0, logical_width - 8.0), 66.0)
+		hud_target_panel.position = Vector2(bounds.position.x, bounds.position.y + 251.0 * visual_scale)
 		map_display.position = Vector2(bounds.end.x - map_display.size.x * map_display.scale.x, bounds.position.y)
-		hud_notice_panel.size = Vector2(minf(350.0, logical_width - 8.0), 74.0)
-		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + 344.0 * visual_scale)
+		hud_notice_panel.size = Vector2(minf(275.0, logical_width - 8.0), 62.0)
+		hud_notice_panel.position = Vector2(bounds.position.x, bounds.position.y + (327.0 if hud_target_panel.visible else 254.0) * visual_scale)
 		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 282.0 * visual_scale)
 	else:
 		for node in [hud_status_panel, hud_quest_panel, hud_target_panel, hud_notice_panel, hud_state_label, map_display]:
 			node.scale = Vector2.ONE
+		var brand: Label = hud_status_panel.find_child("CelestialBrandLine", true, false)
+		if is_instance_valid(brand):
+			brand.text = "N E X T G E N   L E O  /  ADVENTURE"
+			brand.add_theme_font_size_override("font_size", 11)
+		stats_label.add_theme_font_size_override("font_size", 15)
+		hud_currency_label.add_theme_font_size_override("font_size", 12)
+		quest_label.add_theme_font_size_override("font_size", 13)
+		notice.add_theme_font_size_override("font_size", 14)
+		hud_state_label.add_theme_font_size_override("font_size", 13)
 		hud_status_panel.size = Vector2(324, 155)
 		for bar in [hp_bar, stamina_bar, exp_bar]:
 			bar.custom_minimum_size.x = 270.0
@@ -847,7 +865,7 @@ func _layout() -> void:
 
 func _tell(text: String) -> void:
 	notice.text = text
-	notice_hide_timer = 5.5 if not text.is_empty() else 0.0
+	notice_hide_timer = (3.5 if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else 5.5) if not text.is_empty() else 0.0
 	if is_instance_valid(hud_notice_panel):
 		hud_notice_panel.visible = not text.is_empty()
 
@@ -1094,9 +1112,10 @@ func _thai_skill_name(index: int) -> String:
 	return str(elements[element]) + suffix
 
 func _refresh_hud() -> void:
-	stats_label.text = "%s · คลาส %d / เลเวล %d" % ["ชาย" if GameState.gender == "Male" else "หญิง", GameState.class_rank, GameState.level]
+	var portrait_ui := world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x
+	stats_label.text = ("%s  |  C%d Lv%d" % ["ชาย" if GameState.gender == "Male" else "หญิง", GameState.class_rank, GameState.level]) if portrait_ui else ("%s · คลาส %d / เลเวล %d" % ["ชาย" if GameState.gender == "Male" else "หญิง", GameState.class_rank, GameState.level])
 	hud_portrait_label.text = "ช" if GameState.gender == "Male" else "ญ"
-	hud_currency_label.text = "ทอง %d   |   แคช %d" % [GameState.gold, GameState.cash]
+	hud_currency_label.text = ("ทอง %d  |  แคช %d" if portrait_ui else "ทอง %d   |   แคช %d") % [GameState.gold, GameState.cash]
 	hp_bar.max_value = GameState.max_hp
 	hp_bar.value = GameState.hp
 	stamina_bar.max_value = GameState.max_stamina
@@ -1104,7 +1123,7 @@ func _refresh_hud() -> void:
 	exp_bar.max_value = GameState.exp_required()
 	exp_bar.value = GameState.exp
 	hp_bar.get_node("Value").text = "HP  %d / %d" % [GameState.hp, GameState.max_hp]
-	stamina_bar.get_node("Value").text = "Stamina  %d / %d" % [int(GameState.stamina),GameState.max_stamina]
+	stamina_bar.get_node("Value").text = ("STM %d / %d" if portrait_ui else "Stamina  %d / %d") % [int(GameState.stamina),GameState.max_stamina]
 	exp_bar.get_node("Value").text = "EXP  %d / %d" % [GameState.exp,GameState.exp_required()]
 	if active_panel == "Bag" and is_instance_valid(bag_status_label):
 		bag_status_label.text = _bag_status_text()
@@ -1117,7 +1136,7 @@ func _refresh_hud() -> void:
 				bar.value = value
 				bar.get_node("Value").text = "%s  %d / %d" % [["HP", "พลังงาน", "EXP"][i], int(value), int(maximum)]
 	var quest_title: String = "ยังไม่ได้รับ" if GameState.quest_state == "available" else ("เสร็จสิ้น" if GameState.quest_state == "complete" else "กำลังทำ")
-	quest_label.text = "แผนที่: %s\nเควสต์เริ่มต้น: %s   %d/5" % [str(GameState.balance.maps[GameState.map_index].name), quest_title, GameState.quest_kills]
+	quest_label.text = ("เควสต์: %s  %d/5\n%s" if portrait_ui else "แผนที่: %s\nเควสต์เริ่มต้น: %s   %d/5") % ([quest_title, GameState.quest_kills, str(GameState.balance.maps[GameState.map_index].name)] if portrait_ui else [str(GameState.balance.maps[GameState.map_index].name), quest_title, GameState.quest_kills])
 	target_label.text = "กด TAB หรือ LOCK เพื่อเลือกเป้าหมาย" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
 	hud_target_hp.visible = target >= 0 and target < mobs.size()
 	if hud_target_hp.visible:
@@ -1365,7 +1384,10 @@ func _show_panel(name: String) -> void:
 			_button("เจ้าของ: ยืนยันสิทธิ์ GM", func(): _show_panel("OwnerLogin"), menu)
 			_button("บันทึกเกม", func(): _save(); _tell("Offline save written"), menu)
 			_button("Edit button layout: drag action buttons", func(): layout_edit = not layout_edit; _close_panel(); _tell("Layout editing " + str(layout_edit)), menu)
-			_button("คืนตำแหน่งปุ่ม", func(): GameState.settings.button_offsets = {}; _layout(), menu)
+			_button("คืนตำแหน่งปุ่ม", func(): GameState.settings.button_offsets = {}; GameState.settings["button_offsets_portrait"] = {}; GameState.settings["button_offsets_landscape"] = {}; _layout(); _save(), menu)
+			for ui_pct in [90, 100, 110, 120]:
+				var pct := ui_pct
+				_button("ขนาด UI %d%%" % pct, func(): _set_ui_scale(float(pct) / 100.0), menu)
 			for quality in ["Low", "Medium", "High"]:
 				_button(quality, func(): GameState.settings.quality = quality; world.get_viewport().scaling_3d_scale = 0.65 if quality == "Low" else 1.0; _set_shadows(quality == "High"); _tell("Quality: " + quality), menu)
 			menu.add_child(_label("FPS %d · Render objects %d\nStatic memory %.1f MB\nLocal sandbox saves use this browser only." % [Engine.get_frames_per_second(), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0]))
@@ -1474,7 +1496,8 @@ func _bag() -> void:
 		bag_bulk_selection.clear()
 	bag_equipment_buttons.clear()
 	bag_slot_regions.clear()
-	var wide := panel.size.x >= 550.0 and world.get_viewport().get_visible_rect().size.x >= world.get_viewport().get_visible_rect().size.y
+	var portrait_bag := world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x
+	var wide := panel.size.x >= 550.0 and not portrait_bag
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
 	panes.name = "BagTwoPane"
 	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1648,6 +1671,10 @@ func _bag() -> void:
 		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("7693b2"), index < GameState.inventory.size()))
 		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("b8cde6"), true, true))
 		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("dbe8f7"), true, true))
+	# On tall phones, show actual inventory items first. Equipment remains
+	# below the grid, accessible by the outer menu's vertical scrolling.
+	if portrait_bag:
+		panes.move_child(bag_inventory_panel, 0)
 
 func _toggle_bulk_mode() -> void:
 	bag_bulk_mode = not bag_bulk_mode
@@ -1893,6 +1920,13 @@ func _online_panel(name: String) -> void:
 			_button("Send chat", func(): network.command("chat",{"text":field.text}), menu)
 			_button("Join party room", func(): network.command("party",{"code":field.text}), menu)
 			_button("Disconnect · return offline", func(): network.disconnect_server(); _close_panel(), menu)
+
+func _set_ui_scale(value: float) -> void:
+	GameState.settings.ui_scale = clampf(value, 0.85, 1.20)
+	_layout()
+	world._layout_touch_ui()
+	_save()
+	_tell("ปรับขนาด UI เป็น %d%%" % int(GameState.settings.ui_scale * 100.0))
 
 func _set_shadows(enabled: bool) -> void:
 	for child in world.get_children():

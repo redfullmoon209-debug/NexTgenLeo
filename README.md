@@ -4,7 +4,9 @@ Godot **4.4.1**, GDScript, GL Compatibility. Browser-first 3D RPG development sa
 
 **Play:** https://redfullmoon209-debug.github.io/NexTgenLeo/
 
-The current build uses procedural placeholder art. It is not a finished MMORPG. See [verified systems and remaining work](docs/IMPLEMENTATION_STATUS.md) and [active game rules](docs/GAME_PLAN.md).
+The current build uses procedural placeholder art. It is not a finished MMORPG. See [integrated HUD and system delivery status](docs/INTEGRATED_DELIVERY_STATUS.md), [art handoff requirements](docs/ART_DELIVERY_CONTRACT.md) and [active game rules](docs/GAME_PLAN.md).
+
+The navy/silver HUD includes character stats, HP/Stamina/EXP, target health, quest tracking and gold/cash. The 200-slot inventory supports batch selection and confirmed multi-item selling. Auto-hunt skill/radius preferences are stored in the offline save. Professional character and map PackedScenes can later be wired through `content/asset_manifest.json`; empty entries keep existing procedural placeholders.
 
 ## Controls
 

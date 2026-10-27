@@ -1,5 +1,6 @@
 extends Node
 ## Playable offline systems; procedural art is explicitly temporary.
+const ContentRegistry = preload("res://scripts/content_registry.gd")
 var last_touch_action := -1000
 var world: Node3D
 var network: Node
@@ -15,12 +16,24 @@ var hunt_radius := 18.0
 var npc: Node3D
 var pet: Node3D
 var avatar: Node3D
+var imported_avatar_visual: Node3D
+var imported_zone_visual: Node3D
 var limbs: Array[Node3D] = []
 var weapon: Node3D
 var stats_label: Label
 var quest_label: Label
 var target_label: Label
 var notice: Label
+var hud_status_panel: PanelContainer
+var hud_quest_panel: PanelContainer
+var hud_target_panel: PanelContainer
+var hud_target_hp: ProgressBar
+var hud_notice_panel: PanelContainer
+var notice_hide_timer := 0.0
+var hud_currency_label: Label
+var hud_portrait_label: Label
+var hud_state_label: Label
+var hud_action_style_key := ""
 var hp_bar: ProgressBar
 var stamina_bar: ProgressBar
 var exp_bar: ProgressBar
@@ -38,6 +51,8 @@ var dropdown_entries: Dictionary = {}
 var gm_authorized := false
 var active_panel := ""
 var bag_page := 0
+var bag_bulk_mode := false
+var bag_bulk_selection: Dictionary = {}
 var bag_character_panel: PanelContainer
 var bag_inventory_panel: PanelContainer
 var bag_equipment_buttons: Array[Button] = []
@@ -73,12 +88,13 @@ func _ready() -> void:
 	_build_ui()
 	_build_avatar()
 	_build_zone()
+	_load_hunt_preferences()
 	GameState.appearance_changed.connect(_build_avatar)
 	GameState.progression_changed.connect(_build_avatar)
 	var saved: Array = GameState.location
 	if saved.size() == 3:
 		world.player.position = Vector3(float(saved[0]), maxf(1, float(saved[1])), float(saved[2]))
-	_tell("Welcome. Talk to Warden Elara to accept Starter Hunt. TAB selects a target.")
+	_tell("เริ่มต้นการผจญภัย! คุยกับผู้ดูแลเอลาราเพื่อรับเควสต์ และกด TAB เพื่อล็อกเป้าหมาย")
 
 func _mesh(parent: Node3D, pos: Vector3, size: Vector3, color: Color, shape := "box") -> MeshInstance3D:
 	var node := MeshInstance3D.new()
@@ -184,7 +200,27 @@ func _build_avatar() -> void:
 		_mesh(limbs[2], Vector3(0, -0.43, -0.31), Vector3(0.10, 0.06, 0.60), Color("a1c6e6") if left_hand == "offhand_blade" else Color("d9bc85"))
 	if "accessory" in GameState.equipped:
 		_mesh(avatar, Vector3(0, 1.28, -0.16), Vector3.ONE * 0.09, Color("f4d36c"), "sphere")
+	_attach_optional_avatar_scene()
 	_sync_bag_avatar_preview()
+
+func _attach_optional_avatar_scene() -> void:
+	imported_avatar_visual = null
+	var scene: PackedScene = ContentRegistry.character_scene(GameState.gender)
+	if scene == null:
+		return
+	var instance: Node = scene.instantiate()
+	if not (instance is Node3D):
+		instance.queue_free()
+		_tell("ไฟล์โมเดลตัวละครต้องมี Node3D เป็นโหนดหลัก")
+		return
+	imported_avatar_visual = instance as Node3D
+	imported_avatar_visual.name = "ImportedCharacterVisual"
+	avatar.add_child(imported_avatar_visual)
+	# Preserve capsule collision, height growth, equipment and combat logic.
+	# Existing procedural mesh remains a non-rendered fallback, not deleted.
+	for child in avatar.get_children():
+		if child is Node3D and child != imported_avatar_visual:
+			(child as Node3D).visible = false
 
 func _sync_bag_avatar_preview() -> void:
 	# Clone the live player's visible mesh, not an unrelated placeholder portrait.
@@ -284,7 +320,30 @@ func _build_zone() -> void:
 		portal_label.position.x = 8
 		portal_label.position.z = -6
 		world._add_box(Vector3(0, 0.005, -15), Vector3(4, 0.03, 30), Color("9c966d"), false)
+	_attach_optional_zone_scene()
 	target = -1
+
+func _attach_optional_zone_scene() -> void:
+	if is_instance_valid(imported_zone_visual):
+		imported_zone_visual.queue_free()
+	imported_zone_visual = null
+	var scene: PackedScene = ContentRegistry.zone_scene(GameState.map_index)
+	if scene == null:
+		if world.has_node("Camp"):
+			world.get_node("Camp").visible = true
+		return
+	var instance: Node = scene.instantiate()
+	if not (instance is Node3D):
+		instance.queue_free()
+		_tell("ไฟล์แผนที่ต้องมี Node3D เป็นโหนดหลัก")
+		return
+	imported_zone_visual = instance as Node3D
+	imported_zone_visual.name = "ImportedZoneScenery"
+	world.add_child(imported_zone_visual)
+	# Hide generic placeholder camp when an authored map is supplied.
+	# Monster/quest spawn and movement remain owned by the gameplay systems.
+	if world.has_node("Camp"):
+		world.get_node("Camp").visible = false
 
 func _spawn_mob(index: int, kind: String) -> void:
 	var node := Node3D.new()
@@ -518,42 +577,92 @@ func _build_ui() -> void:
 	font.fallbacks = [ThemeDB.fallback_font]
 	theme.default_font = font
 	world.hud.theme = theme
-	var plate := PanelContainer.new()
-	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.position = Vector2(14, 64)
-	plate.size = Vector2(305, 134)
-	plate.add_theme_stylebox_override("panel", _style(Color("142436dd"), Color("9c9276")))
-	world.hud.add_child(plate)
+	# Compact premium navy-and-silver HUD, leaving the middle of the screen
+	# clear for the real 3D player and eventual professional assets.
+	hud_status_panel = PanelContainer.new()
+	hud_status_panel.name = "HUDCharacterFrame"
+	hud_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_status_panel.set_meta("leo_fantasy_skin", true)
+	hud_status_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("0b1e37eb")))
+	hud_status_panel.size = Vector2(324, 155)
+	world.hud.add_child(hud_status_panel)
 	var stack := VBoxContainer.new()
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.add_child(stack)
-	stats_label = _label("", 18)
-	stack.add_child(stats_label)
-	hp_bar = _bar(stack, Color("d65b68"))
-	stamina_bar = _bar(stack, Color("e6c85d"))
-	exp_bar = _bar(stack, Color("518fdb"))
-	quest_label = _label("", 15)
-	quest_label.position = Vector2(18, 205)
-	world.hud.add_child(quest_label)
-	target_label = _label("TAB / LOCK to select target", 19)
-	target_label.position = Vector2(450, 68)
-	world.hud.add_child(target_label)
-	notice = _label("", 16)
-	notice.position = Vector2(330, 115)
-	notice.size = Vector2(600, 75)
+	stack.add_theme_constant_override("separation", 3)
+	hud_status_panel.add_child(stack)
+	var identity_row := HBoxContainer.new()
+	identity_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(identity_row)
+	var portrait_frame := PanelContainer.new()
+	portrait_frame.custom_minimum_size = Vector2(42, 39)
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.set_meta("leo_fantasy_skin", true)
+	portrait_frame.add_theme_stylebox_override("panel", _silver_panel_style(18, Color("254464")))
+	identity_row.add_child(portrait_frame)
+	hud_portrait_label = _label("✦", 23)
+	hud_portrait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	portrait_frame.add_child(hud_portrait_label)
+	stats_label = _label("", 15)
+	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity_row.add_child(stats_label)
+	hp_bar = _bar(stack, Color("cf5567"))
+	stamina_bar = _bar(stack, Color("e6bf46"))
+	exp_bar = _bar(stack, Color("4e9fd9"))
+	hud_currency_label = _label("", 12)
+	stack.add_child(hud_currency_label)
+	hud_quest_panel = PanelContainer.new()
+	hud_quest_panel.name = "HUDQuestFrame"
+	hud_quest_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_quest_panel.set_meta("leo_fantasy_skin", true)
+	hud_quest_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102640df")))
+	hud_quest_panel.size = Vector2(324, 83)
+	world.hud.add_child(hud_quest_panel)
+	quest_label = _label("", 13)
+	hud_quest_panel.add_child(quest_label)
+	hud_target_panel = PanelContainer.new()
+	hud_target_panel.name = "HUDTargetFrame"
+	hud_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_target_panel.set_meta("leo_fantasy_skin", true)
+	hud_target_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("0e2139e8")))
+	hud_target_panel.size = Vector2(350, 80)
+	world.hud.add_child(hud_target_panel)
+	var target_stack := VBoxContainer.new()
+	target_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_target_panel.add_child(target_stack)
+	target_label = _label("กด TAB เพื่อล็อกเป้าหมาย", 16)
+	target_stack.add_child(target_label)
+	hud_target_hp = _bar(target_stack, Color("c74e5d"))
+	hud_target_hp.visible = false
+	hud_notice_panel = PanelContainer.new()
+	hud_notice_panel.name = "HUDNoticeToast"
+	hud_notice_panel.size = Vector2(520, 74)
+	hud_notice_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_notice_panel.set_meta("leo_fantasy_skin", true)
+	hud_notice_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("152c47e7")))
+	world.hud.add_child(hud_notice_panel)
+	notice = _label("", 14)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	world.hud.add_child(notice)
+	notice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hud_notice_panel.add_child(notice)
+	hud_notice_panel.hide()
+	hud_state_label = _label("", 13)
+	hud_state_label.add_theme_color_override("font_shadow_color", Color("020612"))
+	hud_state_label.add_theme_constant_override("shadow_offset_y", 1)
+	world.hud.add_child(hud_state_label)
 	# The gold menu is shared by all players. In the public Offline Sandbox,
 	# the separate red GM orb exposes LOCAL TEST TOOLS to all visitors.
 	# Once a server connection begins, it requires server owner verification.
 	_build_player_dropdown()
-	var controls := ["LOCK\n[TAB]", "PICK UP\n[E]", "ATK\n[F]", "1\nCrescent", "2\nPierce", "3\nJudgment", "DASH\n[R]", "HUNT\n[H]"]
+	var controls := ["ล็อกเป้า\n[TAB]", "เก็บของ\n[E]", "โจมตี\n[F]", "สกิล 1\n[1]", "สกิล 2\n[2]", "สกิล 3\n[3]", "พุ่ง\n[R]", "ล่าอัตโนมัติ\n[H]"]
 	for i in range(controls.size()):
 		var index := i
 		var button := _button(controls[i], func(): _action(index))
 		button.size = Vector2(90, 65)
 		button.set_meta("layout_id", "action_%d" % i)
+		button.set_meta("leo_fantasy_skin", true)
+		button.add_theme_font_size_override("font_size", 12)
 		skill_buttons.append(button)
+	_style_hud_actions("")
 	map_display = Control.new()
 	map_display.set_script(load("res://scripts/minimap.gd"))
 	map_display.game = self
@@ -566,7 +675,8 @@ func _build_ui() -> void:
 	panel.size = Vector2(390, 696)
 	panel.z_index = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.add_theme_stylebox_override("panel", _style(Color("142435f5"), Color("b5a47a")))
+	panel.set_meta("leo_fantasy_skin", true)
+	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("102440f7")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -577,6 +687,31 @@ func _build_ui() -> void:
 	panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
+
+func _style_hud_actions(faction_id: String) -> void:
+	var ring := Color("cbd8e8")
+	if faction_id == "Light":
+		ring = Color("f5ebce")
+	elif faction_id == "Dark":
+		ring = Color("a894d7")
+	for i in range(skill_buttons.size()):
+		var button: Button = skill_buttons[i]
+		var base := Color("294764")
+		if i == 2:
+			base = Color("5c2639")
+		elif i in [3, 4, 5]:
+			base = Color("273b6a")
+		elif i == 6:
+			base = Color("275464")
+		elif i == 7:
+			base = Color("355640")
+		button.add_theme_stylebox_override("normal", _silver_panel_style(12, base))
+		var frame: StyleBoxFlat = button.get_theme_stylebox("normal")
+		frame.border_color = ring
+		button.add_theme_stylebox_override("hover", _silver_panel_style(12, base.lightened(0.15)))
+		button.add_theme_stylebox_override("pressed", _silver_panel_style(12, base.darkened(0.12)))
+		button.add_theme_color_override("font_color", Color("f2f6ff"))
+	hud_action_style_key = faction_id
 
 func _bar(parent: Node, color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
@@ -605,6 +740,14 @@ func _layout() -> void:
 		button.position = Vector2(size.x - 330 + (i % 3) * 102, size.y - 240 + int(i / 3.0) * 73)
 		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		button.position += Vector2(float(offset[0]), float(offset[1]))
+		button.position.x = clampf(button.position.x, 0.0, maxf(0.0, size.x - button.size.x))
+		button.position.y = clampf(button.position.y, 0.0, maxf(0.0, size.y - button.size.y))
+	hud_status_panel.position = Vector2(12, 12)
+	hud_quest_panel.position = Vector2(12, 175)
+	hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
+	hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
+	# Keep the auto-hunt/pet/buff indicator outside the lower-left joystick zone.
+	hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
 	map_display.position = Vector2(size.x - 175, 12)
 	if is_instance_valid(menu_toggle_button):
 		menu_toggle_button.position = Vector2(maxf(6.0, size.x - 243.0), 32.0)
@@ -632,6 +775,9 @@ func _layout() -> void:
 
 func _tell(text: String) -> void:
 	notice.text = text
+	notice_hide_timer = 5.5 if not text.is_empty() else 0.0
+	if is_instance_valid(hud_notice_panel):
+		hud_notice_panel.visible = not text.is_empty()
 
 func _action(index: int, from_touch := false) -> void:
 	if not from_touch and Time.get_ticks_msec() - last_touch_action < 200: return
@@ -759,6 +905,10 @@ func _revive(at_spot := false) -> void:
 	_close_panel()
 
 func _process(delta: float) -> void:
+	if notice_hide_timer > 0.0:
+		notice_hide_timer = maxf(0.0, notice_hide_timer - delta)
+		if notice_hide_timer <= 0.0 and is_instance_valid(hud_notice_panel):
+			hud_notice_panel.hide()
 	if network.active:
 		_online_tick(delta)
 		return
@@ -852,8 +1002,29 @@ func _tick_mobs(delta: float) -> void:
 		mob.label.modulate = Color("ffe2a4") if target >= 0 and mobs[target] == mob else Color.WHITE
 		mob.node.visible = mob.node.position.distance_squared_to(world.player.position) < 1600
 
+func _thai_skill_name(index: int) -> String:
+	var definition: Dictionary = GameState.skill_definition(index)
+	var raw: String = str(definition.get("name", "สกิล"))
+	var basic := {"Claymore":"ดาบใหญ่", "Crescent":"จันทร์เสี้ยว", "Pierce":"ทะลวง", "Judgment":"พิพากษา"}
+	if basic.has(raw):
+		return str(basic[raw])
+	var element: String = str(definition.get("element", ""))
+	var elements := {"Earth":"ดิน", "Water":"น้ำ", "Wind":"ลม", "Fire":"ไฟ", "Lightning":"สายฟ้า", "Wood":"พฤกษา"}
+	if not elements.has(element):
+		return raw
+	var suffix := "สกิล"
+	if raw.ends_with(" Burst"):
+		suffix = "ระเบิด"
+	elif raw.ends_with(" Strike"):
+		suffix = "โจมตี"
+	elif raw.ends_with(" Finale"):
+		suffix = "ท่าไม้ตาย"
+	return str(elements[element]) + suffix
+
 func _refresh_hud() -> void:
-	stats_label.text = "%s  ·  Class %d / Lv.%d" % [GameState.gender, GameState.class_rank, GameState.level]
+	stats_label.text = "%s · คลาส %d / เลเวล %d" % ["ชาย" if GameState.gender == "Male" else "หญิง", GameState.class_rank, GameState.level]
+	hud_portrait_label.text = "ช" if GameState.gender == "Male" else "ญ"
+	hud_currency_label.text = "ทอง %d   |   แคช %d" % [GameState.gold, GameState.cash]
 	hp_bar.max_value = GameState.max_hp
 	hp_bar.value = GameState.hp
 	stamina_bar.max_value = GameState.max_stamina
@@ -873,20 +1044,27 @@ func _refresh_hud() -> void:
 				bar.max_value = maxf(1.0, maximum)
 				bar.value = value
 				bar.get_node("Value").text = "%s  %d / %d" % [["HP", "พลังงาน", "EXP"][i], int(value), int(maximum)]
-	quest_label.text = "%s\nStarter Hunt: %s  %d/5\nGold %d    Cash %d" % [GameState.balance.maps[GameState.map_index].name, GameState.quest_state, GameState.quest_kills, GameState.gold, GameState.cash]
-	target_label.text = "Select target: TAB / LOCK" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
+	var quest_title: String = "ยังไม่ได้รับ" if GameState.quest_state == "available" else ("เสร็จสิ้น" if GameState.quest_state == "complete" else "กำลังทำ")
+	quest_label.text = "แผนที่: %s\nเควสต์เริ่มต้น: %s   %d/5" % [str(GameState.balance.maps[GameState.map_index].name), quest_title, GameState.quest_kills]
+	target_label.text = "กด TAB หรือ LOCK เพื่อเลือกเป้าหมาย" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
+	hud_target_hp.visible = target >= 0 and target < mobs.size()
+	if hud_target_hp.visible:
+		hud_target_hp.max_value = maxf(1.0, float(mobs[target].max_hp))
+		hud_target_hp.value = float(mobs[target].hp)
+		hud_target_hp.get_node("Value").text = "%d / %d" % [int(mobs[target].hp), int(mobs[target].max_hp)]
+	var active_buffs := 0
+	for buff_id in GameState.buffs:
+		if GameState.buff_active(str(buff_id)):
+			active_buffs += 1
+	hud_state_label.text = "ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs]
 	for i in range(4):
 		var button := skill_buttons[i + 2]
-		button.text = str(GameState.skill_definition(i).name) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
-	var faction_color := Color("e4e5da") if GameState.faction == "Light" else Color("9a77c5")
-	if GameState.class_rank >= 7 and GameState.faction in ["Light","Dark"]:
-		world.joystick_base.color = Color(faction_color, 0.25)
-		for button in skill_buttons:
-			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),faction_color))
-	else:
-		world.joystick_base.color.a = 0
-		for button in skill_buttons:
-			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),Color("697d8f")))
+		button.text = _thai_skill_name(i) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
+	var active_faction := GameState.faction if GameState.class_rank >= 7 and GameState.faction in ["Light", "Dark"] else ""
+	var faction_color := Color("e4e5da") if active_faction == "Light" else Color("9a77c5")
+	world.joystick_base.color = Color(faction_color, 0.25) if not active_faction.is_empty() else Color.TRANSPARENT
+	if hud_action_style_key != active_faction:
+		_style_hud_actions(active_faction)
 	if OS.has_feature("web"):
 		var gm_rects: Dictionary = {}
 		var gm_popups: Dictionary = {}
@@ -919,7 +1097,19 @@ func _refresh_hud() -> void:
 		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
 			bag_left_rect = bag_character_panel.get_global_rect()
 			bag_right_rect = bag_inventory_panel.get_global_rect()
-		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var bulk_toggle_center := Vector2.ZERO
+		var bulk_sell_center := Vector2.ZERO
+		var bulk_first_slot_center := Vector2.ZERO
+		if active_panel == "Bag" and is_instance_valid(bag_inventory_panel):
+			var toggle_node := bag_inventory_panel.find_child("BulkSelectionToggle", true, false)
+			var sell_node := bag_inventory_panel.find_child("BulkSaleButton", true, false)
+			if toggle_node is Control:
+				bulk_toggle_center = (toggle_node as Control).get_global_rect().get_center()
+			if sell_node is Control:
+				bulk_sell_center = (sell_node as Control).get_global_rect().get_center()
+			if is_instance_valid(bag_slot_grid) and bag_slot_grid.get_child_count() > 0:
+				bulk_first_slot_center = (bag_slot_grid.get_child(0) as Control).get_global_rect().get_center()
+		var diagnostic := {"hud_status_rect":[hud_status_panel.position.x,hud_status_panel.position.y,hud_status_panel.size.x,hud_status_panel.size.y],"hud_quest_rect":[hud_quest_panel.position.x,hud_quest_panel.position.y,hud_quest_panel.size.x,hud_quest_panel.size.y],"hud_target_rect":[hud_target_panel.position.x,hud_target_panel.position.y,hud_target_panel.size.x,hud_target_panel.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -987,13 +1177,38 @@ func _input(event: InputEvent) -> void:
 		auto_attack = false
 		auto_hunt = false
 
+func _load_hunt_preferences() -> void:
+	var saved: Variant = GameState.settings.get("auto_hunt_skills", [true, true, true])
+	if saved is Array and saved.size() == 3:
+		for i in range(3):
+			hunt_skills[i] = bool(saved[i])
+	hunt_radius = clampf(float(GameState.settings.get("auto_hunt_radius", 18.0)), 8.0, 40.0)
+
+func _save_hunt_preferences() -> void:
+	if network.active or network.connecting:
+		return
+	GameState.settings["auto_hunt_skills"] = hunt_skills.duplicate()
+	GameState.settings["auto_hunt_radius"] = hunt_radius
+	_save()
+
+func _select_hunt_skill(index: int, enabled: bool) -> void:
+	if index < 0 or index >= hunt_skills.size():
+		return
+	hunt_skills[index] = enabled
+	_save_hunt_preferences()
+
+func _select_hunt_radius(radius: float) -> void:
+	hunt_radius = clampf(radius, 8.0, 40.0)
+	_save_hunt_preferences()
+	_tell("บันทึกระยะล่าอัตโนมัติ %d เมตร" % int(hunt_radius))
+
 func _close_panel() -> void:
 	_close_player_dropdown()
 	panel.hide()
 	active_panel = ""
 
 func _thai_panel_name(name: String) -> String:
-	var names := {"Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
+	var names := {"BulkSellConfirm":"ยืนยันขายหลายชิ้น", "Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
 	return str(names.get(name, name))
 
 func _show_panel(name: String) -> void:
@@ -1023,6 +1238,7 @@ func _show_panel(name: String) -> void:
 		return
 	match name:
 		"Bag": _bag()
+		"BulkSellConfirm": _bag_bulk_confirm()
 		"Shop", "Cash": _shop(name == "Cash")
 		"Status": _status()
 		"Quest":
@@ -1048,10 +1264,10 @@ func _show_panel(name: String) -> void:
 				var check := CheckButton.new()
 				check.text = "Use " + str(GameState.skill_definition(i + 1).name)
 				check.button_pressed = hunt_skills[i]
-				check.toggled.connect(func(on): hunt_skills[index] = on)
+				check.toggled.connect(func(on): _select_hunt_skill(index, on))
 				menu.add_child(check)
 			for radius in [12.0, 20.0, 36.0]:
-				_button("Search radius %dm" % radius, func(): hunt_radius = radius, menu)
+				_button("ระยะค้นหา %d เมตร" % int(radius), func(): _select_hunt_radius(radius), menu)
 			_button("Start / stop Auto Hunt", func(): _action(7); _close_panel(), menu)
 		"Skills":
 			_skills_panel()
@@ -1166,6 +1382,8 @@ func _bag_unequip(slot_id: String) -> void:
 
 func _bag() -> void:
 	bag_status_bars.clear()
+	if not bag_bulk_mode:
+		bag_bulk_selection.clear()
 	bag_equipment_buttons.clear()
 	bag_slot_regions.clear()
 	var wide := panel.size.x >= 550.0
@@ -1288,10 +1506,23 @@ func _bag() -> void:
 	inventory_column.add_child(actions)
 	var first_page := _button("◀ 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
 	var second_page := _button("2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
-	var sort_button := _button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
+	var sort_button := _button("จัดเรียง", func(): bag_bulk_selection.clear(); GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
 	for button in [first_page, second_page, sort_button]:
 		button.custom_minimum_size = Vector2(60, 32)
 		button.add_theme_font_size_override("font_size", 12)
+	# The selection row is separate to avoid crowding the five-column grid.
+	var bulk_actions := HBoxContainer.new()
+	bulk_actions.name = "BulkSellActions"
+	bulk_actions.add_theme_constant_override("separation", 4)
+	inventory_column.add_child(bulk_actions)
+	var toggle_bulk := _button("ปิดเลือก" if bag_bulk_mode else "เลือกหลายชิ้น", func(): _toggle_bulk_mode(), bulk_actions)
+	toggle_bulk.name = "BulkSelectionToggle"
+	toggle_bulk.custom_minimum_size = Vector2(98, 32)
+	var selected_count := bag_bulk_selection.size()
+	var bulk_sell := _button("ขายที่เลือก (%d)" % selected_count, func(): _bag_bulk_confirm_open(), bulk_actions)
+	bulk_sell.name = "BulkSaleButton"
+	bulk_sell.custom_minimum_size = Vector2(123, 32)
+	bulk_sell.disabled = not bag_bulk_mode or selected_count == 0
 	var inventory_scroll := ScrollContainer.new()
 	inventory_scroll.name = "BagSlotsScroll"
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1313,7 +1544,15 @@ func _bag() -> void:
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
 			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
-		var button := _button(slot_text, func(): _item_menu(index), bag_slot_grid)
+		if bag_bulk_mode and bag_bulk_selection.has(index):
+			slot_text = "✓ " + slot_text
+		var button := _button(slot_text, func():
+			if bag_bulk_mode:
+				_toggle_bulk_item(index)
+			else:
+				_item_menu(index)
+		, bag_slot_grid)
+		button.name = "InventorySlot%d" % index
 		button.custom_minimum_size = Vector2(47, 46)
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 12)
@@ -1321,6 +1560,57 @@ func _bag() -> void:
 		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("7693b2"), index < GameState.inventory.size()))
 		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("b8cde6"), true, true))
 		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("dbe8f7"), true, true))
+
+func _toggle_bulk_mode() -> void:
+	bag_bulk_mode = not bag_bulk_mode
+	bag_bulk_selection.clear()
+	_close_panel()
+	_show_panel("Bag")
+
+func _toggle_bulk_item(index: int) -> void:
+	if not bag_bulk_mode or index < 0 or index >= GameState.inventory.size():
+		return
+	if bag_bulk_selection.has(index):
+		bag_bulk_selection.erase(index)
+	else:
+		bag_bulk_selection[index] = int(GameState.inventory[index].count)
+	_close_panel()
+	_show_panel("Bag")
+
+func _bag_bulk_confirm_open() -> void:
+	if bag_bulk_selection.is_empty():
+		_tell("เลือกไอเทมที่จะขายก่อน")
+		return
+	_show_panel("BulkSellConfirm")
+
+func _bag_bulk_confirm() -> void:
+	var total := 0
+	var names: Array[String] = []
+	for key in bag_bulk_selection:
+		var index: int = int(key)
+		if index < 0 or index >= GameState.inventory.size():
+			_tell("กระเป๋าเปลี่ยนแล้ว กรุณาเลือกใหม่")
+			bag_bulk_selection.clear()
+			_close_panel()
+			return
+		var stack: Dictionary = GameState.inventory[index]
+		var amount: int = int(bag_bulk_selection[key])
+		var definition: Dictionary = GameState.balance.items.get(str(stack.id), {})
+		total += int(definition.get("sell", 0)) * amount
+		names.append("%s ×%d" % [str(definition.get("name", stack.id)), amount])
+	menu.add_child(_label("ขายไอเทมที่เลือก %d ช่อง\n%s\nรับเงินรวม %d Gold" % [bag_bulk_selection.size(), "\n".join(names), total], 14))
+	_button("ยืนยันขายทั้งหมด", func():
+		var amount: int = GameState.sell_many(bag_bulk_selection)
+		if amount >= 0:
+			_tell("ขายสำเร็จ ได้รับ %d Gold" % amount)
+			bag_bulk_mode = false
+			bag_bulk_selection.clear()
+		else:
+			_tell("ขายไม่สำเร็จ กระเป๋าอาจเปลี่ยนแล้ว")
+		_close_panel()
+		_show_panel("Bag")
+	, menu)
+	_button("กลับไปกระเป๋า", func(): _close_panel(); _show_panel("Bag"), menu)
 
 func _item_menu(index: int) -> void:
 	if index >= GameState.inventory.size():

@@ -137,18 +137,8 @@ func _make_hud() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(hud)
-	var title := Label.new()
-	title.text = "NEX TGEN LEO   /   OFFLINE SANDBOX"
-	title.position = Vector2(18, 8)
-	title.add_theme_font_size_override("font_size", 18)
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(title)
-	var help := Label.new()
-	help.text = "PC: WASD move | Shift run | Space jump | Left / right drag on world: camera"
-	help.position = Vector2(18, 36)
-	help.add_theme_font_size_override("font_size", 14)
-	help.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(help)
+	# In-game HUD now owns the top-left area. Keep keyboard help in README,
+	# not overlapping the 3D player status and quest panels.
 	joystick_base = ColorRect.new()
 	joystick_base.color = Color(0.08, 0.12, 0.18, 0.0)
 	joystick_base.size = Vector2(128, 128)
@@ -160,12 +150,12 @@ func _make_hud() -> void:
 	joystick_knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(joystick_knob)
 	jump_button = Button.new()
-	jump_button.text = "JUMP"
+	jump_button.text = "กระโดด"
 	jump_button.size = Vector2(100, 72)
 	jump_button.button_down.connect(func(): jump_requested = true)
 	hud.add_child(jump_button)
 	run_button = Button.new()
-	run_button.text = "RUN: OFF"
+	run_button.text = "วิ่ง: ปิด"
 	run_button.size = Vector2(100, 55)
 	run_button.pressed.connect(_toggle_run)
 	hud.add_child(run_button)
@@ -186,7 +176,7 @@ func _update_knob() -> void:
 
 func _toggle_run() -> void:
 	run_enabled = not run_enabled
-	run_button.text = "RUN: ON" if run_enabled else "RUN: OFF"
+	run_button.text = "วิ่ง: เปิด" if run_enabled else "วิ่ง: ปิด"
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:

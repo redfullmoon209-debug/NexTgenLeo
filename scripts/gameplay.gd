@@ -29,6 +29,13 @@ var panel: PanelContainer
 var menu: VBoxContainer
 var buttons: Array[Button] = []
 var skill_buttons: Array[Button] = []
+var menu_toggle_button: Button
+var owner_gm_button: Button
+var player_dropdown: PanelContainer
+var player_dropdown_column: VBoxContainer
+var dropdown_backdrop: ColorRect
+var dropdown_entries: Dictionary = {}
+var gm_authorized := false
 var active_panel := ""
 var bag_page := 0
 var bag_character_panel: PanelContainer
@@ -325,6 +332,175 @@ func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	(parent if parent != null else world.hud).add_child(button)
 	return button
 
+func _menu_orb_style(background: Color, rim: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = rim
+	style.set_border_width_all(2)
+	style.border_width_top = 3
+	style.set_corner_radius_all(40)
+	style.shadow_color = Color("020713c2")
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	return style
+
+func _build_player_dropdown() -> void:
+	dropdown_backdrop = ColorRect.new()
+	dropdown_backdrop.name = "DropdownDismissLayer"
+	dropdown_backdrop.color = Color.TRANSPARENT
+	dropdown_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	dropdown_backdrop.z_index = 80
+	dropdown_backdrop.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed:
+			_close_player_dropdown()
+		elif event is InputEventScreenTouch and event.pressed:
+			_close_player_dropdown()
+	)
+	world.hud.add_child(dropdown_backdrop)
+	dropdown_backdrop.hide()
+	player_dropdown = PanelContainer.new()
+	player_dropdown.name = "PlayerMainDropdown"
+	player_dropdown.z_index = 91
+	player_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
+	player_dropdown.set_meta("leo_fantasy_skin", true)
+	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("0d213ceF")))
+	world.hud.add_child(player_dropdown)
+	var scroll := ScrollContainer.new()
+	scroll.name = "DropdownScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	player_dropdown.add_child(scroll)
+	player_dropdown_column = VBoxContainer.new()
+	player_dropdown_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	player_dropdown_column.add_theme_constant_override("separation", 3)
+	scroll.add_child(player_dropdown_column)
+	var title := _label("เมนูหลัก", 17)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	player_dropdown_column.add_child(title)
+	var specs := [
+		["Bag", "▣", "[B]"],
+		["Shop", "▤", "[P]"],
+		["Status", "♙", "[C]"],
+		["Quest", "✦", "[Q]"],
+		["World", "◉", "[M]"],
+		["Pet", "♧", ""],
+		["Auto", "↻", ""],
+		["Skills", "⚔", ""],
+		["Settings", "⚙", ""],
+		["Connect", "◇", ""]
+	]
+	for spec in specs:
+		var menu_id: String = str(spec[0])
+		var title_text: String = "  %s  %s  %s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), str(spec[2])]
+		var entry := _button(title_text, func(): _open_player_menu(menu_id), player_dropdown_column)
+		entry.name = "Menu_" + menu_id
+		entry.custom_minimum_size = Vector2(215, 38)
+		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.set_meta("leo_fantasy_skin", true)
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("152e4adf")))
+		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("2c4f73ff")))
+		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("365e82ff")))
+		dropdown_entries[menu_id] = entry
+	player_dropdown.hide()
+	menu_toggle_button = _button("", _toggle_player_dropdown)
+	menu_toggle_button.name = "PlayerMainMenuButton"
+	# Draw a true three-bar hamburger; font glyph support varies on mobile.
+	for line_y in [15.0, 23.0, 31.0]:
+		var hamburger_line := ColorRect.new()
+		hamburger_line.color = Color("49391e")
+		hamburger_line.position = Vector2(15.0, line_y)
+		hamburger_line.size = Vector2(22.0, 3.0)
+		hamburger_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		menu_toggle_button.add_child(hamburger_line)
+	menu_toggle_button.size = Vector2(52, 52)
+	menu_toggle_button.z_index = 102
+	menu_toggle_button.tooltip_text = "เมนูหลักสำหรับผู้เล่นทุกคน"
+	menu_toggle_button.set_meta("leo_fantasy_skin", true)
+	menu_toggle_button.add_theme_font_size_override("font_size", 28)
+	menu_toggle_button.add_theme_color_override("font_color", Color("352916"))
+	menu_toggle_button.add_theme_stylebox_override("normal", _menu_orb_style(Color("f5ce38"), Color("fff1a7")))
+	menu_toggle_button.add_theme_stylebox_override("hover", _menu_orb_style(Color("ffe26b"), Color("fff8c5")))
+	menu_toggle_button.add_theme_stylebox_override("pressed", _menu_orb_style(Color("dba719"), Color("ffec8e")))
+	buttons.append(menu_toggle_button)
+	owner_gm_button = _button("GM", func(): _show_panel("GM"))
+	owner_gm_button.name = "OwnerGMButton"
+	owner_gm_button.size = Vector2(52, 52)
+	owner_gm_button.z_index = 102
+	owner_gm_button.tooltip_text = "เครื่องมือเจ้าของระบบ — ต้องยืนยันตัวตน"
+	owner_gm_button.set_meta("leo_fantasy_skin", true)
+	owner_gm_button.add_theme_font_size_override("font_size", 15)
+	owner_gm_button.add_theme_color_override("font_color", Color.WHITE)
+	owner_gm_button.add_theme_stylebox_override("normal", _menu_orb_style(Color("b51729"), Color("ffe1e3")))
+	owner_gm_button.add_theme_stylebox_override("hover", _menu_orb_style(Color("e03942"), Color("ffffff")))
+	owner_gm_button.add_theme_stylebox_override("pressed", _menu_orb_style(Color("7e101e"), Color("fff4f4")))
+	owner_gm_button.hide()
+	buttons.append(owner_gm_button)
+
+func _toggle_player_dropdown() -> void:
+	if player_dropdown.visible:
+		_close_player_dropdown()
+	else:
+		panel.hide()
+		active_panel = ""
+		dropdown_backdrop.show()
+		player_dropdown.show()
+		player_dropdown.move_to_front()
+		menu_toggle_button.move_to_front()
+		if owner_gm_button.visible:
+			owner_gm_button.move_to_front()
+
+func _close_player_dropdown() -> void:
+	if is_instance_valid(player_dropdown):
+		player_dropdown.hide()
+	if is_instance_valid(dropdown_backdrop):
+		dropdown_backdrop.hide()
+
+func _open_player_menu(name: String) -> void:
+	_close_player_dropdown()
+	_show_panel(name)
+
+func _player_entry_rects() -> Dictionary:
+	var rects: Dictionary = {}
+	if not is_instance_valid(player_dropdown) or not player_dropdown.visible:
+		return rects
+	for menu_id in dropdown_entries:
+		var entry: Button = dropdown_entries[menu_id]
+		if is_instance_valid(entry):
+			var rect := entry.get_global_rect()
+			rects[str(menu_id)] = [rect.get_center().x, rect.get_center().y]
+	return rects
+
+func _set_gm_authorized(authorized: bool) -> void:
+	gm_authorized = authorized
+	if is_instance_valid(owner_gm_button):
+		owner_gm_button.visible = authorized
+	if not authorized and active_panel == "GM":
+		_close_panel()
+
+func _owner_login_panel() -> void:
+	menu.add_child(_label("ยืนยันเจ้าของระบบกับเซิร์ฟเวอร์ผ่าน WSS เท่านั้น\nเว็บไซต์สาธารณะไม่เก็บรหัส GM และไม่ให้สิทธิ์แก่ผู้เล่นทั่วไป", 14))
+	if not network.active:
+		menu.add_child(_label("ยังไม่ได้เชื่อมต่อเซิร์ฟเวอร์ที่รองรับการยืนยันเจ้าของ", 14))
+		_button("ตั้งค่าเซิร์ฟเวอร์", func(): _show_panel("Connect"), menu)
+		return
+	var field := LineEdit.new()
+	field.name = "OwnerSecretInput"
+	field.secret = true
+	field.placeholder_text = "รหัสเจ้าของจากเซิร์ฟเวอร์ (อย่างน้อย 24 ตัวอักษร)"
+	field.custom_minimum_size = Vector2(235, 42)
+	menu.add_child(field)
+	_button("ยืนยันเจ้าของ / เปิดปุ่ม GM", func():
+		network.authenticate_owner(field.text)
+		field.clear()
+		_close_panel()
+	, menu)
+
 func _build_ui() -> void:
 	var theme := Theme.new()
 	var font: FontFile = load("res://assets/fonts/NotoSansThai.ttf")
@@ -356,13 +532,9 @@ func _build_ui() -> void:
 	notice.size = Vector2(600, 75)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	world.hud.add_child(notice)
-	var names := ["Bag [B]", "Shop [P]", "Status [C]", "Quest [Q]", "World [M]", "Pet", "Auto", "Skills", "GM"]
-	for i in range(names.size()):
-		var name: String = names[i].split(" ")[0]
-		var button := _button(_thai_panel_name(name) + (" [" + names[i].split("[")[1] if "[" in names[i] else ""), func(): _show_panel(name))
-		button.position = Vector2(18 + i % 3 * 90, 285 + int(i / 3.0) * 44)
-		button.size = Vector2(86, 40)
-		buttons.append(button)
+	# One shared gold menu for every player; the separate red GM control
+	# is hidden until the trusted server confirms an owner-only role.
+	_build_player_dropdown()
 	var controls := ["LOCK\n[TAB]", "PICK UP\n[E]", "ATK\n[F]", "1\nCrescent", "2\nPierce", "3\nJudgment", "DASH\n[R]", "HUNT\n[H]"]
 	for i in range(controls.size()):
 		var index := i
@@ -422,6 +594,17 @@ func _layout() -> void:
 		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		button.position += Vector2(float(offset[0]), float(offset[1]))
 	map_display.position = Vector2(size.x - 175, 12)
+	if is_instance_valid(menu_toggle_button):
+		menu_toggle_button.position = Vector2(maxf(6.0, size.x - 243.0), 32.0)
+	if is_instance_valid(owner_gm_button):
+		owner_gm_button.position = Vector2(maxf(6.0, size.x - 305.0), 32.0)
+	if is_instance_valid(dropdown_backdrop):
+		dropdown_backdrop.position = Vector2.ZERO
+		dropdown_backdrop.size = size
+	if is_instance_valid(player_dropdown):
+		var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
+		player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
+		player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
 	# Keep the world character visible to the right of the open inventory.
 	# On landscape screens, the equipment and bag share a compact 2-column dock.
 	# On narrow screens the panes stack and each section scrolls independently.
@@ -724,7 +907,7 @@ func _refresh_hud() -> void:
 		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
 			bag_left_rect = bag_character_panel.get_global_rect()
 			bag_right_rect = bag_inventory_panel.get_global_rect()
-		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -736,7 +919,7 @@ func _save() -> void:
 
 func _input(event: InputEvent) -> void:
 	# Handle each action finger independently; emulated mouse handles only one finger.
-	if event is InputEventScreenTouch and event.pressed and not panel.visible:
+	if event is InputEventScreenTouch and event.pressed and not panel.visible and not player_dropdown.visible:
 		for i in range(skill_buttons.size()):
 			if skill_buttons[i].get_global_rect().has_point(event.position):
 				_action(i, true)
@@ -793,14 +976,19 @@ func _input(event: InputEvent) -> void:
 		auto_hunt = false
 
 func _close_panel() -> void:
+	_close_player_dropdown()
 	panel.hide()
 	active_panel = ""
 
 func _thai_panel_name(name: String) -> String:
-	var names := {"Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
+	var names := {"Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
 	return str(names.get(name, name))
 
 func _show_panel(name: String) -> void:
+	if name == "GM" and not gm_authorized:
+		_tell("เมนู GM ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
+		return
+	_close_player_dropdown()
 	if panel.visible and active_panel == name:
 		_close_panel()
 		return
@@ -815,6 +1003,9 @@ func _show_panel(name: String) -> void:
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu.add_child(heading)
 	_button("ปิด [Esc]", _close_panel, menu)
+	if name == "OwnerLogin":
+		_owner_login_panel()
+		return
 	if network.active:
 		_online_panel(name)
 		return
@@ -855,6 +1046,7 @@ func _show_panel(name: String) -> void:
 			_button("Settings", func(): _show_panel("Settings"), menu)
 		"Settings":
 			_button("Multiplayer development server", func(): _show_panel("Connect"), menu)
+			_button("เจ้าของ: ยืนยันสิทธิ์ GM", func(): _show_panel("OwnerLogin"), menu)
 			_button("บันทึกเกม", func(): _save(); _tell("Offline save written"), menu)
 			_button("Edit button layout: drag action buttons", func(): layout_edit = not layout_edit; _close_panel(); _tell("Layout editing " + str(layout_edit)), menu)
 			_button("คืนตำแหน่งปุ่ม", func(): GameState.settings.button_offsets = {}; _layout(), menu)
@@ -1181,6 +1373,7 @@ func _warp(index: int) -> void:
 	_save()
 
 func _gm() -> void:
+	if not gm_authorized: return
 	menu.add_child(_label("GM · เลือกตัวละคร / อาชีพ / ฝ่าย",20))
 	menu.add_child(_label("เลือกอาชีพ: Class ขั้นต่ำ 5 · เลือกฝ่าย: Class ขั้นต่ำ 7",14))
 	gm_summary = _label("")
@@ -1288,6 +1481,11 @@ func _online_panel(name: String) -> void:
 						_button("Slot %d ← skill %d" % [slot+1,source+1], func(): network.command("skill",{"slot":a,"source":b}), menu)
 			else:
 				menu.add_child(_label("Class 5+ skills fixed by profession. Sovereign unlock pending design."))
+		"Settings":
+			_button("เจ้าของ: ยืนยันสิทธิ์ GM", func(): _show_panel("OwnerLogin"), menu)
+			_button("ออกจากเซิร์ฟเวอร์", func(): network.disconnect_server(); _close_panel(), menu)
+		"GM":
+			menu.add_child(_label("ยืนยันสิทธิ์ GM สำเร็จ แต่คำสั่งเปลี่ยนข้อมูลออนไลน์ยังถูกปิดจนกว่าจะเปิดระบบสิทธิ์คำสั่งบนเซิร์ฟเวอร์"))
 		"Status":
 			for element in GameState.ELEMENTS:
 				_button("Class 3: " + element, func(): network.command("element",{"value":element}), menu)
@@ -1314,6 +1512,7 @@ func pointer_over_ui(point: Vector2) -> bool:
 	for chooser in gm_choosers.values():
 		if is_instance_valid(chooser) and chooser.get_popup().visible: return true
 	if panel.visible and panel.get_global_rect().has_point(point): return true
+	if is_instance_valid(player_dropdown) and player_dropdown.visible: return true
 	for button in buttons + skill_buttons + [world.jump_button, world.run_button]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(point): return true
 	return false
@@ -1350,7 +1549,7 @@ func _gm_update_summary() -> void:
 		gm_summary.text = "%s · %s · %s · Class %d" % ["ชาย" if GameState.gender == "Male" else "หญิง",str(job.get("name","Novice")),GameState.faction if not GameState.faction.is_empty() else "ไม่มีฝ่าย",GameState.class_rank]
 
 func _gm_select(kind: String, value: String, persist := true) -> bool:
-	if network.active or network.connecting: return false
+	if not gm_authorized or network.active or network.connecting: return false
 	match kind:
 		"gender":
 			if value not in ["Male","Female"]: return false

@@ -286,7 +286,11 @@ class Authority:
 async def create_app(db_path=None):
     authority=Authority(db_path or os.environ.get('LEO_DB','characters.sqlite3'))
     app=web.Application(client_max_size=16384)
-    app['authority']=authority;app['sockets']={}
+    app['authority']=authority;app['sockets']={};app['owner_sessions']=set()
+    # Never embed the private owner credential in the static GitHub Pages client.
+    # Set a strong, private LEO_GM_OWNER_SECRET on the trusted server only.
+    owner_secret=os.environ.get('LEO_GM_OWNER_SECRET','')
+    owner_hash=hashlib.sha256(owner_secret.encode()).digest() if len(owner_secret)>=24 else None
     allowed=set(os.environ.get('LEO_ORIGINS','http://localhost:8060,http://127.0.0.1:8060,https://redfullmoon209-debug.github.io').split(','))
     async def health(request):return web.json_response({'status':'ok','mode':'development','players':len(authority.players)})
     async def socket(request):
@@ -306,6 +310,15 @@ async def create_app(db_path=None):
                         if data.get('op')!='hello':raise Rejected('Authenticate first')
                         token,state=authority.login(data.get('token'));player_id=state['id'];app['sockets'][player_id]=ws
                         await ws.send_json({'type':'welcome','token':token,'id':player_id})
+                    elif data.get('op')=='gm_auth':
+                        provided=data.get('owner_secret')
+                        if not isinstance(provided,str) or not 24<=len(provided)<=256 or owner_hash is None:
+                            raise Rejected('Owner verification unavailable or invalid')
+                        supplied_hash=hashlib.sha256(provided.encode()).digest()
+                        if not secrets.compare_digest(supplied_hash,owner_hash):
+                            raise Rejected('Owner verification failed')
+                        app['owner_sessions'].add(player_id)
+                        await ws.send_json({'type':'gm_role','authorized':True})
                     elif data.get('op')=='chat':
                         text=data.get('text','')
                         if not isinstance(text,str) or not 1<=len(text)<=250:raise Rejected('Invalid chat')
@@ -316,6 +329,7 @@ async def create_app(db_path=None):
                     await ws.send_json({'type':'error','message':str(exc)})
         finally:
             if player_id:
+                app['owner_sessions'].discard(player_id)
                 app['sockets'].pop(player_id,None);authority.disconnect(player_id)
         return ws
     async def ticks(app):

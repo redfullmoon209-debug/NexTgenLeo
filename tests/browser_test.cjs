@@ -1,5 +1,22 @@
 const { chromium } = require('playwright');
 const {spawn} = require('child_process');
+async function openPlayerMenu(page,entryName){
+ const old=await page.evaluate(()=>window.leoDiagnostics);
+ const sx=old.screen_size[0]/old.viewport_size[0];
+ const sy=old.screen_size[1]/old.viewport_size[1];
+ const [x,y,w,h]=old.menu_button_rect;
+ await page.mouse.click((x+w/2)*sx,(y+h/2)*sy);
+ await page.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
+ const opened=await page.evaluate(()=>window.leoDiagnostics);
+ if(opened.gm_button_visible)throw Error('Unverified public player should never see the GM orb');
+ if(opened.menu_dropdown_rect[0]+opened.menu_dropdown_rect[2]>opened.viewport_size[0]-180)throw Error('Dropdown overlaps minimap');
+ if(!opened.menu_entry_rects[entryName])throw Error('Player menu missing '+entryName);
+ if(entryName==='Bag' && opened.screen_size[0]===1280)
+  await page.screenshot({path:'build/leo-yellow-main-dropdown.png'});
+ const point=opened.menu_entry_rects[entryName];
+ await page.mouse.click(point[0]*sx,point[1]*sy);
+ await page.waitForFunction(name=>window.leoDiagnostics.panel===name,entryName,{timeout:15000});
+}
 (async()=>{
  const server=spawn('python',['-m','http.server','8060','--bind','127.0.0.1','--directory','build/web']);
  let browser; let currentPage; let completed=false;
@@ -12,11 +29,12 @@ const {spawn} = require('child_process');
  await page.goto('http://127.0.0.1:8060');
  await page.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
  let start=await page.evaluate(()=>window.leoDiagnostics);
+ if(start.gm_button_visible)throw Error('Guest sees red GM orb before owner verification');
  await page.locator('canvas').click({position:{x:600,y:400}});
  await page.keyboard.down('w');try{await page.waitForFunction(s=>Math.hypot(window.leoDiagnostics.position[0]-s[0],window.leoDiagnostics.position[2]-s[2])>1.2,start.position,{timeout:20000});}finally{await page.keyboard.up('w');}
  let moved=await page.evaluate(()=>window.leoDiagnostics);
  if(Math.hypot(moved.position[0]-start.position[0],moved.position[2]-start.position[2])<1)throw Error('WASD failed');
- await page.mouse.click(55,305);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ await openPlayerMenu(page,'Bag');
  const drawer=await page.evaluate(()=>window.leoDiagnostics);
  if(drawer.drawer_rect[0]>16||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<540||drawer.drawer_rect[2]>620||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Full-height narrow bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
  if(drawer.drawer_rect[1]+drawer.drawer_rect[3]>720||drawer.drawer_rect[1]+drawer.drawer_rect[3]<700)throw Error('Bag does not reach viewport bottom: '+JSON.stringify(drawer.drawer_rect));
@@ -56,25 +74,16 @@ const {spawn} = require('child_process');
  let zoomed=await page.evaluate(()=>window.leoDiagnostics);if(zoomed.camera_zoom>=start.camera_zoom)throw Error('Wheel zoom failed');
  await page.keyboard.press('Tab');await page.waitForFunction(()=>window.leoDiagnostics.target>=0,null,{timeout:15000});
  let target=await page.evaluate(()=>window.leoDiagnostics);if(target.target<0)throw Error('Target select failed');
- await page.mouse.click(240,393);await page.waitForFunction(()=>window.leoDiagnostics.panel==='GM',null,{timeout:15000});
- for(const [kind,expected] of [['gender','Female'],['job','forest_lord'],['faction','Dark']]){
-  await page.waitForFunction(k=>!!window.leoDiagnostics.gm_controls[k],kind,{timeout:15000});
-  const point=(await page.evaluate(()=>window.leoDiagnostics)).gm_controls[kind];
-  if(point[0]<12||point[0]>400)throw Error('GM dropdown outside left drawer: '+kind+' '+JSON.stringify(point));
-  await page.mouse.click(point[0],point[1]);
-  await page.waitForFunction(k=>window.leoDiagnostics.gm_popups[k].visible,kind,{timeout:15000});
-  const popup=(await page.evaluate(()=>window.leoDiagnostics)).gm_popups[kind];
-  await page.mouse.click(popup.position[0]+popup.size[0]/2,popup.position[1]+popup.size[1]-14);
-  await page.waitForFunction(({k,v})=>window.leoDiagnostics[k]===v,{k:kind,v:expected},{timeout:15000});
- }
- await page.waitForFunction(()=>window.leoDiagnostics.class_rank>=7,null,{timeout:15000});
- console.log('GM BROWSER TESTS: choose Female, profession and Dark via dropdowns passed');
+ await openPlayerMenu(page,'Settings');
+ const publicSettings=await page.evaluate(()=>window.leoDiagnostics);
+ if(publicSettings.gm_button_visible||Object.keys(publicSettings.menu_entry_rects).includes('GM'))throw Error('Public menu exposes GM');
+ console.log('PUBLIC MENU TESTS: gold dropdown navigation passes; red GM button hidden for guests');
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await page.screenshot({path:'build/leo-desktop.png'});
  console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
  await page.setViewportSize({width:1920,height:1080});
  await page.waitForFunction(()=>window.leoDiagnostics.screen_size[0]===1920,null,{timeout:15000});
- await page.mouse.click(55*1.5,305*1.5);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ await openPlayerMenu(page,'Bag');
  const wideBag=await page.evaluate(()=>window.leoDiagnostics);
  if(wideBag.bag_right_rect[0]<=wideBag.bag_left_rect[0])throw Error('1920 wide bag is not split');
  // Godot may keep its 1280x720 virtual viewport when Chromium is resized.
@@ -90,6 +99,17 @@ const {spawn} = require('child_process');
  const cdp=await mobile.newCDPSession(p);
  const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([id,x,y])=>({id,x,y}))});
  const mstart=await p.evaluate(()=>window.leoDiagnostics);
+ if(mstart.gm_button_visible)throw Error('Mobile guest can see GM');
+ const [mx,my,mw,mh]=mstart.menu_button_rect;
+ await p.touchscreen.tap(mx+mw/2,my+mh/2);
+ await p.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
+ const mobileMenu=await p.evaluate(()=>window.leoDiagnostics);
+ const point=mobileMenu.menu_entry_rects.Bag;
+ if(!point)throw Error('Touch menu has no Bag item');
+ await p.touchscreen.tap(point[0],point[1]);
+ await p.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ await p.keyboard.press('Escape');
+ await p.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await p.touchscreen.tap(980,500);await p.waitForFunction(()=>window.leoDiagnostics.target>=0,null,{timeout:15000});
  await touch('touchStart',[[1,90,610]]);await touch('touchMove',[[1,135,610]]);await p.waitForFunction(()=>window.leoDiagnostics.joystick[0]>.3,null,{timeout:15000});
  let stick=await p.evaluate(()=>window.leoDiagnostics);
@@ -112,6 +132,6 @@ const {spawn} = require('child_process');
  const errors=logs.filter(x=>x.type==='pageerror'||(x.type==='error' && /SCRIPT ERROR|Parse Error|ERROR:/.test(x.text)));
  if(errors.length)throw Error(JSON.stringify(errors));
  completed=true;
- console.log('BROWSER TESTS: PC movement, menu, wheel, target, mobile joystick, concurrent action touch, release, pinch passed');
+ console.log('BROWSER TESTS: PC movement, gold dropdown, private GM visibility, touch dropdown, mobile joystick, concurrent action touch, release, pinch passed');
  }finally{if(!completed && currentPage && !currentPage.isClosed()){console.log('FAILURE_DIAGNOSTICS',JSON.stringify(await currentPage.evaluate(()=>window.leoDiagnostics||{status:document.body.innerText})));console.log('FAILURE_LOGS',JSON.stringify(logs));await currentPage.screenshot({path:'build/browser-failure.png'});}if(browser)await browser.close();server.kill();}
 })().catch(e=>{console.error(e);process.exit(1)});

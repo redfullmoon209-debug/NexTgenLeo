@@ -33,7 +33,8 @@ var active_panel := ""
 var bag_page := 0
 var bag_character_panel: PanelContainer
 var bag_inventory_panel: PanelContainer
-var bag_equipment_grid: GridContainer
+var bag_equipment_buttons: Array[Button] = []
+var bag_equipment_frame: HBoxContainer
 var bag_character_preview: SubViewportContainer
 var bag_preview_stage: Node3D
 var bag_preview_model: Node3D
@@ -188,24 +189,25 @@ func _sync_bag_avatar_preview() -> void:
 	bag_preview_model.scale = Vector3.ONE * 0.94
 	bag_preview_stage.add_child(bag_preview_model)
 
-func _build_bag_avatar_preview(parent: VBoxContainer) -> void:
+func _build_bag_avatar_preview(parent: HBoxContainer) -> void:
 	# SubViewport renders the actual procedural player and its equipped items.
 	# It only exists while the inventory panel is open; the world remains visible.
 	var preview_frame := PanelContainer.new()
 	preview_frame.name = "PlayerModelFrame"
-	preview_frame.custom_minimum_size = Vector2(0, 170)
+	preview_frame.custom_minimum_size = Vector2(98, 205)
+	preview_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preview_frame.add_theme_stylebox_override("panel", _style(Color("172741e8"), Color("957c4d"), 7))
 	parent.add_child(preview_frame)
 	bag_character_preview = SubViewportContainer.new()
 	bag_character_preview.name = "Player3DPreview"
-	bag_character_preview.custom_minimum_size = Vector2(190, 164)
+	bag_character_preview.custom_minimum_size = Vector2(94, 200)
 	bag_character_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_preview.stretch = true
 	bag_character_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_frame.add_child(bag_character_preview)
 	var view := SubViewport.new()
 	view.name = "CharacterPreviewViewport"
-	view.size = Vector2i(220, 196)
+	view.size = Vector2i(150, 300)
 	view.own_world_3d = true
 	view.transparent_bg = true
 	view.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
@@ -706,7 +708,7 @@ func _refresh_hud() -> void:
 		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
 			bag_left_rect = bag_character_panel.get_global_rect()
 			bag_right_rect = bag_inventory_panel.get_global_rect()
-		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -869,16 +871,19 @@ func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: floa
 	bar.get_node("Value").text = "%s  %d / %d" % [title, int(current), int(maximum)]
 	bag_status_bars.append(bar)
 
-func _bag_equipment_slot(slot_id: String, title: String) -> void:
+func _bag_equipment_slot(slot_id: String, title: String, parent: VBoxContainer) -> void:
 	var equipped: Dictionary = GameState.equipped.get(slot_id, {})
 	var item: Dictionary = GameState.balance.items.get(str(equipped.get("id", "")), {})
-	var display_name := "ว่าง" if equipped.is_empty() else str(item.get("name", equipped.get("id", "")))
-	var button := _button("%s\n%s" % [title, display_name], func(): _bag_unequip(slot_id), bag_equipment_grid)
-	button.custom_minimum_size = Vector2(100, 38)
-	button.add_theme_font_size_override("font_size", 11)
+	var equipped_name := str(item.get("name", equipped.get("id", "")))
+	var text_value := title if equipped.is_empty() else ("%s ◆" % title)
+	var button := _button(text_value, func(): _bag_unequip(slot_id), parent)
+	button.custom_minimum_size = Vector2(64, 44)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", 10)
 	button.clip_text = true
-	button.tooltip_text = "กดถอดอุปกรณ์" if not equipped.is_empty() else "ยังไม่ได้สวมใส่"
+	button.tooltip_text = "ว่าง: " + title if equipped.is_empty() else ("สวมอยู่: " + equipped_name + " (กดเพื่อถอด)")
 	button.disabled = equipped.is_empty()
+	bag_equipment_buttons.append(button)
 
 func _bag_unequip(slot_id: String) -> void:
 	if GameState.unequip(slot_id):
@@ -889,6 +894,7 @@ func _bag_unequip(slot_id: String) -> void:
 
 func _bag() -> void:
 	bag_status_bars.clear()
+	bag_equipment_buttons.clear()
 	var wide := panel.size.x >= 550.0
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
 	panes.name = "BagTwoPane"
@@ -920,19 +926,29 @@ func _bag() -> void:
 	_bag_bar(character, Color("d65b68"), float(GameState.hp), float(GameState.max_hp), "HP")
 	_bag_bar(character, Color("e6c85d"), GameState.stamina, float(GameState.max_stamina), "พลังงาน")
 	_bag_bar(character, Color("518fdb"), float(GameState.exp), float(GameState.exp_required()), "EXP")
-	# Dedicated live 3D model preview, matching the current in-game avatar.
-	character.add_child(_label("ตัวละคร", 15))
-	_build_bag_avatar_preview(character)
-	character.add_child(_label("อุปกรณ์สวมใส่", 16))
-	bag_equipment_grid = GridContainer.new()
-	bag_equipment_grid.name = "EquipmentSlots"
-	bag_equipment_grid.columns = 2 if wide or panel.size.x >= 320.0 else 1
-	bag_equipment_grid.add_theme_constant_override("h_separation", 4)
-	bag_equipment_grid.add_theme_constant_override("v_separation", 4)
-	character.add_child(bag_equipment_grid)
-	for slot_def in [{"id":"weapon","title":"อาวุธ"},{"id":"hat","title":"หมวก"},{"id":"shirt","title":"เสื้อ"},{"id":"gloves","title":"ถุงมือ"},{"id":"pants","title":"กางเกง"},{"id":"shoes","title":"รองเท้า"},{"id":"ring","title":"แหวน"},{"id":"necklace","title":"สร้อย"}]:
-		_bag_equipment_slot(str(slot_def.id), str(slot_def.title))
-	character.add_child(_label("แตะช่องอุปกรณ์เพื่อถอด", 12))
+	# Flyff-style: four equipment slots on each side of the real 3D player.
+	character.add_child(_label("ตัวละครและอุปกรณ์", 16))
+	bag_equipment_frame = HBoxContainer.new()
+	bag_equipment_frame.name = "EquipmentAroundAvatar"
+	bag_equipment_frame.add_theme_constant_override("separation", 3)
+	bag_equipment_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character.add_child(bag_equipment_frame)
+	var equipment_left := VBoxContainer.new()
+	equipment_left.name = "EquipmentLeft"
+	equipment_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipment_left.add_theme_constant_override("separation", 4)
+	bag_equipment_frame.add_child(equipment_left)
+	for slot_def in [{"id":"weapon","title":"อาวุธ"},{"id":"shirt","title":"เสื้อ"},{"id":"pants","title":"กางเกง"},{"id":"ring","title":"แหวน"}]:
+		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), equipment_left)
+	_build_bag_avatar_preview(bag_equipment_frame)
+	var equipment_right := VBoxContainer.new()
+	equipment_right.name = "EquipmentRight"
+	equipment_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equipment_right.add_theme_constant_override("separation", 4)
+	bag_equipment_frame.add_child(equipment_right)
+	for slot_def in [{"id":"hat","title":"หมวก"},{"id":"gloves","title":"ถุงมือ"},{"id":"shoes","title":"รองเท้า"},{"id":"necklace","title":"สร้อย"}]:
+		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), equipment_right)
+	character.add_child(_label("แตะช่องอุปกรณ์ที่สวมอยู่เพื่อถอด", 12))
 
 	# Red area: smaller inventory cells with independent vertical scrolling.
 	bag_inventory_panel = PanelContainer.new()

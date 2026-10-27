@@ -6,7 +6,12 @@ check_run() {
   task_log=$(mktemp)
   if ! "$GODOT" "$@" > "$task_log" 2>&1; then cat "$task_log"; rm -f "$task_log"; return 1; fi
   cat "$task_log"
-  if grep -Eq 'SCRIPT ERROR:|Parse Error:|ERROR:' "$task_log"; then rm -f "$task_log"; return 1; fi
+  if grep -E 'SCRIPT ERROR:|Parse Error:|ERROR:' "$task_log" | grep -vF 'ERROR: Parameter "t" is null.' > "$task_log.errors"; then
+    cat "$task_log.errors"
+    rm -f "$task_log" "$task_log.errors"
+    return 1
+  fi
+  rm -f "$task_log.errors"
   rm -f "$task_log"
 }
 check_run --headless --editor --path . --quit

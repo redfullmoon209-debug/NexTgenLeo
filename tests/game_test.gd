@@ -31,6 +31,14 @@ func run() -> void:
 	state.gold = 100
 	check(state.buy("potion",2) and state.gold == 70, "buy charges server catalog price")
 	check(state.sell(0,1) and state.gold == 75, "sell exact quantity")
+	check(state.add_item("herb",3), "add separate stack for multi-sale")
+	var early_inventory: Array[Dictionary] = state.inventory.duplicate(true)
+	var early_gold: int = state.gold
+	check(state.sell_many({0:2,1:1}) == -1, "invalid multi-sale rejects quantity larger than available")
+	check(state.inventory == early_inventory and state.gold == early_gold, "rejected multi-sale changes neither gold nor inventory")
+	check(state.sell_many({0:1,1:2}) == 13, "multi-sale pays exact combined gold")
+	check(state.gold == early_gold + 13 and state.inventory.size() == 1 and int(state.inventory[0].count) == 1, "multi-sale removes descending indices without loss")
+	check(state.sell_many({}) == -1, "empty bulk sale is rejected")
 	state.class_rank = 0
 	state.level = 1
 	state.exp = 0
@@ -86,6 +94,22 @@ func run() -> void:
 	await process_frame
 	var game = scene.gameplay
 	check(game.mobs.size() == 14, "scene spawns monsters")
+	check(game.hud_status_panel != null and game.hud_quest_panel != null and game.hud_target_panel != null, "polished status quest target HUD frames exist")
+	check(game.hud_target_hp != null and game.hud_currency_label != null, "target HP and currency HUD are present")
+	var asset_registry = load("res://scripts/content_registry.gd")
+	check(int(asset_registry.manifest().get("version",0)) == 1, "asset manifest exists and has a stable format")
+	check(asset_registry.character_scene("Male") == null and asset_registry.zone_scene(0) == null, "missing professional assets correctly use procedural fallbacks")
+	var original_hunt_settings: Dictionary = state.settings.duplicate(true)
+	game._select_hunt_skill(1,false)
+	game._select_hunt_radius(36.0)
+	check(not game.hunt_skills[1] and is_equal_approx(game.hunt_radius,36.0), "auto-hunt skills and radius update")
+	check(state.settings.get("auto_hunt_skills",[]).size() == 3 and float(state.settings.get("auto_hunt_radius",0)) == 36.0, "auto-hunt preferences persisted into existing settings")
+	game.hunt_skills[1] = true
+	game.hunt_radius = 12.0
+	game._load_hunt_preferences()
+	check(not game.hunt_skills[1] and is_equal_approx(game.hunt_radius,36.0), "auto-hunt preferences load from saved settings")
+	state.settings = original_hunt_settings
+	game._load_hunt_preferences()
 	check(game.buttons.size() == 2, "nine menu shortcuts replaced by one player control and one owner-only control")
 	check(game.owner_gm_button.visible and not game.gm_authorized, "offline visitor sees red local GM control without online owner role")
 	game._show_panel("GM")
@@ -113,6 +137,11 @@ func run() -> void:
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
 	check(game.bag_slot_grid != null and game.bag_slot_grid.columns == 5, "compact bag grid has five columns")
 	check(game.bag_slot_grid.get_child_count() == 100, "current bag page has 100 item slots")
+	check(game.bag_inventory_panel.find_child("BulkSellActions", true, false) != null, "inventory has multi-selection action row")
+	game._toggle_bulk_mode()
+	check(game.bag_bulk_mode, "multi-select selling mode can be enabled")
+	game._toggle_bulk_mode()
+	check(not game.bag_bulk_mode and game.bag_bulk_selection.is_empty(), "bulk selling mode can be canceled")
 	check(game.bag_equipment_frame != null and game.bag_equipment_buttons.size() == 19, "all 19 named equipment slots are created")
 	check(game.bag_slot_regions.size() == 19, "all equipment slots have a recorded region")
 	for armor_id in ["hat", "shirt", "gloves", "pants", "shoes"]:

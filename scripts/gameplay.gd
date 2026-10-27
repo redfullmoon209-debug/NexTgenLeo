@@ -21,6 +21,14 @@ var stats_label: Label
 var quest_label: Label
 var target_label: Label
 var notice: Label
+var hud_status_panel: PanelContainer
+var hud_quest_panel: PanelContainer
+var hud_target_panel: PanelContainer
+var hud_target_hp: ProgressBar
+var hud_currency_label: Label
+var hud_portrait_label: Label
+var hud_state_label: Label
+var hud_action_style_key := ""
 var hp_bar: ProgressBar
 var stamina_bar: ProgressBar
 var exp_bar: ProgressBar
@@ -521,31 +529,73 @@ func _build_ui() -> void:
 	font.fallbacks = [ThemeDB.fallback_font]
 	theme.default_font = font
 	world.hud.theme = theme
-	var plate := PanelContainer.new()
-	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.position = Vector2(14, 64)
-	plate.size = Vector2(305, 134)
-	plate.add_theme_stylebox_override("panel", _style(Color("142436dd"), Color("9c9276")))
-	world.hud.add_child(plate)
+	# Compact premium navy-and-silver HUD, leaving the middle of the screen
+	# clear for the real 3D player and eventual professional assets.
+	hud_status_panel = PanelContainer.new()
+	hud_status_panel.name = "HUDCharacterFrame"
+	hud_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_status_panel.set_meta("leo_fantasy_skin", true)
+	hud_status_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("0b1e37eb")))
+	hud_status_panel.size = Vector2(324, 155)
+	world.hud.add_child(hud_status_panel)
 	var stack := VBoxContainer.new()
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.add_child(stack)
-	stats_label = _label("", 18)
-	stack.add_child(stats_label)
-	hp_bar = _bar(stack, Color("d65b68"))
-	stamina_bar = _bar(stack, Color("e6c85d"))
-	exp_bar = _bar(stack, Color("518fdb"))
-	quest_label = _label("", 15)
-	quest_label.position = Vector2(18, 205)
-	world.hud.add_child(quest_label)
-	target_label = _label("TAB / LOCK to select target", 19)
-	target_label.position = Vector2(450, 68)
-	world.hud.add_child(target_label)
-	notice = _label("", 16)
-	notice.position = Vector2(330, 115)
-	notice.size = Vector2(600, 75)
+	stack.add_theme_constant_override("separation", 3)
+	hud_status_panel.add_child(stack)
+	var identity_row := HBoxContainer.new()
+	identity_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(identity_row)
+	var portrait_frame := PanelContainer.new()
+	portrait_frame.custom_minimum_size = Vector2(42, 39)
+	portrait_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_frame.set_meta("leo_fantasy_skin", true)
+	portrait_frame.add_theme_stylebox_override("panel", _silver_panel_style(18, Color("254464")))
+	identity_row.add_child(portrait_frame)
+	hud_portrait_label = _label("✦", 23)
+	hud_portrait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	portrait_frame.add_child(hud_portrait_label)
+	stats_label = _label("", 15)
+	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity_row.add_child(stats_label)
+	hp_bar = _bar(stack, Color("cf5567"))
+	stamina_bar = _bar(stack, Color("e6bf46"))
+	exp_bar = _bar(stack, Color("4e9fd9"))
+	hud_currency_label = _label("", 12)
+	stack.add_child(hud_currency_label)
+	hud_quest_panel = PanelContainer.new()
+	hud_quest_panel.name = "HUDQuestFrame"
+	hud_quest_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_quest_panel.set_meta("leo_fantasy_skin", true)
+	hud_quest_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102640df")))
+	hud_quest_panel.size = Vector2(324, 83)
+	world.hud.add_child(hud_quest_panel)
+	quest_label = _label("", 13)
+	hud_quest_panel.add_child(quest_label)
+	hud_target_panel = PanelContainer.new()
+	hud_target_panel.name = "HUDTargetFrame"
+	hud_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_target_panel.set_meta("leo_fantasy_skin", true)
+	hud_target_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("0e2139e8")))
+	hud_target_panel.size = Vector2(350, 80)
+	world.hud.add_child(hud_target_panel)
+	var target_stack := VBoxContainer.new()
+	target_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_target_panel.add_child(target_stack)
+	target_label = _label("กด TAB เพื่อล็อกเป้าหมาย", 16)
+	target_stack.add_child(target_label)
+	hud_target_hp = _bar(target_stack, Color("c74e5d"))
+	hud_target_hp.visible = false
+	notice = _label("", 15)
+	notice.size = Vector2(520, 70)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	notice.add_theme_color_override("font_shadow_color", Color("000714"))
+	notice.add_theme_constant_override("shadow_offset_x", 1)
+	notice.add_theme_constant_override("shadow_offset_y", 2)
 	world.hud.add_child(notice)
+	hud_state_label = _label("", 13)
+	hud_state_label.add_theme_color_override("font_shadow_color", Color("020612"))
+	hud_state_label.add_theme_constant_override("shadow_offset_y", 1)
+	world.hud.add_child(hud_state_label)
 	# The gold menu is shared by all players. In the public Offline Sandbox,
 	# the separate red GM orb exposes LOCAL TEST TOOLS to all visitors.
 	# Once a server connection begins, it requires server owner verification.
@@ -556,7 +606,10 @@ func _build_ui() -> void:
 		var button := _button(controls[i], func(): _action(index))
 		button.size = Vector2(90, 65)
 		button.set_meta("layout_id", "action_%d" % i)
+		button.set_meta("leo_fantasy_skin", true)
+		button.add_theme_font_size_override("font_size", 12)
 		skill_buttons.append(button)
+	_style_hud_actions("")
 	map_display = Control.new()
 	map_display.set_script(load("res://scripts/minimap.gd"))
 	map_display.game = self
@@ -569,7 +622,8 @@ func _build_ui() -> void:
 	panel.size = Vector2(390, 696)
 	panel.z_index = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.add_theme_stylebox_override("panel", _style(Color("142435f5"), Color("b5a47a")))
+	panel.set_meta("leo_fantasy_skin", true)
+	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("102440f7")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -580,6 +634,31 @@ func _build_ui() -> void:
 	panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
+
+func _style_hud_actions(faction_id: String) -> void:
+	var ring := Color("cbd8e8")
+	if faction_id == "Light":
+		ring = Color("f5ebce")
+	elif faction_id == "Dark":
+		ring = Color("a894d7")
+	for i in range(skill_buttons.size()):
+		var button: Button = skill_buttons[i]
+		var base := Color("294764")
+		if i == 2:
+			base = Color("5c2639")
+		elif i in [3, 4, 5]:
+			base = Color("273b6a")
+		elif i == 6:
+			base = Color("275464")
+		elif i == 7:
+			base = Color("355640")
+		button.add_theme_stylebox_override("normal", _silver_panel_style(12, base))
+		var frame: StyleBoxFlat = button.get_theme_stylebox("normal")
+		frame.border_color = ring
+		button.add_theme_stylebox_override("hover", _silver_panel_style(12, base.lightened(0.15)))
+		button.add_theme_stylebox_override("pressed", _silver_panel_style(12, base.darkened(0.12)))
+		button.add_theme_color_override("font_color", Color("f2f6ff"))
+	hud_action_style_key = faction_id
 
 func _bar(parent: Node, color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
@@ -608,6 +687,13 @@ func _layout() -> void:
 		button.position = Vector2(size.x - 330 + (i % 3) * 102, size.y - 240 + int(i / 3.0) * 73)
 		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		button.position += Vector2(float(offset[0]), float(offset[1]))
+		button.position.x = clampf(button.position.x, 0.0, maxf(0.0, size.x - button.size.x))
+		button.position.y = clampf(button.position.y, 0.0, maxf(0.0, size.y - button.size.y))
+	hud_status_panel.position = Vector2(12, 12)
+	hud_quest_panel.position = Vector2(12, 175)
+	hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
+	notice.position = Vector2(maxf(340.0, size.x * 0.33), 108)
+	hud_state_label.position = Vector2(20, maxf(260.0, size.y - 115.0))
 	map_display.position = Vector2(size.x - 175, 12)
 	if is_instance_valid(menu_toggle_button):
 		menu_toggle_button.position = Vector2(maxf(6.0, size.x - 243.0), 32.0)
@@ -856,7 +942,9 @@ func _tick_mobs(delta: float) -> void:
 		mob.node.visible = mob.node.position.distance_squared_to(world.player.position) < 1600
 
 func _refresh_hud() -> void:
-	stats_label.text = "%s  ·  Class %d / Lv.%d" % [GameState.gender, GameState.class_rank, GameState.level]
+	stats_label.text = "%s · คลาส %d / เลเวล %d" % ["ชาย" if GameState.gender == "Male" else "หญิง", GameState.class_rank, GameState.level]
+	hud_portrait_label.text = "♂" if GameState.gender == "Male" else "♀"
+	hud_currency_label.text = "◈ ทอง %d     ◇ แคช %d" % [GameState.gold, GameState.cash]
 	hp_bar.max_value = GameState.max_hp
 	hp_bar.value = GameState.hp
 	stamina_bar.max_value = GameState.max_stamina
@@ -876,20 +964,27 @@ func _refresh_hud() -> void:
 				bar.max_value = maxf(1.0, maximum)
 				bar.value = value
 				bar.get_node("Value").text = "%s  %d / %d" % [["HP", "พลังงาน", "EXP"][i], int(value), int(maximum)]
-	quest_label.text = "%s\nStarter Hunt: %s  %d/5\nGold %d    Cash %d" % [GameState.balance.maps[GameState.map_index].name, GameState.quest_state, GameState.quest_kills, GameState.gold, GameState.cash]
-	target_label.text = "Select target: TAB / LOCK" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
+	var quest_title: String = "ยังไม่ได้รับ" if GameState.quest_state == "available" else ("เสร็จสิ้น" if GameState.quest_state == "complete" else "กำลังทำ")
+	quest_label.text = "แผนที่: %s\nเควสต์เริ่มต้น: %s   %d/5" % [str(GameState.balance.maps[GameState.map_index].name), quest_title, GameState.quest_kills]
+	target_label.text = "กด TAB หรือ LOCK เพื่อเลือกเป้าหมาย" if target < 0 else "%s · Lv.%d · HP %d/%d" % [mobs[target].kind + " Mossling", int(mobs[target].level), int(mobs[target].hp), int(mobs[target].max_hp)]
+	hud_target_hp.visible = target >= 0 and target < mobs.size()
+	if hud_target_hp.visible:
+		hud_target_hp.max_value = maxf(1.0, float(mobs[target].max_hp))
+		hud_target_hp.value = float(mobs[target].hp)
+		hud_target_hp.get_node("Value").text = "%d / %d" % [int(mobs[target].hp), int(mobs[target].max_hp)]
+	var active_buffs := 0
+	for buff_id in GameState.buffs:
+		if GameState.buff_active(str(buff_id)):
+			active_buffs += 1
+	hud_state_label.text = "ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs]
 	for i in range(4):
 		var button := skill_buttons[i + 2]
 		button.text = str(GameState.skill_definition(i).name) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
-	var faction_color := Color("e4e5da") if GameState.faction == "Light" else Color("9a77c5")
-	if GameState.class_rank >= 7 and GameState.faction in ["Light","Dark"]:
-		world.joystick_base.color = Color(faction_color, 0.25)
-		for button in skill_buttons:
-			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),faction_color))
-	else:
-		world.joystick_base.color.a = 0
-		for button in skill_buttons:
-			button.add_theme_stylebox_override("normal", _style(Color("182b40e8"),Color("697d8f")))
+	var active_faction := GameState.faction if GameState.class_rank >= 7 and GameState.faction in ["Light", "Dark"] else ""
+	var faction_color := Color("e4e5da") if active_faction == "Light" else Color("9a77c5")
+	world.joystick_base.color = Color(faction_color, 0.25) if not active_faction.is_empty() else Color.TRANSPARENT
+	if hud_action_style_key != active_faction:
+		_style_hud_actions(active_faction)
 	if OS.has_feature("web"):
 		var gm_rects: Dictionary = {}
 		var gm_popups: Dictionary = {}

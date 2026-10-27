@@ -4,6 +4,8 @@
 - **Female:** `assets/characters/female/Female.glb` (13 MB) is a supplied model connected through `content/characters/female_visual.tscn`.
 - **Male:** No approved production model is configured; the built-in procedural avatar remains the visible fallback.
 
+The source GLB includes a large helper mesh named `Cube`. The female scene explicitly hides that mesh and uses the named humanoid mesh `Arm` for fitted visual bounds; the source GLB itself remains unmodified.
+
 The female scene uses `scripts/imported_character_visual.gd` to determine the model's mesh bounds, rescale to approximately 1.72 meters and align the feet with the gameplay avatar origin. This adapter affects only the visual; player collision, input and combat remain untouched.
 
 The in-game **Character Status > Switch Male / Female** control swaps between the integrated model and the fallback. The inventory 3D preview uses the same visible avatar.

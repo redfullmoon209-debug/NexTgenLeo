@@ -6,6 +6,7 @@ extends Node3D
 @export var source_scene: PackedScene
 @export_range(0.5, 3.0, 0.01) var target_height_m: float = 1.72
 @export_range(-180.0, 180.0, 1.0) var facing_yaw_degrees: float = 0.0
+@export var hidden_mesh_names: PackedStringArray = PackedStringArray()
 
 var visual_loaded: bool = false
 var rendered_height_m: float = 0.0
@@ -38,7 +39,12 @@ func _ready() -> void:
 		var current: Node = to_visit.pop_back()
 		if current is MeshInstance3D:
 			var mesh_node: MeshInstance3D = current as MeshInstance3D
-			if mesh_node.mesh != null:
+			# Some Blender exports include a helper/collision Cube that is
+			# larger than and visually occludes the authored character.
+			# Exclude only names explicitly configured in the model scene.
+			if mesh_node.name in hidden_mesh_names:
+				mesh_node.visible = false
+			elif mesh_node.mesh != null:
 				var local_bounds: AABB = mesh_node.get_aabb()
 				var to_fit: Transform3D = root_inverse * mesh_node.global_transform
 				for vertex_index in range(8):

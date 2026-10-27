@@ -355,11 +355,16 @@ func _layout() -> void:
 		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		button.position += Vector2(float(offset[0]), float(offset[1]))
 	map_display.position = Vector2(size.x - 175, 12)
-	# A two-column equipment/inventory window fills the green/red regions.
-	# All other menus retain the existing compact left-side drawer.
+	# Keep the world character visible to the right of the open inventory.
+	# On landscape screens, the equipment and bag share a compact 2-column dock.
+	# On narrow screens the panes stack and each section scrolls independently.
 	panel.position = Vector2(12, 12)
-	var panel_width := 824.0 if active_panel == "Bag" else 390.0
-	panel.size = Vector2(minf(panel_width, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
+	if active_panel == "Bag":
+		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
+		var bag_height: float = minf(590.0, maxf(160.0, size.y * 0.76))
+		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), minf(bag_height, maxf(160.0, size.y - 24.0)))
+	else:
+		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -793,7 +798,7 @@ func _bag_status_text() -> String:
 
 func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: float, title: String) -> void:
 	var bar := _bar(parent, color)
-	bar.custom_minimum_size.x = 240
+	bar.custom_minimum_size.x = 184
 	bar.max_value = maxf(1.0, maximum)
 	bar.value = current
 	bar.get_node("Value").text = "%s  %d / %d" % [title, int(current), int(maximum)]
@@ -804,8 +809,9 @@ func _bag_equipment_slot(slot_id: String, title: String) -> void:
 	var item: Dictionary = GameState.balance.items.get(str(equipped.get("id", "")), {})
 	var display_name := "ว่าง" if equipped.is_empty() else str(item.get("name", equipped.get("id", "")))
 	var button := _button("%s\n%s" % [title, display_name], func(): _bag_unequip(slot_id), bag_equipment_grid)
-	button.custom_minimum_size = Vector2(145, 63)
-	button.add_theme_font_size_override("font_size", 13)
+	button.custom_minimum_size = Vector2(104, 51)
+	button.add_theme_font_size_override("font_size", 12)
+	button.clip_text = true
 	button.tooltip_text = "กดถอดอุปกรณ์" if not equipped.is_empty() else "ยังไม่ได้สวมใส่"
 	button.disabled = equipped.is_empty()
 
@@ -818,12 +824,12 @@ func _bag_unequip(slot_id: String) -> void:
 
 func _bag() -> void:
 	bag_status_bars.clear()
-	var wide := panel.size.x >= 730.0
+	var wide := panel.size.x >= 550.0
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
 	panes.name = "BagTwoPane"
 	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panes.add_theme_constant_override("separation", 10)
-	panes.custom_minimum_size.y = maxf(260.0, panel.size.y - 132.0)
+	panes.add_theme_constant_override("separation", 7)
+	panes.custom_minimum_size.y = maxf(170.0, panel.size.y - 125.0)
 	menu.add_child(panes)
 
 	# Green area: status and supported equipment slots, always visible
@@ -832,47 +838,47 @@ func _bag() -> void:
 	bag_character_panel.name = "CharacterAndEquipment"
 	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	if wide: bag_character_panel.custom_minimum_size.x = 365
+	if wide: bag_character_panel.custom_minimum_size.x = 230
 	panes.add_child(bag_character_panel)
 	var character_scroll := ScrollContainer.new()
 	character_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	character_scroll.custom_minimum_size.y = 270 if not wide else maxf(250.0, panel.size.y - 145.0)
+	character_scroll.custom_minimum_size.y = 220.0 if not wide else maxf(160.0, panel.size.y - 135.0)
 	bag_character_panel.add_child(character_scroll)
 	var character := VBoxContainer.new()
 	character.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	character.add_theme_constant_override("separation", 7)
+	character.add_theme_constant_override("separation", 4)
 	character_scroll.add_child(character)
-	character.add_child(_label("ข้อมูลตัวละคร / สเตตัส", 19))
-	bag_status_label = _label(_bag_status_text(), 15)
+	character.add_child(_label("สเตตัสตัวละคร", 16))
+	bag_status_label = _label(_bag_status_text(), 13)
 	bag_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	character.add_child(bag_status_label)
 	_bag_bar(character, Color("d65b68"), float(GameState.hp), float(GameState.max_hp), "HP")
 	_bag_bar(character, Color("e6c85d"), GameState.stamina, float(GameState.max_stamina), "พลังงาน")
 	_bag_bar(character, Color("518fdb"), float(GameState.exp), float(GameState.exp_required()), "EXP")
-	character.add_child(_label("ช่องสวมใส่อุปกรณ์", 19))
+	character.add_child(_label("อุปกรณ์สวมใส่", 16))
 	bag_equipment_grid = GridContainer.new()
 	bag_equipment_grid.name = "EquipmentSlots"
-	bag_equipment_grid.columns = 2 if wide else 1
-	bag_equipment_grid.add_theme_constant_override("h_separation", 7)
-	bag_equipment_grid.add_theme_constant_override("v_separation", 7)
+	bag_equipment_grid.columns = 2 if wide or panel.size.x >= 320.0 else 1
+	bag_equipment_grid.add_theme_constant_override("h_separation", 4)
+	bag_equipment_grid.add_theme_constant_override("v_separation", 4)
 	character.add_child(bag_equipment_grid)
 	for slot_def in [{"id":"weapon","title":"อาวุธ"},{"id":"hat","title":"หมวก"},{"id":"shirt","title":"เสื้อ"},{"id":"gloves","title":"ถุงมือ"},{"id":"pants","title":"กางเกง"},{"id":"shoes","title":"รองเท้า"},{"id":"ring","title":"แหวน"},{"id":"necklace","title":"สร้อย"}]:
 		_bag_equipment_slot(str(slot_def.id), str(slot_def.title))
-	character.add_child(_label("แตะอุปกรณ์ที่สวมอยู่เพื่อถอดออก", 13))
+	character.add_child(_label("แตะช่องอุปกรณ์เพื่อถอด", 12))
 
 	# Red area: smaller inventory cells with independent vertical scrolling.
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
 	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	if wide: bag_inventory_panel.custom_minimum_size.x = 360
+	if wide: bag_inventory_panel.custom_minimum_size.x = 275
 	panes.add_child(bag_inventory_panel)
 	var inventory_column := VBoxContainer.new()
 	inventory_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inventory_column.add_theme_constant_override("separation", 5)
+	inventory_column.add_theme_constant_override("separation", 3)
 	bag_inventory_panel.add_child(inventory_column)
-	inventory_column.add_child(_label("กระเป๋า  •  %d / 200 ช่อง" % GameState.inventory.size(), 18))
-	inventory_column.add_child(_label("ทอง %d   |   แคช %d   |   หน้า %d/2" % [GameState.gold, GameState.cash, bag_page + 1], 14))
+	inventory_column.add_child(_label("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
+	inventory_column.add_child(_label("ทอง %d  แคช %d  หน้า %d/2" % [GameState.gold, GameState.cash, bag_page + 1], 12))
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 4)
 	inventory_column.add_child(actions)
@@ -880,19 +886,19 @@ func _bag() -> void:
 	var second_page := _button("2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
 	var sort_button := _button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
 	for button in [first_page, second_page, sort_button]:
-		button.custom_minimum_size = Vector2(75, 37)
-		button.add_theme_font_size_override("font_size", 13)
+		button.custom_minimum_size = Vector2(60, 32)
+		button.add_theme_font_size_override("font_size", 12)
 	var inventory_scroll := ScrollContainer.new()
 	inventory_scroll.name = "BagSlotsScroll"
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inventory_scroll.custom_minimum_size.y = maxf(150.0, panel.size.y - 245.0) if wide else 260.0
+	inventory_scroll.custom_minimum_size.y = maxf(125.0, panel.size.y - 220.0) if wide else 205.0
 	inventory_column.add_child(inventory_scroll)
 	bag_slot_grid = GridContainer.new()
 	bag_slot_grid.name = "InventorySlots"
-	bag_slot_grid.columns = 5 if wide else clampi(int((panel.size.x - 52.0) / 64.0), 2, 5)
-	bag_slot_grid.add_theme_constant_override("h_separation", 5)
-	bag_slot_grid.add_theme_constant_override("v_separation", 5)
+	bag_slot_grid.columns = 5 if wide else clampi(int((panel.size.x - 50.0) / 54.0), 2, 5)
+	bag_slot_grid.add_theme_constant_override("h_separation", 4)
+	bag_slot_grid.add_theme_constant_override("v_separation", 4)
 	inventory_scroll.add_child(bag_slot_grid)
 	for offset in range(100):
 		var index := bag_page * 100 + offset
@@ -904,9 +910,9 @@ func _bag() -> void:
 			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
 		var button := _button(slot_text, func(): _item_menu(index), bag_slot_grid)
-		button.custom_minimum_size = Vector2(55, 53)
+		button.custom_minimum_size = Vector2(47, 46)
 		button.tooltip_text = item_tip
-		button.add_theme_font_size_override("font_size", 13)
+		button.add_theme_font_size_override("font_size", 12)
 
 func _item_menu(index: int) -> void:
 	if index >= GameState.inventory.size():

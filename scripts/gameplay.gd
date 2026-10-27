@@ -361,8 +361,10 @@ func _layout() -> void:
 	panel.position = Vector2(12, 12)
 	if active_panel == "Bag":
 		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
-		var bag_height: float = minf(590.0, maxf(160.0, size.y * 0.76))
-		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), minf(bag_height, maxf(160.0, size.y - 24.0)))
+		# Extend to the viewport bottom while preserving the narrow left width
+		# so the character remains visible in the center of the 3D world.
+		var bag_height: float = maxf(160.0, size.y - 24.0)
+		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), bag_height)
 	else:
 		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 
@@ -641,7 +643,7 @@ func _refresh_hud() -> void:
 		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
 			bag_left_rect = bag_character_panel.get_global_rect()
 			bag_right_rect = bag_inventory_panel.get_global_rect()
-		var diagnostic := {"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var diagnostic := {"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 

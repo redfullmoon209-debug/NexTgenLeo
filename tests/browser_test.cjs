@@ -18,7 +18,8 @@ const {spawn} = require('child_process');
  if(Math.hypot(moved.position[0]-start.position[0],moved.position[2]-start.position[2])<1)throw Error('WASD failed');
  await page.mouse.click(55,305);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
  const drawer=await page.evaluate(()=>window.leoDiagnostics);
- if(drawer.drawer_rect[0]>16||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<540||drawer.drawer_rect[2]>620||drawer.drawer_rect[3]>590||drawer.drawer_z<50)throw Error('Compact bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
+ if(drawer.drawer_rect[0]>16||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<540||drawer.drawer_rect[2]>620||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Full-height narrow bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
+ if(drawer.drawer_rect[1]+drawer.drawer_rect[3]>720||drawer.drawer_rect[1]+drawer.drawer_rect[3]<700)throw Error('Bag does not reach viewport bottom: '+JSON.stringify(drawer.drawer_rect));
  if(drawer.drawer_rect[0]+drawer.drawer_rect[2]>drawer.player_screen[0]-20)throw Error('Inventory panel obscures the 3D player: '+JSON.stringify(drawer));
  if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must stay left of inventory: '+JSON.stringify(drawer));
  if(drawer.bag_right_rect[0]<200||drawer.bag_right_rect[0]>355||drawer.bag_columns!==5)throw Error('Inventory must occupy compact right column: '+JSON.stringify(drawer));
@@ -57,7 +58,10 @@ const {spawn} = require('child_process');
  await page.mouse.click(55*1.5,305*1.5);await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
  const wideBag=await page.evaluate(()=>window.leoDiagnostics);
  if(wideBag.bag_right_rect[0]<=wideBag.bag_left_rect[0])throw Error('1920 wide bag is not split');
- if(wideBag.drawer_rect[2]>620||wideBag.drawer_rect[3]>590||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.player_screen[0]-20)throw Error('1920 bag hides avatar or is too large');
+ // Godot may keep its 1280x720 virtual viewport when Chromium is resized.
+ // Verify the dock against Godot's actual viewport, not the browser's CSS size.
+ if(wideBag.drawer_rect[2]>620||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.player_screen[0]-20)throw Error('Resized-browser bag does not fill Godot viewport or hides avatar: '+JSON.stringify(wideBag));
+ if(wideBag.drawer_rect[1]+wideBag.drawer_rect[3]>wideBag.viewport_size[1]-8)throw Error('Bag extends outside Godot viewport: '+JSON.stringify(wideBag));
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  console.log('MOUSE TESTS: native menu clicks, close, left/right world drag, 1920x1080 click passed');
  await context.close();

@@ -49,10 +49,14 @@ func _process(delta: float) -> void:
 		_refresh()
 
 func _refresh() -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
+	# Only inspect HUD controls; scanning every 3D world object on a timer
+	# is unnecessary and expensive on mobile / software rendering.
+	var main := get_parent()
+	if main == null:
 		return
-	_visit(scene)
+	var hud_root: Variant = main.get("hud")
+	if hud_root is Control:
+		_visit(hud_root)
 
 func _visit(node: Node) -> void:
 	if node is Control and not node.has_meta("leo_fantasy_skin"):

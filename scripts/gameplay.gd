@@ -739,7 +739,8 @@ func _layout() -> void:
 	hud_quest_panel.position = Vector2(12, 175)
 	hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
 	notice.position = Vector2(maxf(340.0, size.x * 0.33), 108)
-	hud_state_label.position = Vector2(20, maxf(260.0, size.y - 115.0))
+	# Keep the auto-hunt/pet/buff indicator outside the lower-left joystick zone.
+	hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
 	map_display.position = Vector2(size.x - 175, 12)
 	if is_instance_valid(menu_toggle_button):
 		menu_toggle_button.position = Vector2(maxf(6.0, size.x - 243.0), 32.0)

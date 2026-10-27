@@ -29,6 +29,9 @@ async function openPlayerMenu(page,entryName){
  await page.goto('http://127.0.0.1:8060');
  await page.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
  let start=await page.evaluate(()=>window.leoDiagnostics);
+ if(!start.hud_status_rect||!start.hud_target_rect||!start.hud_quest_rect)throw Error('New game HUD regions missing');
+ if(start.hud_status_rect[0]>25||start.hud_status_rect[2]<300||start.hud_status_rect[0]+start.hud_status_rect[2]>=start.player_screen[0])throw Error('Character HUD hides the player');
+ if(start.hud_target_rect[0]<=start.hud_status_rect[0]+start.hud_status_rect[2]||start.hud_target_rect[0]+start.hud_target_rect[2]>=1100)throw Error('Target HUD overlaps player status or minimap');
  if(!start.gm_button_visible)throw Error('Offline red GM test button is missing');
  if(!(start.gm_button_rect[0]<start.menu_button_rect[0] && start.gm_button_rect[1]===start.menu_button_rect[1]))throw Error('Red GM button must sit immediately left of gold menu: '+JSON.stringify(start));
  await page.locator('canvas').click({position:{x:600,y:400}});
@@ -71,6 +74,24 @@ async function openPlayerMenu(page,entryName){
  if(drawer.bag_preview_rect[0]<drawer.bag_left_rect[0]||drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]>drawer.bag_left_rect[0]+drawer.bag_left_rect[2]+2)throw Error('Player preview spills outside stat pane');
  if(drawer.drawer_close[0]<12||drawer.drawer_close[0]>drawer.drawer_rect[0]+drawer.drawer_rect[2])throw Error('Close button is outside the bag window');
  await page.screenshot({path:'build/leo-dual-bag-desktop.png'});
+ if(!drawer.bag_bulk_toggle||drawer.bag_bulk_toggle[0]<=0)throw Error('Bulk inventory selection toggle missing');
+ await page.mouse.click(...drawer.bag_bulk_toggle);
+ await page.waitForFunction(()=>window.leoDiagnostics.bag_bulk_mode,null,{timeout:15000});
+ let bulk=await page.evaluate(()=>window.leoDiagnostics);
+ if(bulk.bag_bulk_first_slot[0]<=0)throw Error('Bulk sale has no selectable item slot');
+ await page.mouse.click(...bulk.bag_bulk_first_slot);
+ await page.waitForFunction(()=>window.leoDiagnostics.bag_bulk_count===1,null,{timeout:15000});
+ bulk=await page.evaluate(()=>window.leoDiagnostics);
+ await page.mouse.click(...bulk.bag_bulk_sale);
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='BulkSellConfirm',null,{timeout:15000});
+ await page.keyboard.press('Escape');
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ await page.keyboard.press('b');
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
+ bulk=await page.evaluate(()=>window.leoDiagnostics);
+ await page.mouse.click(...bulk.bag_bulk_toggle);
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag'&&!window.leoDiagnostics.bag_bulk_mode,null,{timeout:15000});
+ console.log('BULK BAG: select, preview sale, cancel, restore inventory passed');
  await page.mouse.click(...drawer.drawer_close);await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  for(const [button,x] of [['left',340],['right',780]]){
   const beforeYaw=(await page.evaluate(()=>window.leoDiagnostics)).yaw;

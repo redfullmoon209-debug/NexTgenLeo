@@ -573,6 +573,7 @@ func _owner_login_panel() -> void:
 
 func _build_ui() -> void:
 	var theme := Theme.new()
+	var steel = load("res://scripts/celestial_steel.gd")
 	var font: FontFile = load("res://assets/fonts/NotoSansThai.ttf")
 	font.fallbacks = [ThemeDB.fallback_font]
 	theme.default_font = font
@@ -583,13 +584,18 @@ func _build_ui() -> void:
 	hud_status_panel.name = "HUDCharacterFrame"
 	hud_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_status_panel.set_meta("leo_fantasy_skin", true)
-	hud_status_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("0b1e37eb")))
+	hud_status_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#10233DF2"), Color("#B7D4ED"), 14))
 	hud_status_panel.size = Vector2(324, 155)
 	world.hud.add_child(hud_status_panel)
 	var stack := VBoxContainer.new()
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_theme_constant_override("separation", 3)
 	hud_status_panel.add_child(stack)
+	var brand_line := _label("N E X T G E N   L E O  /  ADVENTURE", 11)
+	brand_line.name = "CelestialBrandLine"
+	brand_line.set_meta("leo_fantasy_skin", true)
+	brand_line.add_theme_color_override("font_color", Color("#E4C987"))
+	stack.add_child(brand_line)
 	var identity_row := HBoxContainer.new()
 	identity_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(identity_row)
@@ -614,7 +620,7 @@ func _build_ui() -> void:
 	hud_quest_panel.name = "HUDQuestFrame"
 	hud_quest_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_quest_panel.set_meta("leo_fantasy_skin", true)
-	hud_quest_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102640df")))
+	hud_quest_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#0C233BE9"), Color("#6597C6"), 12))
 	hud_quest_panel.size = Vector2(324, 83)
 	world.hud.add_child(hud_quest_panel)
 	quest_label = _label("", 13)
@@ -623,7 +629,7 @@ func _build_ui() -> void:
 	hud_target_panel.name = "HUDTargetFrame"
 	hud_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_target_panel.set_meta("leo_fantasy_skin", true)
-	hud_target_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("0e2139e8")))
+	hud_target_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#18273CF0"), Color("#D7BE8A"), 12))
 	hud_target_panel.size = Vector2(350, 80)
 	world.hud.add_child(hud_target_panel)
 	var target_stack := VBoxContainer.new()
@@ -638,7 +644,7 @@ func _build_ui() -> void:
 	hud_notice_panel.size = Vector2(520, 74)
 	hud_notice_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_notice_panel.set_meta("leo_fantasy_skin", true)
-	hud_notice_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("152c47e7")))
+	hud_notice_panel.add_theme_stylebox_override("panel", steel.panel_style(Color("#132D48EF"), Color("#8FB9DD"), 12))
 	world.hud.add_child(hud_notice_panel)
 	notice = _label("", 14)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

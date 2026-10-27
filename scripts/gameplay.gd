@@ -283,10 +283,10 @@ func _build_ui() -> void:
 	notice.size = Vector2(600, 75)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	world.hud.add_child(notice)
-	var names := ["กระเป๋า [B]", "ร้านค้า [P]", "ตัวละคร [C]", "ภารกิจ [Q]", "แผนที่ [M]", "สัตว์เลี้ยง", "ล่าอัตโนมัติ", "ทักษะ", "GM"]
+	var names := ["กระเป๋า [B]", "ร้านค้า [P]", "ตัวละคร [C]", "ภารกิจ [Q]", "แผนที่ [M]", "Pet", "Auto", "Skills", "GM"]
 	for i in range(names.size()):
 		var name: String = names[i].split(" ")[0]
-		var button := _button(names[i], func(): _show_panel(name))
+		var button := _button(_thai_panel_name(name) + (" [" + names[i].split("[")[1] if "[" in names[i] else ""), func(): _show_panel(name))
 		button.position = Vector2(18 + i % 3 * 90, 285 + int(i / 3.0) * 44)
 		button.size = Vector2(86, 40)
 		buttons.append(button)
@@ -770,7 +770,7 @@ func _bag() -> void:
 		if index < GameState.inventory.size():
 			var slot: Dictionary = GameState.inventory[index]
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
-			slot_text = "%s\\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
+			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
 		var button := _button(slot_text, func(): _item_menu(index), grid)
 		button.custom_minimum_size = Vector2(58, 53)

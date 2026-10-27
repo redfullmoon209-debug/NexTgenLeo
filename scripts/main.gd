@@ -143,11 +143,21 @@ func _make_hud() -> void:
 	joystick_base.color = Color(0.08, 0.12, 0.18, 0.0)
 	joystick_base.size = Vector2(128, 128)
 	joystick_base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var base_shader := Shader.new()
+	base_shader.code = "shader_type canvas_item;\nvoid fragment() { vec2 p = UV * 2.0 - vec2(1.0); float r = length(p); float ring = smoothstep(0.74, 0.82, r) * (1.0 - smoothstep(0.92, 1.0, r)); COLOR = vec4(COLOR.rgb, COLOR.a * ring); }"
+	var base_material := ShaderMaterial.new()
+	base_material.shader = base_shader
+	joystick_base.material = base_material
 	hud.add_child(joystick_base)
 	joystick_knob = ColorRect.new()
 	joystick_knob.color = Color(0.6, 0.8, 1.0, 0.7)
 	joystick_knob.size = Vector2(52, 52)
 	joystick_knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var thumb_shader := Shader.new()
+	thumb_shader.code = "shader_type canvas_item;\nvoid fragment() { vec2 p = UV * 2.0 - vec2(1.0); float r = length(p); float alpha = 1.0 - smoothstep(0.84, 1.0, r); vec3 tint = mix(vec3(0.20, 0.42, 0.68), vec3(0.84, 0.94, 1.0), 1.0 - UV.y); float rim = smoothstep(0.63, 0.82, r) * (1.0 - smoothstep(0.92, 0.99, r)); COLOR = vec4(tint + vec3(rim * 0.12), alpha * 0.94); }"
+	var thumb_material := ShaderMaterial.new()
+	thumb_material.shader = thumb_shader
+	joystick_knob.material = thumb_material
 	hud.add_child(joystick_knob)
 	jump_button = Button.new()
 	jump_button.text = "กระโดด"
@@ -159,6 +169,15 @@ func _make_hud() -> void:
 	run_button.size = Vector2(100, 55)
 	run_button.pressed.connect(_toggle_run)
 	hud.add_child(run_button)
+	var steel = load("res://scripts/celestial_steel.gd")
+	for item in [[jump_button, "jump"], [run_button, "run"]]:
+		var button: Button = item[0]
+		var kind: String = item[1]
+		button.set_meta("leo_fantasy_skin", true)
+		for state in ["normal", "hover", "pressed", "focus"]:
+			button.add_theme_stylebox_override(state, steel.movement_style(kind, state))
+		button.add_theme_color_override("font_color", Color("#F1F7FF"))
+		button.add_theme_font_size_override("font_size", 14)
 	_layout_touch_ui()
 
 func _layout_touch_ui() -> void:
@@ -185,7 +204,7 @@ func _layout_touch_ui() -> void:
 	run_button.position = responsive.keep_inside(Rect2(run_button.position, run_button.size), bounds).position
 
 func _update_knob() -> void:
-	joystick_knob.position = joystick_origin + joystick_vector * 42.0 - joystick_knob.size / 2.0
+	joystick_knob.position = joystick_origin + joystick_vector * joystick_base.size.x * 0.33 - joystick_knob.size / 2.0
 
 func _toggle_run() -> void:
 	run_enabled = not run_enabled
@@ -231,7 +250,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			look_previous = event.position
 
 func _set_joystick(position: Vector2) -> void:
-	joystick_vector = ((position - joystick_origin) / 55.0).limit_length(1.0)
+	joystick_vector = ((position - joystick_origin) / maxf(32.0, joystick_base.size.x * 0.43)).limit_length(1.0)
 	_update_knob()
 
 func _rotate_camera(delta: Vector2) -> void:

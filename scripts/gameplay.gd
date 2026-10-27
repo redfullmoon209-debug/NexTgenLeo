@@ -216,6 +216,13 @@ func _attach_optional_avatar_scene() -> void:
 	imported_avatar_visual = instance as Node3D
 	imported_avatar_visual.name = "ImportedCharacterVisual"
 	avatar.add_child(imported_avatar_visual)
+	# Keep procedural artwork visible when the referenced art fails to import.
+	# Older content scenes without the adapter's visual_loaded field still work.
+	var loaded: Variant = imported_avatar_visual.get("visual_loaded")
+	if loaded is bool and not loaded:
+		imported_avatar_visual.queue_free()
+		imported_avatar_visual = null
+		return
 	# Preserve capsule collision, height growth, equipment and combat logic.
 	# Existing procedural mesh remains a non-rendered fallback, not deleted.
 	for child in avatar.get_children():

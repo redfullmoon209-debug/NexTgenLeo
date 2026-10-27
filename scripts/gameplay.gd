@@ -332,6 +332,167 @@ func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	(parent if parent != null else world.hud).add_child(button)
 	return button
 
+func _menu_orb_style(background: Color, rim: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = rim
+	style.set_border_width_all(2)
+	style.border_width_top = 3
+	style.set_corner_radius_all(40)
+	style.shadow_color = Color("020713c2")
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	return style
+
+func _build_player_dropdown() -> void:
+	dropdown_backdrop = ColorRect.new()
+	dropdown_backdrop.name = "DropdownDismissLayer"
+	dropdown_backdrop.color = Color.TRANSPARENT
+	dropdown_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	dropdown_backdrop.z_index = 80
+	dropdown_backdrop.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed:
+			_close_player_dropdown()
+		elif event is InputEventScreenTouch and event.pressed:
+			_close_player_dropdown()
+	)
+	world.hud.add_child(dropdown_backdrop)
+	dropdown_backdrop.hide()
+	player_dropdown = PanelContainer.new()
+	player_dropdown.name = "PlayerMainDropdown"
+	player_dropdown.z_index = 91
+	player_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
+	player_dropdown.set_meta("leo_fantasy_skin", true)
+	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("0d213ceF")))
+	world.hud.add_child(player_dropdown)
+	var scroll := ScrollContainer.new()
+	scroll.name = "DropdownScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	player_dropdown.add_child(scroll)
+	player_dropdown_column = VBoxContainer.new()
+	player_dropdown_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	player_dropdown_column.add_theme_constant_override("separation", 3)
+	scroll.add_child(player_dropdown_column)
+	var title := _label("เมนูหลัก", 17)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	player_dropdown_column.add_child(title)
+	var specs := [
+		["Bag", "▣", "[B]"],
+		["Shop", "▤", "[P]"],
+		["Status", "♙", "[C]"],
+		["Quest", "✦", "[Q]"],
+		["World", "◉", "[M]"],
+		["Pet", "♧", ""],
+		["Auto", "↻", ""],
+		["Skills", "⚔", ""],
+		["Settings", "⚙", ""],
+		["Connect", "◇", ""]
+	]
+	for spec in specs:
+		var menu_id: String = str(spec[0])
+		var title_text: String = "  %s  %s  %s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), str(spec[2])]
+		var entry := _button(title_text, func(): _open_player_menu(menu_id), player_dropdown_column)
+		entry.name = "Menu_" + menu_id
+		entry.custom_minimum_size = Vector2(215, 38)
+		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.set_meta("leo_fantasy_skin", true)
+		entry.add_theme_font_size_override("font_size", 14)
+		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("152e4adf")))
+		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("2c4f73ff")))
+		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("365e82ff")))
+		dropdown_entries[menu_id] = entry
+	player_dropdown.hide()
+	menu_toggle_button = _button("☰", _toggle_player_dropdown)
+	menu_toggle_button.name = "PlayerMainMenuButton"
+	menu_toggle_button.size = Vector2(52, 52)
+	menu_toggle_button.z_index = 102
+	menu_toggle_button.tooltip_text = "เมนูหลักสำหรับผู้เล่นทุกคน"
+	menu_toggle_button.set_meta("leo_fantasy_skin", true)
+	menu_toggle_button.add_theme_font_size_override("font_size", 28)
+	menu_toggle_button.add_theme_color_override("font_color", Color("352916"))
+	menu_toggle_button.add_theme_stylebox_override("normal", _menu_orb_style(Color("f5ce38"), Color("fff1a7")))
+	menu_toggle_button.add_theme_stylebox_override("hover", _menu_orb_style(Color("ffe26b"), Color("fff8c5")))
+	menu_toggle_button.add_theme_stylebox_override("pressed", _menu_orb_style(Color("dba719"), Color("ffec8e")))
+	buttons.append(menu_toggle_button)
+	owner_gm_button = _button("GM", func(): _show_panel("GM"))
+	owner_gm_button.name = "OwnerGMButton"
+	owner_gm_button.size = Vector2(52, 52)
+	owner_gm_button.z_index = 102
+	owner_gm_button.tooltip_text = "เครื่องมือเจ้าของระบบ — ต้องยืนยันตัวตน"
+	owner_gm_button.set_meta("leo_fantasy_skin", true)
+	owner_gm_button.add_theme_font_size_override("font_size", 15)
+	owner_gm_button.add_theme_color_override("font_color", Color.WHITE)
+	owner_gm_button.add_theme_stylebox_override("normal", _menu_orb_style(Color("b51729"), Color("ffe1e3")))
+	owner_gm_button.add_theme_stylebox_override("hover", _menu_orb_style(Color("e03942"), Color("ffffff")))
+	owner_gm_button.add_theme_stylebox_override("pressed", _menu_orb_style(Color("7e101e"), Color("fff4f4")))
+	owner_gm_button.hide()
+	buttons.append(owner_gm_button)
+
+func _toggle_player_dropdown() -> void:
+	if player_dropdown.visible:
+		_close_player_dropdown()
+	else:
+		panel.hide()
+		active_panel = ""
+		dropdown_backdrop.show()
+		player_dropdown.show()
+		player_dropdown.move_to_front()
+		menu_toggle_button.move_to_front()
+		if owner_gm_button.visible:
+			owner_gm_button.move_to_front()
+
+func _close_player_dropdown() -> void:
+	if is_instance_valid(player_dropdown):
+		player_dropdown.hide()
+	if is_instance_valid(dropdown_backdrop):
+		dropdown_backdrop.hide()
+
+func _open_player_menu(name: String) -> void:
+	_close_player_dropdown()
+	_show_panel(name)
+
+func _player_entry_rects() -> Dictionary:
+	var rects: Dictionary = {}
+	if not is_instance_valid(player_dropdown) or not player_dropdown.visible:
+		return rects
+	for menu_id in dropdown_entries:
+		var entry: Button = dropdown_entries[menu_id]
+		if is_instance_valid(entry):
+			var rect := entry.get_global_rect()
+			rects[str(menu_id)] = [rect.get_center().x, rect.get_center().y]
+	return rects
+
+func _set_gm_authorized(authorized: bool) -> void:
+	gm_authorized = authorized
+	if is_instance_valid(owner_gm_button):
+		owner_gm_button.visible = authorized
+	if not authorized and active_panel == "GM":
+		_close_panel()
+
+func _owner_login_panel() -> void:
+	menu.add_child(_label("ยืนยันเจ้าของระบบกับเซิร์ฟเวอร์ผ่าน WSS เท่านั้น\nเว็บไซต์สาธารณะไม่เก็บรหัส GM และไม่ให้สิทธิ์แก่ผู้เล่นทั่วไป", 14))
+	if not network.active:
+		menu.add_child(_label("ยังไม่ได้เชื่อมต่อเซิร์ฟเวอร์ที่รองรับการยืนยันเจ้าของ", 14))
+		_button("ตั้งค่าเซิร์ฟเวอร์", func(): _show_panel("Connect"), menu)
+		return
+	var field := LineEdit.new()
+	field.name = "OwnerSecretInput"
+	field.secret = true
+	field.placeholder_text = "รหัสเจ้าของจากเซิร์ฟเวอร์ (อย่างน้อย 24 ตัวอักษร)"
+	field.custom_minimum_size = Vector2(235, 42)
+	menu.add_child(field)
+	_button("ยืนยันเจ้าของ / เปิดปุ่ม GM", func():
+		network.authenticate_owner(field.text)
+		field.clear()
+		_close_panel()
+	, menu)
+
 func _build_ui() -> void:
 	var theme := Theme.new()
 	var font: FontFile = load("res://assets/fonts/NotoSansThai.ttf")

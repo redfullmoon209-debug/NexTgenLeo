@@ -90,7 +90,9 @@ func run() -> void:
 	await process_frame
 	check(game.panel.position.x <= 16 and game.panel.position.y <= 16, "dual-pane menu docked at top-left")
 	check(game.panel.size.x <= 620 and game.panel.size.x > 500, "compact two-pane bag leaves center of scene visible")
-	check(game.panel.size.y <= 590, "compact bag has shorter fixed height")
+	var viewport_height: float = scene.get_viewport().get_visible_rect().size.y
+	check(game.panel.size.y >= viewport_height - 30.0, "compact bag stretches almost to the bottom")
+	check(game.panel.position.y + game.panel.size.y <= viewport_height - 8.0, "bag fits within viewport bottom")
 	var actor_screen: Vector2 = scene.camera.unproject_position(scene.player.position)
 	check(game.panel.position.x + game.panel.size.x < actor_screen.x - 20, "world character remains visible beside bag")
 	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "bag stays above other HUD elements")

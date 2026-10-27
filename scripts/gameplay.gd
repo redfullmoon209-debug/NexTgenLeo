@@ -283,7 +283,7 @@ func _build_ui() -> void:
 	notice.size = Vector2(600, 75)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	world.hud.add_child(notice)
-	var names := ["กระเป๋า [B]", "ร้านค้า [P]", "ตัวละคร [C]", "ภารกิจ [Q]", "แผนที่ [M]", "Pet", "Auto", "Skills", "GM"]
+	var names := ["Bag [B]", "Shop [P]", "Status [C]", "Quest [Q]", "World [M]", "Pet", "Auto", "Skills", "GM"]
 	for i in range(names.size()):
 		var name: String = names[i].split(" ")[0]
 		var button := _button(_thai_panel_name(name) + (" [" + names[i].split("[")[1] if "[" in names[i] else ""), func(): _show_panel(name))

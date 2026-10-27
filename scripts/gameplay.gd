@@ -35,6 +35,7 @@ var bag_character_panel: PanelContainer
 var bag_inventory_panel: PanelContainer
 var bag_equipment_buttons: Array[Button] = []
 var bag_equipment_frame: HBoxContainer
+var bag_slot_regions: Dictionary = {}
 var bag_character_preview: SubViewportContainer
 var bag_preview_stage: Node3D
 var bag_preview_model: Node3D
@@ -122,7 +123,9 @@ func _build_avatar() -> void:
 	avatar.position.y = -0.85
 	var skin := Color("d9ac83")
 	var cloth := Color("305e96") if GameState.gender == "Male" else Color("8567a2")
-	if "shirt" in GameState.equipped:
+	if "fashion_shirt" in GameState.equipped:
+		cloth = Color("557fbb")
+	elif "shirt" in GameState.equipped:
 		cloth = Color("258caf")
 	_mesh(avatar, Vector3(0, 1.15, 0), Vector3(0.52, 0.58, 0.28), cloth)
 	# Permanent abdomen: cropped shirts must not remove the underlying body.
@@ -136,15 +139,15 @@ func _build_avatar() -> void:
 		var leg := Node3D.new()
 		leg.position = Vector3(x, 0.77, 0)
 		avatar.add_child(leg)
-		_mesh(leg, Vector3(0, -0.31, 0), Vector3(0.21, 0.60, 0.23), Color("3c4657") if "pants" not in GameState.equipped else Color("335a70"))
-		_mesh(leg, Vector3(0, -0.66, -0.06), Vector3(0.23, 0.17, 0.34), Color("3c2f2b") if "shoes" not in GameState.equipped else Color("91724c"))
+		_mesh(leg, Vector3(0, -0.31, 0), Vector3(0.21, 0.60, 0.23), Color("4777a5") if "fashion_pants" in GameState.equipped else (Color("3c4657") if "pants" not in GameState.equipped else Color("335a70")))
+		_mesh(leg, Vector3(0, -0.66, -0.06), Vector3(0.23, 0.17, 0.34), Color("9caec7") if "fashion_shoes" in GameState.equipped else (Color("3c2f2b") if "shoes" not in GameState.equipped else Color("91724c")))
 		limbs.append(leg)
 	for x in [-0.36, 0.36]:
 		var arm := Node3D.new()
 		arm.position = Vector3(x, 1.35, 0)
 		avatar.add_child(arm)
 		_mesh(arm, Vector3(0, -0.23, 0), Vector3(0.17, 0.49, 0.2), cloth)
-		_mesh(arm, Vector3(0, -0.52, 0), Vector3(0.17, 0.18, 0.18), skin if "gloves" not in GameState.equipped else Color("855b38"))
+		_mesh(arm, Vector3(0, -0.52, 0), Vector3(0.17, 0.18, 0.18), Color("709acb") if "fashion_gloves" in GameState.equipped else (skin if "gloves" not in GameState.equipped else Color("855b38")))
 		limbs.append(arm)
 	weapon = Node3D.new()
 	limbs[3].add_child(weapon)
@@ -167,8 +170,11 @@ func _build_avatar() -> void:
 		_mesh(weapon, Vector3(0,-0.44,-0.15),Vector3(0.1 if firearm else 0.36,0.25 if firearm else 0.1,0.08),Color("e1bb68"))
 		if id in ["dual_pistol","dual_sword"]:
 			_mesh(limbs[2],Vector3(0,-0.44,-0.35),Vector3(0.12,0.08,length),weapon_color)
-	if "hat" in GameState.equipped:
-		_mesh(avatar, Vector3(0, 1.88, -0.07), Vector3(0.48, 0.23, 0.28), Color("c1a258"), "cone")
+	if "hat" in GameState.equipped or "fashion_hat" in GameState.equipped:
+		_mesh(avatar, Vector3(0, 1.88, -0.07), Vector3(0.48, 0.23, 0.28), Color("b2c8e4") if "fashion_hat" in GameState.equipped else Color("c1a258"), "cone")
+	if "weapon_left" in GameState.equipped:
+		var left_hand := str(GameState.equipped["weapon_left"].get("id", "offhand_blade"))
+		_mesh(limbs[2], Vector3(0, -0.43, -0.31), Vector3(0.10, 0.06, 0.60), Color("a1c6e6") if left_hand == "offhand_blade" else Color("d9bc85"))
 	if "accessory" in GameState.equipped:
 		_mesh(avatar, Vector3(0, 1.28, -0.16), Vector3.ONE * 0.09, Color("f4d36c"), "sphere")
 	_sync_bag_avatar_preview()
@@ -196,7 +202,8 @@ func _build_bag_avatar_preview(parent: HBoxContainer) -> void:
 	preview_frame.name = "PlayerModelFrame"
 	preview_frame.custom_minimum_size = Vector2(98, 205)
 	preview_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preview_frame.add_theme_stylebox_override("panel", _style(Color("172741e8"), Color("957c4d"), 7))
+	preview_frame.add_theme_stylebox_override("panel", _silver_panel_style(7, Color("0c1d35eb")))
+	preview_frame.set_meta("leo_fantasy_skin", true)
 	parent.add_child(preview_frame)
 	bag_character_preview = SubViewportContainer.new()
 	bag_character_preview.name = "Player3DPreview"
@@ -703,6 +710,7 @@ func _refresh_hud() -> void:
 		var preview_rect := Rect2()
 		var preview_model_parts := 0
 		var visible_equipment_slots := 0
+		var equipment_rects: Dictionary = {}
 		if active_panel == "Bag" and is_instance_valid(bag_character_preview) and is_instance_valid(bag_preview_model):
 			preview_rect = bag_character_preview.get_global_rect()
 			preview_model_parts = bag_preview_model.get_child_count()
@@ -710,12 +718,13 @@ func _refresh_hud() -> void:
 			for equip_button in bag_equipment_buttons:
 				if is_instance_valid(equip_button):
 					var equip_rect := equip_button.get_global_rect()
+					equipment_rects[str(equip_button.get_meta("equip_slot_id"))] = [equip_rect.position.x, equip_rect.position.y, equip_rect.size.x, equip_rect.size.y]
 					if equip_rect.position.y >= character_rect.position.y and equip_rect.end.y <= character_rect.end.y:
 						visible_equipment_slots += 1
 		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
 			bag_left_rect = bag_character_panel.get_global_rect()
 			bag_right_rect = bag_inventory_panel.get_global_rect()
-		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
+		var diagnostic := {"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"version":"gm-select-20261024-1","gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y]}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -878,19 +887,71 @@ func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: floa
 	bar.get_node("Value").text = "%s  %d / %d" % [title, int(current), int(maximum)]
 	bag_status_bars.append(bar)
 
-func _bag_equipment_slot(slot_id: String, title: String, parent: VBoxContainer) -> void:
+# Raised navy surface with reflective silver edge and deep shadow.
+func _silver_panel_style(radius: int = 10, surface: Color = Color("0b1c34f6")) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = surface
+	style.border_color = Color("b6c9df")
+	style.set_border_width_all(1)
+	style.border_width_top = 2
+	style.set_corner_radius_all(radius)
+	style.shadow_color = Color("020714c8")
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	return style
+
+func _equipment_slot_style(accent: Color, active: bool, hovered: bool = false) -> StyleBoxFlat:
+	var bg := Color("1e3c5f") if hovered else (Color("1a3456") if active else Color("10243e"))
+	var style := _silver_panel_style(7, bg)
+	style.border_color = accent.lightened(0.18) if hovered else accent
+	style.shadow_color = Color("020714b5")
+	style.shadow_size = 3 if hovered else 2
+	style.shadow_offset = Vector2(0, 2)
+	style.content_margin_left = 1
+	style.content_margin_right = 1
+	style.content_margin_top = 1
+	style.content_margin_bottom = 1
+	return style
+
+func _bag_equipment_slot(slot_id: String, title: String, region: String, parent: Container, accent: Color, slot_height: float = 38.0) -> void:
 	var equipped: Dictionary = GameState.equipped.get(slot_id, {})
 	var item: Dictionary = GameState.balance.items.get(str(equipped.get("id", "")), {})
-	var equipped_name := str(item.get("name", equipped.get("id", "")))
-	var text_value := title if equipped.is_empty() else ("%s ◆" % title)
-	var button := _button(text_value, func(): _bag_unequip(slot_id), parent)
-	button.custom_minimum_size = Vector2(64, 44)
+	var filled := not equipped.is_empty()
+	var text_value := title + ("\n◆" if filled else "\n·")
+	var button := _button(text_value, func(): _bag_equipment_clicked(slot_id), parent)
+	button.name = "Equip_" + slot_id
+	button.set_meta("equip_slot_id", slot_id)
+	button.set_meta("equip_region", region)
+	button.set_meta("leo_fantasy_skin", true)
+	button.custom_minimum_size = Vector2(34, slot_height)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_font_size_override("font_size", 10)
 	button.clip_text = true
-	button.tooltip_text = "ว่าง: " + title if equipped.is_empty() else ("สวมอยู่: " + equipped_name + " (กดเพื่อถอด)")
-	button.disabled = equipped.is_empty()
+	button.add_theme_font_size_override("font_size", 9)
+	button.add_theme_color_override("font_color", Color("ecf3ff"))
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_stylebox_override("normal", _equipment_slot_style(accent, filled))
+	button.add_theme_stylebox_override("hover", _equipment_slot_style(accent, filled, true))
+	button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("ecf4ff"), filled, true))
+	button.add_theme_stylebox_override("focus", _equipment_slot_style(Color("e6ecf5"), filled, true))
+	button.tooltip_text = ("%s — แตะเพื่อเลือกไอเทมจากกระเป๋า" % title) if not filled else ("%s: %s — แตะเพื่อถอด" % [title, str(item.get("name", equipped.get("id", "")))])
 	bag_equipment_buttons.append(button)
+	bag_slot_regions[slot_id] = region
+
+func _bag_equipment_clicked(slot_id: String) -> void:
+	if slot_id in GameState.equipped:
+		_bag_unequip(slot_id)
+		return
+	for index in range(GameState.inventory.size()):
+		var slot: Dictionary = GameState.inventory[index]
+		var item: Dictionary = GameState.balance.items.get(str(slot.get("id", "")), {})
+		if str(item.get("slot", "")) == slot_id:
+			_item_menu(index)
+			return
+	_tell("ยังไม่มีไอเทมสำหรับช่องนี้ในกระเป๋า")
 
 func _bag_unequip(slot_id: String) -> void:
 	if GameState.unequip(slot_id):
@@ -902,6 +963,7 @@ func _bag_unequip(slot_id: String) -> void:
 func _bag() -> void:
 	bag_status_bars.clear()
 	bag_equipment_buttons.clear()
+	bag_slot_regions.clear()
 	var wide := panel.size.x >= 550.0
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
 	panes.name = "BagTwoPane"
@@ -914,6 +976,8 @@ func _bag() -> void:
 	# while scrolling the inventory separately on the right.
 	bag_character_panel = PanelContainer.new()
 	bag_character_panel.name = "CharacterAndEquipment"
+	bag_character_panel.set_meta("leo_fantasy_skin", true)
+	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("122944f8")))
 	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_character_panel.custom_minimum_size.x = 230
@@ -924,17 +988,18 @@ func _bag() -> void:
 	bag_character_panel.add_child(character_scroll)
 	var character := VBoxContainer.new()
 	character.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	character.add_theme_constant_override("separation", 4)
+	character.add_theme_constant_override("separation", 3)
 	character_scroll.add_child(character)
-	character.add_child(_label("สเตตัสตัวละคร", 16))
-	bag_status_label = _label(_bag_status_text(), 13)
+	character.add_child(_label("สเตตัสตัวละคร", 14))
+	bag_status_label = _label(_bag_status_text(), 12)
 	bag_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	character.add_child(bag_status_label)
 	_bag_bar(character, Color("d65b68"), float(GameState.hp), float(GameState.max_hp), "HP")
 	_bag_bar(character, Color("e6c85d"), GameState.stamina, float(GameState.max_stamina), "พลังงาน")
 	_bag_bar(character, Color("518fdb"), float(GameState.exp), float(GameState.exp_required()), "EXP")
-	# Flyff-style: four equipment slots on each side of the real 3D player.
-	character.add_child(_label("ตัวละครและอุปกรณ์", 16))
+	# Exact positional mapping from the reference markup:
+	# left weapons / mount / loot pet, center player, right five armor items.
+	character.add_child(_label("ตัวละครและอุปกรณ์", 14))
 	bag_equipment_frame = HBoxContainer.new()
 	bag_equipment_frame.name = "EquipmentAroundAvatar"
 	bag_equipment_frame.add_theme_constant_override("separation", 3)
@@ -943,23 +1008,67 @@ func _bag() -> void:
 	var equipment_left := VBoxContainer.new()
 	equipment_left.name = "EquipmentLeft"
 	equipment_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_left.add_theme_constant_override("separation", 4)
+	equipment_left.add_theme_constant_override("separation", 5)
 	bag_equipment_frame.add_child(equipment_left)
-	for slot_def in [{"id":"weapon","title":"อาวุธ"},{"id":"shirt","title":"เสื้อ"},{"id":"pants","title":"กางเกง"},{"id":"ring","title":"แหวน"}]:
-		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), equipment_left)
+	_bag_equipment_slot("weapon", "มือขวา", "weapon", equipment_left, Color("bcbba6"), 42.0)
+	_bag_equipment_slot("weapon_left", "มือซ้าย", "weapon", equipment_left, Color("bcbba6"), 42.0)
+	var left_gap := Control.new()
+	left_gap.custom_minimum_size.y = 10
+	equipment_left.add_child(left_gap)
+	_bag_equipment_slot("mount", "สัตว์ขี่", "mount", equipment_left, Color("c4aac9"), 43.0)
+	_bag_equipment_slot("loot_pet", "เก็บของ", "pet", equipment_left, Color("95c6ba"), 43.0)
 	_build_bag_avatar_preview(bag_equipment_frame)
 	var equipment_right := VBoxContainer.new()
 	equipment_right.name = "EquipmentRight"
 	equipment_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_right.add_theme_constant_override("separation", 4)
+	equipment_right.add_theme_constant_override("separation", 3)
 	bag_equipment_frame.add_child(equipment_right)
-	for slot_def in [{"id":"hat","title":"หมวก"},{"id":"gloves","title":"ถุงมือ"},{"id":"shoes","title":"รองเท้า"},{"id":"necklace","title":"สร้อย"}]:
-		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), equipment_right)
-	character.add_child(_label("แตะช่องอุปกรณ์ที่สวมอยู่เพื่อถอด", 12))
+	for slot_def in [
+		{"id":"hat","title":"หมวก"},
+		{"id":"shirt","title":"เสื้อ"},
+		{"id":"gloves","title":"ถุงมือ"},
+		{"id":"pants","title":"กางเกง"},
+		{"id":"shoes","title":"รองเท้า"}
+	]:
+		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "armor", equipment_right, Color("bac9da"), 39.0)
+
+	# Silver jewelry row, left-to-right: ring / bracelet / necklace / bracelet / ring.
+	character.add_child(_label("เครื่องประดับ", 13))
+	var jewelry_row := HBoxContainer.new()
+	jewelry_row.name = "JewelryRow"
+	jewelry_row.add_theme_constant_override("separation", 3)
+	jewelry_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character.add_child(jewelry_row)
+	for slot_def in [
+		{"id":"ring","title":"แหวน\nซ้าย"},
+		{"id":"bracelet_left","title":"กำไล\nซ้าย"},
+		{"id":"accessory","title":"สร้อย"},
+		{"id":"bracelet_right","title":"กำไล\nขวา"},
+		{"id":"ring_right","title":"แหวน\nขวา"}
+	]:
+		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "jewelry", jewelry_row, Color("d4deea"), 38.0)
+
+	# Five isolated cosmetic slots. Cosmetics never replace functional armor.
+	character.add_child(_label("ชุดแฟชั่น", 13))
+	var fashion_row := HBoxContainer.new()
+	fashion_row.name = "FashionRow"
+	fashion_row.add_theme_constant_override("separation", 3)
+	fashion_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character.add_child(fashion_row)
+	for slot_def in [
+		{"id":"fashion_hat","title":"หมวก"},
+		{"id":"fashion_shirt","title":"เสื้อ"},
+		{"id":"fashion_gloves","title":"ถุงมือ"},
+		{"id":"fashion_pants","title":"กางเกง"},
+		{"id":"fashion_shoes","title":"รองเท้า"}
+	]:
+		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "fashion", fashion_row, Color("829fda"), 40.0)
 
 	# Red area: smaller inventory cells with independent vertical scrolling.
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
+	bag_inventory_panel.set_meta("leo_fantasy_skin", true)
+	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("122944f8")))
 	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_inventory_panel.custom_minimum_size.x = 275
@@ -1004,6 +1113,10 @@ func _bag() -> void:
 		button.custom_minimum_size = Vector2(47, 46)
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 12)
+		button.set_meta("leo_fantasy_skin", true)
+		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("7693b2"), index < GameState.inventory.size()))
+		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("b8cde6"), true, true))
+		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("dbe8f7"), true, true))
 
 func _item_menu(index: int) -> void:
 	if index >= GameState.inventory.size():

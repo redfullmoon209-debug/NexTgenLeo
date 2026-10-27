@@ -110,6 +110,23 @@ async function openPlayerMenu(page,entryName){
  console.log('OFFLINE UI TESTS: gold dropdown navigation and separate red GM test button pass');
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await page.screenshot({path:'build/leo-desktop.png'});
+ // Verify actual Female.glb art can be selected with the in-game Status UI.
+ await openPlayerMenu(page,'Status');
+ const femaleToggle=await page.evaluate(()=>window.leoDiagnostics.gender_toggle_rect);
+ if(!femaleToggle||femaleToggle[2]<10)throw Error('Character gender switch button is missing');
+ await page.mouse.click(femaleToggle[0]+femaleToggle[2]/2,femaleToggle[1]+femaleToggle[3]/2);
+ await page.waitForFunction(()=>window.leoDiagnostics.gender==='Female'&&window.leoDiagnostics.avatar_model_meshes>0,null,{timeout:45000});
+ await page.keyboard.press('Escape');
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ await page.waitForTimeout(750);
+ await page.screenshot({path:'build/leo-female-model.png'});
+ await openPlayerMenu(page,'Status');
+ const maleToggle=await page.evaluate(()=>window.leoDiagnostics.gender_toggle_rect);
+ await page.mouse.click(maleToggle[0]+maleToggle[2]/2,maleToggle[1]+maleToggle[3]/2);
+ await page.waitForFunction(()=>window.leoDiagnostics.gender==='Male'&&window.leoDiagnostics.avatar_model_meshes===0,null,{timeout:30000});
+ await page.keyboard.press('Escape');
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ console.log('CHARACTER ASSET QA: Female.glb renders in game and Male fallback can be restored');
  console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
  await page.setViewportSize({width:1920,height:1080});
  await page.waitForFunction(()=>window.leoDiagnostics.screen_size[0]===1920,null,{timeout:15000});

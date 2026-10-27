@@ -781,7 +781,7 @@ func _layout() -> void:
 		hud_target_panel.scale = Vector2.ONE * visual_scale
 		hud_notice_panel.scale = Vector2.ONE * visual_scale
 		hud_state_label.scale = Vector2.ONE * visual_scale
-		map_display.scale = Vector2.ONE * (visual_scale * 0.68)
+		map_display.scale = Vector2.ONE * (visual_scale * 0.60)
 		hud_status_panel.size = Vector2(status_width, 170.0)
 		var brand: Label = hud_status_panel.find_child("CelestialBrandLine", true, false)
 		if is_instance_valid(brand):

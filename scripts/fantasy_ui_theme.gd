@@ -125,8 +125,6 @@ func _skin(control: Control) -> void:
 	elif control is OptionButton:
 		control.add_theme_stylebox_override("normal", _normal)
 		control.add_theme_stylebox_override("hover", _hover)
-	elif control is PopupPanel:
-		control.add_theme_stylebox_override("panel", _plate)
 	elif control is TabContainer:
 		control.add_theme_stylebox_override("panel", _plate)
 		control.add_theme_stylebox_override("tab_selected", _hover)

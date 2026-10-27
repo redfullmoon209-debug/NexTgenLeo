@@ -86,6 +86,15 @@ func run() -> void:
 	await process_frame
 	var game = scene.gameplay
 	check(game.mobs.size() == 14, "scene spawns monsters")
+	game._show_panel("Bag")
+	check(game.panel.position.x <= 16 and game.panel.position.y <= 16, "menu docked at far-left top")
+	check(game.panel.size.x <= 400, "menu fits highlighted left column")
+	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "menu brought to foreground above HUD")
+	var bag_grid: GridContainer = null
+	for child in game.menu.get_children():
+		if child is GridContainer: bag_grid = child
+	check(bag_grid != null and bag_grid.columns <= 5, "inventory grid fits left drawer")
+	game._close_panel()
 	for name in ["Bag","Shop","Cash","Status","Quest","World","Pet","Auto","Skills","Settings","GM"]:
 		game._close_panel()
 		game._show_panel(name)

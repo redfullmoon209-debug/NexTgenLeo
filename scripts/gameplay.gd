@@ -238,6 +238,24 @@ func _sync_bag_avatar_preview() -> void:
 		if bag_preview_model.get_parent() != null:
 			bag_preview_model.get_parent().remove_child(bag_preview_model)
 		bag_preview_model.queue_free()
+	# Imported GLB rigs can contain BoneAttachment3D, skins and animation
+	# tracks that do not support Node.duplicate() reliably in Godot 4.4.
+	# Instantiate the authored PackedScene independently for the preview.
+	# The preview remains visual-only, with no collision or gameplay state.
+	if is_instance_valid(imported_avatar_visual):
+		var visual_scene: PackedScene = ContentRegistry.character_scene(GameState.gender)
+		if visual_scene != null:
+			var instance: Node = visual_scene.instantiate()
+			if instance is Node3D:
+				bag_preview_model = Node3D.new()
+				bag_preview_model.name = "DisplayedPlayerAvatar"
+				bag_preview_model.add_child(instance)
+				bag_preview_model.scale = Vector3.ONE * 0.94
+				bag_preview_stage.add_child(bag_preview_model)
+				return
+			instance.queue_free()
+	# Retain the existing modular placeholder preview for characters without
+	# imported art (including Male until a supported source model is added).
 	bag_preview_model = avatar.duplicate() as Node3D
 	bag_preview_model.name = "DisplayedPlayerAvatar"
 	bag_preview_model.position = Vector3.ZERO

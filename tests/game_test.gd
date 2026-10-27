@@ -109,6 +109,20 @@ func run() -> void:
 		check(bool(female_visual.get("visual_loaded")) and int(female_visual.get("rendered_mesh_count")) > 0, "female GLB imports usable MeshInstance3D geometry")
 		check(absf(float(female_visual.get("rendered_height_m")) - 1.72) < 0.03, "female GLB is normalized to playable body height")
 		check(female_visual.get_node_or_null("ModelFit") != null, "female art uses an independent fit transform without changing physics")
+		var asset_walk: Array[Node] = [female_visual]
+		var mesh_report: Array[String] = []
+		var inspected_nodes := 0
+		while not asset_walk.is_empty() and inspected_nodes < 250:
+			var item: Node = asset_walk.pop_back()
+			inspected_nodes += 1
+			if item is MeshInstance3D:
+				var mesh_instance: MeshInstance3D = item as MeshInstance3D
+				if mesh_instance.mesh != null:
+					var mesh_box: AABB = mesh_instance.get_aabb()
+					mesh_report.append("%s aabb=%s surfaces=%d" % [str(item.get_path()), str(mesh_box), mesh_instance.mesh.get_surface_count()])
+			for child in item.get_children():
+				asset_walk.append(child)
+		print("FEMALE_GLTF_MESH_REPORT=" + JSON.stringify(mesh_report.slice(0, 60)))
 	state.gender = old_gender
 	game._build_avatar()
 	check(game.imported_avatar_visual == null, "male placeholder remains intact until male art is available")

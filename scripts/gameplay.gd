@@ -734,25 +734,55 @@ func _bar(parent: Node, color: Color) -> ProgressBar:
 	return bar
 
 func _layout() -> void:
+	var responsive = load("res://scripts/responsive_ui.gd")
 	var size: Vector2 = world.get_viewport().get_visible_rect().size
+	var bounds: Rect2 = responsive.safe_bounds(world.get_viewport())
+	var portrait: bool = responsive.is_portrait(bounds.size)
+	var ui_scale: float = float(GameState.settings.get("ui_scale", 1.0))
+	var offset_key: String = responsive.offsets_key(size)
+	var saved_offsets: Dictionary = GameState.settings.get(offset_key, {})
+	# Older user saves remain compatible with the original landscape layout.
+	if not portrait and saved_offsets.is_empty():
+		saved_offsets = GameState.settings.get("button_offsets", {})
 	for i in range(skill_buttons.size()):
 		var button := skill_buttons[i]
-		button.position = Vector2(size.x - 330 + (i % 3) * 102, size.y - 240 + int(i / 3.0) * 73)
-		var offset: Array = GameState.settings.button_offsets.get(str(button.get_meta("layout_id")), [0, 0])
-		button.position += Vector2(float(offset[0]), float(offset[1]))
-		button.position.x = clampf(button.position.x, 0.0, maxf(0.0, size.x - button.size.x))
-		button.position.y = clampf(button.position.y, 0.0, maxf(0.0, size.y - button.size.y))
-	hud_status_panel.position = Vector2(12, 12)
-	hud_quest_panel.position = Vector2(12, 175)
-	hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
-	hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
-	# Keep the auto-hunt/pet/buff indicator outside the lower-left joystick zone.
-	hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
-	map_display.position = Vector2(size.x - 175, 12)
+		var base_rect: Rect2 = responsive.action_slot_rect(i, bounds, ui_scale)
+		button.size = base_rect.size
+		var offset: Array = saved_offsets.get(str(button.get_meta("layout_id")), [0, 0])
+		var requested := Rect2(base_rect.position + Vector2(float(offset[0]), float(offset[1])), base_rect.size)
+		button.position = responsive.keep_inside(requested, bounds).position
+	if portrait:
+		var hud_width := minf(bounds.size.x * 0.58, 324.0)
+		hud_status_panel.size = Vector2(hud_width, 155.0)
+		hud_status_panel.position = bounds.position
+		for bar in [hp_bar, stamina_bar, exp_bar]:
+			bar.custom_minimum_size.x = 0.0
+		hud_quest_panel.size = Vector2(hud_width, 83.0)
+		hud_quest_panel.position = Vector2(bounds.position.x, hud_status_panel.position.y + 160.0)
+		hud_target_panel.size = Vector2(minf(bounds.size.x, 350.0), 80.0)
+		hud_target_panel.position = Vector2(bounds.position.x, hud_quest_panel.position.y + 90.0)
+		map_display.position = Vector2(bounds.end.x - map_display.size.x, bounds.position.y)
+		hud_notice_panel.size.x = minf(520.0, bounds.size.x)
+		hud_notice_panel.position = Vector2(bounds.position.x, hud_target_panel.position.y + 88.0)
+		hud_state_label.position = Vector2(bounds.position.x, bounds.end.y - 275.0)
+	else:
+		hud_status_panel.size = Vector2(324, 155)
+		for bar in [hp_bar, stamina_bar, exp_bar]:
+			bar.custom_minimum_size.x = 270.0
+		hud_quest_panel.size = Vector2(324, 83)
+		hud_target_panel.size = Vector2(350, 80)
+		hud_notice_panel.size.x = 520.0
+		hud_status_panel.position = Vector2(12, 12)
+		hud_quest_panel.position = Vector2(12, 175)
+		hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
+		hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
+		hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
+		map_display.position = Vector2(size.x - 175, 12)
+	var menu_top := bounds.position.y + (157.0 if portrait else 20.0)
 	if is_instance_valid(menu_toggle_button):
-		menu_toggle_button.position = Vector2(maxf(6.0, size.x - 243.0), 32.0)
+		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x, menu_top)
 	if is_instance_valid(owner_gm_button):
-		owner_gm_button.position = Vector2(maxf(6.0, size.x - 305.0), 32.0)
+		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x - 10.0, menu_top)
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
@@ -760,18 +790,20 @@ func _layout() -> void:
 		var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
 		player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
 		player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
-	# Keep the world character visible to the right of the open inventory.
-	# On landscape screens, the equipment and bag share a compact 2-column dock.
-	# On narrow screens the panes stack and each section scrolls independently.
-	panel.position = Vector2(12, 12)
+		if portrait:
+			player_dropdown.size = Vector2(minf(240.0, bounds.size.x), minf(475.0, bounds.size.y - 220.0))
+			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x, menu_top + 58.0)
+	panel.position = bounds.position if portrait else Vector2(12, 12)
 	if active_panel == "Bag":
 		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
-		# Extend to the viewport bottom while preserving the narrow left width
-		# so the character remains visible in the center of the 3D world.
+		if portrait:
+			bag_width = bounds.size.x
 		var bag_height: float = maxf(160.0, size.y - 24.0)
 		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), bag_height)
 	else:
 		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
+	if portrait:
+		panel.size = bounds.size
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -1386,7 +1418,7 @@ func _bag() -> void:
 		bag_bulk_selection.clear()
 	bag_equipment_buttons.clear()
 	bag_slot_regions.clear()
-	var wide := panel.size.x >= 550.0
+	var wide := panel.size.x >= 550.0 and world.get_viewport().get_visible_rect().size.x >= world.get_viewport().get_visible_rect().size.y
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
 	panes.name = "BagTwoPane"
 	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL

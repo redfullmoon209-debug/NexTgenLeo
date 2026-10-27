@@ -89,7 +89,10 @@ func run() -> void:
 	game._show_panel("Bag")
 	await process_frame
 	check(game.panel.position.x <= 16 and game.panel.position.y <= 16, "dual-pane menu docked at top-left")
-	check(game.panel.size.x > 700 and game.panel.size.x <= 840, "dual-pane bag fits highlighted areas")
+	check(game.panel.size.x <= 620 and game.panel.size.x > 500, "compact two-pane bag leaves center of scene visible")
+	check(game.panel.size.y <= 590, "compact bag has shorter fixed height")
+	var actor_screen: Vector2 = scene.camera.unproject_position(scene.player.position)
+	check(game.panel.position.x + game.panel.size.x < actor_screen.x - 20, "world character remains visible beside bag")
 	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "bag stays above other HUD elements")
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
 	check(game.bag_slot_grid != null and game.bag_slot_grid.columns == 5, "compact bag grid has five columns")

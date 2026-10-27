@@ -38,6 +38,8 @@ var dropdown_entries: Dictionary = {}
 var gm_authorized := false
 var active_panel := ""
 var bag_page := 0
+var bag_bulk_mode := false
+var bag_bulk_selection: Dictionary = {}
 var bag_character_panel: PanelContainer
 var bag_inventory_panel: PanelContainer
 var bag_equipment_buttons: Array[Button] = []
@@ -73,6 +75,7 @@ func _ready() -> void:
 	_build_ui()
 	_build_avatar()
 	_build_zone()
+	_load_hunt_preferences()
 	GameState.appearance_changed.connect(_build_avatar)
 	GameState.progression_changed.connect(_build_avatar)
 	var saved: Array = GameState.location
@@ -987,13 +990,38 @@ func _input(event: InputEvent) -> void:
 		auto_attack = false
 		auto_hunt = false
 
+func _load_hunt_preferences() -> void:
+	var saved: Variant = GameState.settings.get("auto_hunt_skills", [true, true, true])
+	if saved is Array and saved.size() == 3:
+		for i in range(3):
+			hunt_skills[i] = bool(saved[i])
+	hunt_radius = clampf(float(GameState.settings.get("auto_hunt_radius", 18.0)), 8.0, 40.0)
+
+func _save_hunt_preferences() -> void:
+	if network.active or network.connecting:
+		return
+	GameState.settings["auto_hunt_skills"] = hunt_skills.duplicate()
+	GameState.settings["auto_hunt_radius"] = hunt_radius
+	_save()
+
+func _select_hunt_skill(index: int, enabled: bool) -> void:
+	if index < 0 or index >= hunt_skills.size():
+		return
+	hunt_skills[index] = enabled
+	_save_hunt_preferences()
+
+func _select_hunt_radius(radius: float) -> void:
+	hunt_radius = clampf(radius, 8.0, 40.0)
+	_save_hunt_preferences()
+	_tell("บันทึกระยะล่าอัตโนมัติ %d เมตร" % int(hunt_radius))
+
 func _close_panel() -> void:
 	_close_player_dropdown()
 	panel.hide()
 	active_panel = ""
 
 func _thai_panel_name(name: String) -> String:
-	var names := {"Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
+	var names := {"BulkSellConfirm":"ยืนยันขายหลายชิ้น", "Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
 	return str(names.get(name, name))
 
 func _show_panel(name: String) -> void:
@@ -1023,6 +1051,7 @@ func _show_panel(name: String) -> void:
 		return
 	match name:
 		"Bag": _bag()
+		"BulkSellConfirm": _bag_bulk_confirm()
 		"Shop", "Cash": _shop(name == "Cash")
 		"Status": _status()
 		"Quest":
@@ -1048,10 +1077,10 @@ func _show_panel(name: String) -> void:
 				var check := CheckButton.new()
 				check.text = "Use " + str(GameState.skill_definition(i + 1).name)
 				check.button_pressed = hunt_skills[i]
-				check.toggled.connect(func(on): hunt_skills[index] = on)
+				check.toggled.connect(func(on): _select_hunt_skill(index, on))
 				menu.add_child(check)
 			for radius in [12.0, 20.0, 36.0]:
-				_button("Search radius %dm" % radius, func(): hunt_radius = radius, menu)
+				_button("ระยะค้นหา %d เมตร" % int(radius), func(): _select_hunt_radius(radius), menu)
 			_button("Start / stop Auto Hunt", func(): _action(7); _close_panel(), menu)
 		"Skills":
 			_skills_panel()
@@ -1166,6 +1195,8 @@ func _bag_unequip(slot_id: String) -> void:
 
 func _bag() -> void:
 	bag_status_bars.clear()
+	if not bag_bulk_mode:
+		bag_bulk_selection.clear()
 	bag_equipment_buttons.clear()
 	bag_slot_regions.clear()
 	var wide := panel.size.x >= 550.0
@@ -1288,10 +1319,23 @@ func _bag() -> void:
 	inventory_column.add_child(actions)
 	var first_page := _button("◀ 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
 	var second_page := _button("2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
-	var sort_button := _button("จัดเรียง", func(): GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
+	var sort_button := _button("จัดเรียง", func(): bag_bulk_selection.clear(); GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
 	for button in [first_page, second_page, sort_button]:
 		button.custom_minimum_size = Vector2(60, 32)
 		button.add_theme_font_size_override("font_size", 12)
+	# The selection row is separate to avoid crowding the five-column grid.
+	var bulk_actions := HBoxContainer.new()
+	bulk_actions.name = "BulkSellActions"
+	bulk_actions.add_theme_constant_override("separation", 4)
+	inventory_column.add_child(bulk_actions)
+	var toggle_bulk := _button("ปิดเลือก" if bag_bulk_mode else "เลือกหลายชิ้น", func(): _toggle_bulk_mode(), bulk_actions)
+	toggle_bulk.name = "BulkSelectionToggle"
+	toggle_bulk.custom_minimum_size = Vector2(98, 32)
+	var selected_count := bag_bulk_selection.size()
+	var bulk_sell := _button("ขายที่เลือก (%d)" % selected_count, func(): _bag_bulk_confirm_open(), bulk_actions)
+	bulk_sell.name = "BulkSaleButton"
+	bulk_sell.custom_minimum_size = Vector2(123, 32)
+	bulk_sell.disabled = not bag_bulk_mode or selected_count == 0
 	var inventory_scroll := ScrollContainer.new()
 	inventory_scroll.name = "BagSlotsScroll"
 	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1313,7 +1357,15 @@ func _bag() -> void:
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
 			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
-		var button := _button(slot_text, func(): _item_menu(index), bag_slot_grid)
+		if bag_bulk_mode and bag_bulk_selection.has(index):
+			slot_text = "✓ " + slot_text
+		var button := _button(slot_text, func():
+			if bag_bulk_mode:
+				_toggle_bulk_item(index)
+			else:
+				_item_menu(index)
+		, bag_slot_grid)
+		button.name = "InventorySlot%d" % index
 		button.custom_minimum_size = Vector2(47, 46)
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 12)
@@ -1321,6 +1373,57 @@ func _bag() -> void:
 		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("7693b2"), index < GameState.inventory.size()))
 		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("b8cde6"), true, true))
 		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("dbe8f7"), true, true))
+
+func _toggle_bulk_mode() -> void:
+	bag_bulk_mode = not bag_bulk_mode
+	bag_bulk_selection.clear()
+	_close_panel()
+	_show_panel("Bag")
+
+func _toggle_bulk_item(index: int) -> void:
+	if not bag_bulk_mode or index < 0 or index >= GameState.inventory.size():
+		return
+	if bag_bulk_selection.has(index):
+		bag_bulk_selection.erase(index)
+	else:
+		bag_bulk_selection[index] = int(GameState.inventory[index].count)
+	_close_panel()
+	_show_panel("Bag")
+
+func _bag_bulk_confirm_open() -> void:
+	if bag_bulk_selection.is_empty():
+		_tell("เลือกไอเทมที่จะขายก่อน")
+		return
+	_show_panel("BulkSellConfirm")
+
+func _bag_bulk_confirm() -> void:
+	var total := 0
+	var names: Array[String] = []
+	for key in bag_bulk_selection:
+		var index: int = int(key)
+		if index < 0 or index >= GameState.inventory.size():
+			_tell("กระเป๋าเปลี่ยนแล้ว กรุณาเลือกใหม่")
+			bag_bulk_selection.clear()
+			_close_panel()
+			return
+		var stack: Dictionary = GameState.inventory[index]
+		var amount: int = int(bag_bulk_selection[key])
+		var definition: Dictionary = GameState.balance.items.get(str(stack.id), {})
+		total += int(definition.get("sell", 0)) * amount
+		names.append("%s ×%d" % [str(definition.get("name", stack.id)), amount])
+	menu.add_child(_label("ขายไอเทมที่เลือก %d ช่อง\n%s\nรับเงินรวม %d Gold" % [bag_bulk_selection.size(), "\n".join(names), total], 14))
+	_button("ยืนยันขายทั้งหมด", func():
+		var amount: int = GameState.sell_many(bag_bulk_selection)
+		if amount >= 0:
+			_tell("ขายสำเร็จ ได้รับ %d Gold" % amount)
+			bag_bulk_mode = false
+			bag_bulk_selection.clear()
+		else:
+			_tell("ขายไม่สำเร็จ กระเป๋าอาจเปลี่ยนแล้ว")
+		_close_panel()
+		_show_panel("Bag")
+	, menu)
+	_button("กลับไปกระเป๋า", func(): _close_panel(); _show_panel("Bag"), menu)
 
 func _item_menu(index: int) -> void:
 	if index >= GameState.inventory.size():

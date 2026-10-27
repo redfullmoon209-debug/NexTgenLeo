@@ -19,6 +19,12 @@ func run() -> void:
 	root.add_child(scene)
 	await process_frame
 	var game = scene.gameplay
+	check(not game.owner_gm_button.visible, "guest cannot see owner-only GM button")
+	game._show_panel("GM")
+	check(not game.panel.visible and game.gm_choosers.size() == 0, "guest cannot open GM by invoking panel directly")
+	check(not game._gm_select("gender","Female",false), "guest cannot mutate GM state")
+	game._set_gm_authorized(true)
+	check(game.owner_gm_button.visible, "server-owner role displays red GM button")
 	game._show_panel("GM")
 	check(game.gm_choosers.size() == 3,"GM exposes all three selectors")
 	check(game.gm_choosers.job.item_count == 13,"Novice plus twelve professions")
@@ -43,6 +49,8 @@ func run() -> void:
 	game.network.active = true
 	check(not game._gm_select("gender","Female",false) and state.gender == "Male","online GM mutations blocked")
 	game.network.active = false
+	game._set_gm_authorized(false)
+	check(not game.owner_gm_button.visible and not game.panel.visible, "owner role loss hides GM and closes its menu")
 	scene.queue_free()
 	await process_frame
 	print("GM TESTS: %d checks; %d failures" % [checks,failures])

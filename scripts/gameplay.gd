@@ -361,8 +361,10 @@ func _layout() -> void:
 	panel.position = Vector2(12, 12)
 	if active_panel == "Bag":
 		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
-		var bag_height: float = minf(590.0, maxf(160.0, size.y * 0.76))
-		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), minf(bag_height, maxf(160.0, size.y - 24.0)))
+		# Extend to the viewport bottom while preserving the narrow left width
+		# so the character remains visible in the center of the 3D world.
+		var bag_height: float = maxf(160.0, size.y - 24.0)
+		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), bag_height)
 	else:
 		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 

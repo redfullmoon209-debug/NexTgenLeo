@@ -98,7 +98,8 @@ jobs:
         run: |
           set -euo pipefail
           test -s _pages_export/index.html
-          test -f _pages_export/.nojekyll
+          # Upload-artifact excludes dotfiles by default; recreate the marker.
+          touch _pages_export/.nojekyll
           # Do not overwrite a newer source revision with a stale export.
           if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
             echo "A newer main commit exists; skipping this older export."

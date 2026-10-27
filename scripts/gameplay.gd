@@ -667,6 +667,29 @@ func _build_ui() -> void:
 		button.set_meta("layout_id", "action_%d" % i)
 		button.set_meta("leo_fantasy_skin", true)
 		button.add_theme_font_size_override("font_size", 12)
+		button.tooltip_text = ["ล็อกเป้าหมาย", "เก็บของ", "โจมตีปกติ", "สกิล 1", "สกิล 2", "สกิล 3", "พุ่งหลบ", "ล่าอัตโนมัติ"][i]
+		button.text = ""
+		var art := Control.new()
+		art.set_script(load("res://scripts/celestial_action_icon.gd"))
+		art.action_id = i
+		art.name = "ActionIcon"
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(art)
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var caption := Label.new()
+		caption.name = "ActionCaption"
+		caption.text = ["ล็อก", "เก็บ", "โจมตี", "สกิล 1", "สกิล 2", "สกิล 3", "พุ่ง", "ออโต้"][i]
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		caption.set_meta("leo_fantasy_skin", true)
+		caption.add_theme_color_override("font_color", Color("#F5F9FF"))
+		caption.add_theme_color_override("font_shadow_color", Color("#081122"))
+		caption.add_theme_constant_override("shadow_offset_x", 1)
+		caption.add_theme_constant_override("shadow_offset_y", 1)
+		caption.add_theme_font_size_override("font_size", 11)
+		button.add_child(caption)
+		caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		skill_buttons.append(button)
 	_style_hud_actions("")
 	map_display = Control.new()
@@ -695,28 +718,15 @@ func _build_ui() -> void:
 	_layout()
 
 func _style_hud_actions(faction_id: String) -> void:
-	var ring := Color("cbd8e8")
-	if faction_id == "Light":
-		ring = Color("f5ebce")
-	elif faction_id == "Dark":
-		ring = Color("a894d7")
+	var steel = load("res://scripts/celestial_steel.gd")
 	for i in range(skill_buttons.size()):
 		var button: Button = skill_buttons[i]
-		var base := Color("294764")
-		if i == 2:
-			base = Color("5c2639")
-		elif i in [3, 4, 5]:
-			base = Color("273b6a")
-		elif i == 6:
-			base = Color("275464")
-		elif i == 7:
-			base = Color("355640")
-		button.add_theme_stylebox_override("normal", _silver_panel_style(12, base))
-		var frame: StyleBoxFlat = button.get_theme_stylebox("normal")
-		frame.border_color = ring
-		button.add_theme_stylebox_override("hover", _silver_panel_style(12, base.lightened(0.15)))
-		button.add_theme_stylebox_override("pressed", _silver_panel_style(12, base.darkened(0.12)))
-		button.add_theme_color_override("font_color", Color("f2f6ff"))
+		for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+			button.add_theme_stylebox_override(state, steel.action_style(i, faction_id, state))
+		button.add_theme_color_override("font_color", Color("#F3F7FF"))
+		var art: Control = button.get_node_or_null("ActionIcon")
+		if is_instance_valid(art):
+			art.queue_redraw()
 	hud_action_style_key = faction_id
 
 func _bar(parent: Node, color: Color) -> ProgressBar:
@@ -754,6 +764,9 @@ func _layout() -> void:
 		var button := skill_buttons[i]
 		var base_rect: Rect2 = responsive.action_slot_rect(i, bounds, ui_scale)
 		button.size = base_rect.size
+		var caption: Label = button.get_node_or_null("ActionCaption")
+		if is_instance_valid(caption):
+			caption.add_theme_font_size_override("font_size", clampi(roundi(11.0 * responsive.input_scale(bounds, ui_scale)), 11, 48))
 		var offset: Array = saved_offsets.get(str(button.get_meta("layout_id")), [0, 0])
 		var requested := Rect2(base_rect.position + Vector2(float(offset[0]), float(offset[1])), base_rect.size)
 		button.position = responsive.keep_inside(requested, bounds).position
@@ -1097,7 +1110,10 @@ func _refresh_hud() -> void:
 	hud_state_label.text = "ล่าอัตโนมัติ: %s  |  สัตว์เก็บของ: %s  |  บัฟ: %d" % ["เปิด" if auto_hunt else "ปิด", "เรียก" if GameState.pet_enabled else "เก็บ", active_buffs]
 	for i in range(4):
 		var button := skill_buttons[i + 2]
-		button.text = _thai_skill_name(i) + ("\n%.1fs" % float(cooldowns[i]) if float(cooldowns[i]) > 0 else "\n[%s]" % ("F" if i == 0 else str(i)))
+		var caption: Label = button.get_node_or_null("ActionCaption")
+		if is_instance_valid(caption):
+			caption.text = ("%.1fs" % float(cooldowns[i])) if float(cooldowns[i]) > 0 else (["โจมตี", "สกิล 1", "สกิล 2", "สกิล 3"][i])
+		button.disabled = float(cooldowns[i]) > 0.0
 	var active_faction := GameState.faction if GameState.class_rank >= 7 and GameState.faction in ["Light", "Dark"] else ""
 	var faction_color := Color("e4e5da") if active_faction == "Light" else Color("9a77c5")
 	world.joystick_base.color = Color(faction_color, 0.25) if not active_faction.is_empty() else Color.TRANSPARENT

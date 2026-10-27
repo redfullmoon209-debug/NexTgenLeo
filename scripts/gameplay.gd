@@ -28,6 +28,8 @@ var hud_status_panel: PanelContainer
 var hud_quest_panel: PanelContainer
 var hud_target_panel: PanelContainer
 var hud_target_hp: ProgressBar
+var hud_notice_panel: PanelContainer
+var notice_hide_timer := 0.0
 var hud_currency_label: Label
 var hud_portrait_label: Label
 var hud_state_label: Label
@@ -631,13 +633,18 @@ func _build_ui() -> void:
 	target_stack.add_child(target_label)
 	hud_target_hp = _bar(target_stack, Color("c74e5d"))
 	hud_target_hp.visible = false
-	notice = _label("", 15)
-	notice.size = Vector2(520, 70)
+	hud_notice_panel = PanelContainer.new()
+	hud_notice_panel.name = "HUDNoticeToast"
+	hud_notice_panel.size = Vector2(520, 74)
+	hud_notice_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_notice_panel.set_meta("leo_fantasy_skin", true)
+	hud_notice_panel.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("152c47e7")))
+	world.hud.add_child(hud_notice_panel)
+	notice = _label("", 14)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	notice.add_theme_color_override("font_shadow_color", Color("000714"))
-	notice.add_theme_constant_override("shadow_offset_x", 1)
-	notice.add_theme_constant_override("shadow_offset_y", 2)
-	world.hud.add_child(notice)
+	notice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hud_notice_panel.add_child(notice)
+	hud_notice_panel.hide()
 	hud_state_label = _label("", 13)
 	hud_state_label.add_theme_color_override("font_shadow_color", Color("020612"))
 	hud_state_label.add_theme_constant_override("shadow_offset_y", 1)
@@ -738,7 +745,7 @@ func _layout() -> void:
 	hud_status_panel.position = Vector2(12, 12)
 	hud_quest_panel.position = Vector2(12, 175)
 	hud_target_panel.position = Vector2(maxf(342.0, (size.x - 350.0) * 0.5), 14)
-	notice.position = Vector2(maxf(340.0, size.x * 0.33), 108)
+	hud_notice_panel.position = Vector2(maxf(345.0, (size.x - hud_notice_panel.size.x) * 0.5), 103.0)
 	# Keep the auto-hunt/pet/buff indicator outside the lower-left joystick zone.
 	hud_state_label.position = Vector2(minf(340.0, maxf(220.0, size.x * 0.27)), maxf(260.0, size.y - 78.0))
 	map_display.position = Vector2(size.x - 175, 12)
@@ -768,6 +775,9 @@ func _layout() -> void:
 
 func _tell(text: String) -> void:
 	notice.text = text
+	notice_hide_timer = 5.5 if not text.is_empty() else 0.0
+	if is_instance_valid(hud_notice_panel):
+		hud_notice_panel.visible = not text.is_empty()
 
 func _action(index: int, from_touch := false) -> void:
 	if not from_touch and Time.get_ticks_msec() - last_touch_action < 200: return
@@ -895,6 +905,10 @@ func _revive(at_spot := false) -> void:
 	_close_panel()
 
 func _process(delta: float) -> void:
+	if notice_hide_timer > 0.0:
+		notice_hide_timer = maxf(0.0, notice_hide_timer - delta)
+		if notice_hide_timer <= 0.0 and is_instance_valid(hud_notice_panel):
+			hud_notice_panel.hide()
 	if network.active:
 		_online_tick(delta)
 		return

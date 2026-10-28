@@ -70,8 +70,8 @@ func _ready() -> void:
 	closed_caption.name = "NativeSettingsCaption"
 	closed_caption.text = MainNavLocale.label_for("Settings", str(GameState.settings.get("language", "th")))
 	closed_caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	closed_caption.anchor_top = 0.77
-	closed_caption.anchor_bottom = 0.958
+	closed_caption.anchor_top = 0.60
+	closed_caption.anchor_bottom = 0.82
 	closed_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	closed_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	closed_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -278,7 +278,7 @@ func _responsive() -> void:
 		toggle.offset_right = closed_slot.end.x - viewport_size.x
 		toggle.offset_top = closed_slot.position.y
 		toggle.offset_bottom = closed_slot.end.y
-		closed_caption.add_theme_font_size_override("font_size", roundi(clampf(closed_slot.size.x * 0.21, 10.0, 17.0)))
+		closed_caption.add_theme_font_size_override("font_size", roundi(clampf(closed_slot.size.x * 0.28, 10.0, 23.0)))
 	panel.offset_left = open_right - menu_width
 	panel.offset_right = open_right
 	panel.offset_top = menu_top + header_height + 4.0

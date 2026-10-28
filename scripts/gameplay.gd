@@ -1470,7 +1470,32 @@ func _refresh_hud() -> void:
 			var main_rect: Rect2 = silver_workspace.main_frame.get_global_rect()
 			var extension_rect: Rect2 = silver_workspace.extension_frame.get_global_rect()
 			var scroll_rect: Rect2 = silver_workspace.inventory_scroll.get_global_rect()
-			silver_data = {"open":true,"extension":silver_workspace.extension_frame.visible,"mode":silver_workspace.extension_mode,"page":silver_workspace.page + 1,"pages":2,"slots":silver_workspace.item_grid.get_child_count(),"equipment":silver_workspace.equipment_grid.get_child_count() - 2,"main_rect":[main_rect.position.x,main_rect.position.y,main_rect.size.x,main_rect.size.y],"extension_rect":[extension_rect.position.x,extension_rect.position.y,extension_rect.size.x,extension_rect.size.y],"scroll_rect":[scroll_rect.position.x,scroll_rect.position.y,scroll_rect.size.x,scroll_rect.size.y]}
+			var portrait_rect: Rect2 = silver_workspace.avatar_preview_frame.get_global_rect()
+			var warrior_rects := {}
+			var fashion_rects := {}
+			var accessory_rects := {}
+			for slot_id in silver_workspace.equipment_buttons:
+				var equip_button: Button = silver_workspace.equipment_buttons[slot_id]
+				var bounds: Rect2 = equip_button.get_global_rect()
+				var rect_values := [bounds.position.x,bounds.position.y,bounds.size.x,bounds.size.y]
+				if str(slot_id).begins_with("fashion_"):
+					fashion_rects[str(slot_id)] = rect_values
+				else:
+					warrior_rects[str(slot_id)] = rect_values
+			for slot_id in silver_workspace.accessory_buttons:
+				var equip_button: Button = silver_workspace.accessory_buttons[slot_id]
+				var bounds: Rect2 = equip_button.get_global_rect()
+				accessory_rects[str(slot_id)] = [bounds.position.x,bounds.position.y,bounds.size.x,bounds.size.y]
+			var menu_icon_count := 0
+			for menu_id in silver_workspace.menu_buttons:
+				var nav_button: Button = silver_workspace.menu_buttons[menu_id]
+				var icon_image: TextureRect = nav_button.find_child("MenuIcon",true,false)
+				if is_instance_valid(icon_image) and icon_image.texture != null:
+					menu_icon_count += 1
+			var portrait_mesh_count := 0
+			if is_instance_valid(silver_workspace.avatar_stage) and silver_workspace.avatar_stage.get_child_count() > 0:
+				portrait_mesh_count = silver_workspace.avatar_stage.get_child(0).find_children("*","MeshInstance3D",true,false).size()
+			silver_data = {"open":true,"extension":silver_workspace.extension_frame.visible,"mode":silver_workspace.extension_mode,"page":silver_workspace.page + 1,"pages":2,"slots":silver_workspace.item_grid.get_child_count(),"equipment":silver_workspace.equipment_buttons.size(),"accessories":silver_workspace.accessory_buttons.size(),"menus":silver_workspace.menu_buttons.size(),"menu_icons":menu_icon_count,"portrait_meshes":portrait_mesh_count,"portrait_rect":[portrait_rect.position.x,portrait_rect.position.y,portrait_rect.size.x,portrait_rect.size.y],"warrior_rects":warrior_rects,"fashion_rects":fashion_rects,"accessory_rects":accessory_rects,"main_rect":[main_rect.position.x,main_rect.position.y,main_rect.size.x,main_rect.size.y],"extension_rect":[extension_rect.position.x,extension_rect.position.y,extension_rect.size.x,extension_rect.size.y],"scroll_rect":[scroll_rect.position.x,scroll_rect.position.y,scroll_rect.size.x,scroll_rect.size.y]}
 		if silver_open:
 			var silver_actions := {}
 			for key in ["SilverPrevPage", "SilverNextPage", "SilverNavStorage", "SilverNavTrade", "SilverNavQuest"]:

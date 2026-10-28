@@ -368,9 +368,16 @@ func _build() -> void:
 	extension_frame.size_flags_horizontal = 0
 	extension_frame.size_flags_vertical = 0
 	var ext_inner := _panel(extension_frame, "Extension_Content_Panel.png")
+	var extension_scroll := ScrollContainer.new()
+	extension_scroll.name = "ExtensionScroll"
+	extension_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	extension_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	ext_inner.add_child(extension_scroll)
 	extension_content = VBoxContainer.new()
-	extension_content.add_theme_constant_override("separation", 9)
-	ext_inner.add_child(extension_content)
+	extension_content.name = "ExtensionControls"
+	extension_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	extension_content.add_theme_constant_override("separation", 7)
+	extension_scroll.add_child(extension_content)
 	extension_frame.hide()
 
 
@@ -457,21 +464,140 @@ func _set_extension(mode: String) -> void:
 	for child in extension_content.get_children():
 		extension_content.remove_child(child)
 		child.queue_free()
-	if mode != "":
-		extension_content.add_child(_label({"Storage":"คลังเก็บของ","Trade":"เทรดซื้อขาย","Quest":"ภารกิจ"}.get(mode, mode), 19))
-		if mode == "Quest":
-			extension_content.add_child(_label("สถานะ: %s   %d / 5" % [GameState.quest_state, GameState.quest_kills], 14))
-			_button("ไปหา NPC ภารกิจ", func():
-				var quest_npc: Node3D = game.get("npc")
-				if is_instance_valid(quest_npc):
-					game.set("npc_navigation", true)
-					game.world.auto_destination = quest_npc.position
-				close_workspace()
-			, extension_content, 43)
-		else:
-			extension_content.add_child(_label("ระบบนี้ยังไม่มีฟังก์ชันออนไลน์ที่พร้อมใช้งาน\nแสดงกรอบไว้รองรับการเชื่อมต่อภายหลัง", 13))
-		_button("ปิดกรอบเสริม", func(): _set_extension(""), extension_content)
+	if mode.is_empty():
+		_layout()
+		return
+	var menu_title: String = {
+		"Shop":"ร้านค้า NPC", "Cash":"ร้านค้าแคช", "Quest":"เควสต์และภารกิจ",
+		"World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ",
+		"Skills":"ทักษะ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อออนไลน์",
+		"Storage":"คลังเก็บของ", "Trade":"เทรดซื้อขาย", "Guild":"กิลด์"
+	}.get(mode, mode)
+	extension_content.add_child(_label(menu_title, 18))
+	_button("ปิดกรอบเสริม", func(): _set_extension(""), extension_content, 33)
+	match mode:
+		"Shop", "Cash":
+			_extension_shop(mode == "Cash")
+		"Quest":
+			_extension_quest()
+		"World":
+			for i in range(GameState.balance.maps.size()):
+				var map_index: int = i
+				var map_name: String = str(GameState.balance.maps[i].get("name", "Map"))
+				_button("ไปยัง " + map_name, func(): game.call("_warp", map_index), extension_content, 36)
+		"Pet":
+			extension_content.add_child(_label("สัตว์เลี้ยง Lv.%d · EXP %d\nวิวัฒนาการ %d / 5" % [GameState.pet_level, GameState.pet_exp, GameState.pet_stage], 13))
+			_button("เรียกสัตว์เลี้ยง" if not GameState.pet_enabled else "เก็บสัตว์เลี้ยง", func():
+				GameState.pet_enabled = not GameState.pet_enabled
+				game.call("_save")
+				call_deferred("_set_extension", "Pet")
+			, extension_content, 40)
+		"Auto":
+			extension_content.add_child(_label("เลือกสกิลที่ใช้ระหว่างล่าอัตโนมัติ", 12))
+			for i in range(3):
+				var slot_index: int = i
+				var check := CheckButton.new()
+				check.text = str(GameState.skill_definition(i + 1).get("name", "Skill"))
+				check.button_pressed = bool(game.hunt_skills[i])
+				check.toggled.connect(func(on: bool): game.call("_select_hunt_skill", slot_index, on))
+				extension_content.add_child(check)
+			for radius in [12.0, 20.0, 36.0]:
+				var hunting_radius: float = float(radius)
+				_button("ระยะล่า %d เมตร" % int(radius), func(): game.call("_select_hunt_radius", hunting_radius), extension_content, 34)
+			_button("เปิด / ปิดล่าอัตโนมัติ", func(): game.call("_action", 7); close_workspace(), extension_content, 41)
+		"Skills":
+			extension_content.add_child(_label("สกิลขั้นแรก / จอมจ้าว", 13))
+			for skill_no in range(1, 4):
+				var info: Dictionary = GameState.skill_definition(skill_no)
+				extension_content.add_child(_label("%d. %s\nStamina %.0f · คูลดาวน์ %.1f วิ" % [skill_no, str(info.get("name", "Skill")), float(info.get("cost", 0.0)), float(info.get("cooldown", 0.0))], 12))
+			if GameState.class_rank >= 3 and GameState.class_rank < 5 and GameState.selected_element in GameState.balance.element_skills:
+				for slot_no in range(3):
+					for source_no in range(3):
+						var target_slot: int = slot_no
+						var source_slot: int = source_no
+						var definition: Dictionary = GameState.balance.element_skills[GameState.selected_element][source_no]
+						_button("ช่อง %d: %s" % [slot_no + 1, str(definition.get("name", "Skill"))], func():
+							GameState.set_skill_slot(target_slot, source_slot)
+							game.call("_tell", "อัปเดตสกิลแล้ว")
+						, extension_content, 33)
+		"Settings":
+			_button("บันทึกเกม", func(): game.call("_save"); game.call("_tell", "บันทึกเกมแล้ว"), extension_content)
+			_button("ปรับตำแหน่งปุ่ม HUD", func(): game.layout_edit = not game.layout_edit; close_workspace(), extension_content)
+			_button("คืนตำแหน่งปุ่ม HUD", func():
+				GameState.settings["button_offsets"] = {}
+				GameState.settings["button_offsets_portrait"] = {}
+				GameState.settings["button_offsets_landscape"] = {}
+				game.call("_layout")
+				game.call("_save")
+			, extension_content)
+			for ui_pct in [90, 100, 110, 120]:
+				var amount: int = int(ui_pct)
+				_button("ขนาด UI %d%%" % amount, func(): game.call("_set_ui_scale", float(amount) / 100.0), extension_content)
+		"Connect":
+			extension_content.add_child(_label("การเชื่อมต่อออนไลน์ใช้เซิร์ฟเวอร์ที่เจ้าของระบุ\nข้อมูลออฟไลน์ไม่ย้ายไปเซิร์ฟเวอร์อัตโนมัติ", 12))
+			var address := LineEdit.new()
+			address.text = "ws://127.0.0.1:8765/ws"
+			extension_content.add_child(address)
+			_button("เชื่อมต่อ", func(): game.network.connect_server(address.text); close_workspace(), extension_content, 39)
+		"Storage", "Trade", "Guild":
+			var explanation: String = {
+				"Storage":"คลังเก็บของยังไม่เชื่อมข้อมูลออนไลน์\nยังไม่อนุญาตให้ฝากหรือถอนจริง",
+				"Trade":"เทรดระหว่างผู้เล่นยังไม่เชื่อมระบบเซิร์ฟเวอร์\nยังไม่อนุญาตให้โอนหรือแลกไอเทมจริง",
+				"Guild":"เมนูกิลด์เตรียมไว้แล้ว\nระบบสมาชิกและบริจาคยังไม่เปิดใช้งาน"
+			}.get(mode, "")
+			var warning := _label(explanation, 12)
+			warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			extension_content.add_child(warning)
+		_:
+			extension_content.add_child(_label("ยังไม่มีหน้าระบบสำหรับเมนูนี้", 12))
 	_layout()
+
+func _extension_shop(cash_shop: bool) -> void:
+	var currency := _label("Gold %d  ·  Cash %d" % [GameState.gold, GameState.cash], 12)
+	extension_content.add_child(currency)
+	var quantity := SpinBox.new()
+	quantity.name = "ShopQuantity"
+	quantity.min_value = 1
+	quantity.max_value = 99
+	quantity.value = 1
+	extension_content.add_child(_label("จำนวนที่ซื้อ", 12))
+	extension_content.add_child(quantity)
+	for item_id in GameState.balance.items:
+		var product_id: String = str(item_id)
+		var item: Dictionary = GameState.balance.items[product_id]
+		if bool(item.get("cash", false)) != cash_shop:
+			continue
+		var caption: String = "%s · %d %s" % [str(item.get("name", product_id)), int(item.get("price", 0)), "Cash" if cash_shop else "Gold"]
+		_button(caption, func():
+			var ok: bool = GameState.buy(product_id, int(quantity.value))
+			game.call("_tell", "ซื้อไอเทมสำเร็จ" if ok else "เงินไม่พอ หรือกระเป๋าเต็ม")
+			if ok:
+				game.call("_save")
+				currency.text = "Gold %d  ·  Cash %d" % [GameState.gold, GameState.cash]
+		, extension_content, 35)
+
+func _extension_quest() -> void:
+	extension_content.add_child(_label("เควสต์เริ่มต้น: %s\nกำจัดศัตรู %d / 5" % [GameState.quest_state, GameState.quest_kills], 13))
+	_button("นำทางไปหา NPC เควสต์", func():
+		var quest_npc: Node3D = game.get("npc")
+		if is_instance_valid(quest_npc):
+			game.set("npc_navigation", true)
+			game.world.auto_destination = quest_npc.position
+		close_workspace()
+	, extension_content, 41)
+	_button("สนทนากับ NPC", func():
+		var quest_npc: Node3D = game.get("npc")
+		if not is_instance_valid(quest_npc):
+			return
+		if game.world.player.position.distance_to(quest_npc.position) < 4.0:
+			game.call("_tell", GameState.interact_quest())
+			call_deferred("_set_extension", "Quest")
+		else:
+			game.call("_tell", "เข้าใกล้ NPC หรือกดนำทางก่อน")
+	, extension_content, 38)
+	_button("เลื่อนคลาส (Lv.100 + เควสต์)", func():
+		game.call("_tell", "เลื่อนคลาสสำเร็จ" if GameState.advance_class() else "ยังไม่ผ่านเงื่อนไข")
+	, extension_content, 40)
 
 func _layout() -> void:
 	if not is_instance_valid(main_frame):

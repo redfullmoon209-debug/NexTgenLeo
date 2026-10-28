@@ -185,6 +185,7 @@ func run() -> void:
 	game._show_panel("Bag")
 	await process_frame
 	check(game.panel.position.x >= 275 and game.panel.position.x <= 305 and game.panel.position.y <= 16, "character bag appears to the right of expanded full-text sidebar")
+	print("ROYAL_LAYOUT_TRACE panel=",game.panel.get_global_rect()," sidebar=",game.player_dropdown.get_global_rect()," char=",game.bag_character_panel.get_global_rect()," inv=",game.bag_inventory_panel.get_global_rect()," grid=",game.bag_slot_grid.get_global_rect()," slots=",game.bag_page_size)
 	check(game.panel.size.x >= 535 and game.panel.size.x <= 570, "compact character bag preserves equipment without hiding the entire world")
 	var viewport_height: float = scene.get_viewport().get_visible_rect().size.y
 	var viewport_width: float = scene.get_viewport().get_visible_rect().size.x

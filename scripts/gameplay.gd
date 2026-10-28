@@ -263,12 +263,31 @@ func _sync_bag_avatar_preview() -> void:
 			instance.queue_free()
 	# Retain the existing modular placeholder preview for characters without
 	# imported art (including Male until a supported source model is added).
-	bag_preview_model = avatar.duplicate() as Node3D
+	# Godot duplicate() is unsafe for a changing procedural avatar tree while
+	# queued previous previews are being freed. Copy visual nodes explicitly.
+	bag_preview_model = Node3D.new()
 	bag_preview_model.name = "DisplayedPlayerAvatar"
-	bag_preview_model.position = Vector3.ZERO
-	bag_preview_model.rotation = Vector3.ZERO
 	bag_preview_model.scale = Vector3.ONE * 0.94
 	bag_preview_stage.add_child(bag_preview_model)
+	_copy_preview_meshes(avatar, bag_preview_model)
+
+func _copy_preview_meshes(source: Node3D, parent: Node3D) -> void:
+	for source_child in source.get_children():
+		if not source_child is Node3D:
+			continue
+		var original := source_child as Node3D
+		var preview_node: Node3D
+		if original is MeshInstance3D:
+			var mesh_node := MeshInstance3D.new()
+			mesh_node.mesh = (original as MeshInstance3D).mesh
+			mesh_node.material_override = (original as MeshInstance3D).material_override
+			mesh_node.visible = (original as MeshInstance3D).visible
+			preview_node = mesh_node
+		else:
+			preview_node = Node3D.new()
+		preview_node.transform = original.transform
+		parent.add_child(preview_node)
+		_copy_preview_meshes(original, preview_node)
 
 func _build_bag_avatar_preview(parent: HBoxContainer) -> void:
 	# SubViewport renders the actual procedural player and its equipped items.

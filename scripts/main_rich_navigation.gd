@@ -4,6 +4,8 @@ extends CanvasLayer
 ## All source icons are independent SVG assets; labels stay editable Thai text.
 
 const ICON_PATH := "res://assets/ui/main_nav/icons/%s.svg"
+const PRIMARY_ICON_PATH := "res://assets/ui/main_nav/illustrated/%s.png"
+const MainNavLocale = preload("res://scripts/main_nav_locale.gd")
 const NAV_IDS := ["Bag", "Menu", "Guild", "Party", "Friends", "Notice"]
 const NAV_LABELS := {
 	"Bag": "กระเป๋า",
@@ -54,7 +56,10 @@ const NOTICE_ITEMS := [
 
 var gameplay: Node
 var root: Control
+var nav_grid: GridContainer
 var nav_buttons: Dictionary = {}
+var nav_labels: Dictionary = {}
+var current_locale: String = "th"
 var menu_panel: PanelContainer
 var menu_header: Button
 var menu_header_icon: TextureRect
@@ -76,6 +81,13 @@ func _ready() -> void:
 	ui_theme.default_font = load("res://assets/fonts/NotoSansThai.ttf")
 	root.theme = ui_theme
 	add_child(root)
+	# A real GridContainer controls the primary button layout. The text is NOT baked into PNGs.
+	nav_grid = GridContainer.new()
+	nav_grid.name = "PrimaryIconGrid"
+	nav_grid.columns = 6
+	nav_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(nav_grid)
+	current_locale = str(GameState.settings.get("language", "th"))
 	for menu_id in NAV_IDS:
 		_create_main_icon(menu_id)
 	_build_gold_dropdown()
@@ -84,6 +96,7 @@ func _ready() -> void:
 	if is_instance_valid(gameplay) and is_instance_valid(gameplay.menu_toggle_button):
 		gameplay.menu_toggle_button.hide()
 	_restyle_gm_icon()
+	_refresh_primary_captions()
 	get_viewport().size_changed.connect(_responsive)
 	_responsive()
 
@@ -101,27 +114,47 @@ func _create_main_icon(menu_id: String) -> void:
 	button.name = "Primary_" + menu_id
 	button.tooltip_text = str(NAV_LABELS[menu_id])
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.size_flags_horizontal = Control.SIZE_FILL
+	button.size_flags_vertical = Control.SIZE_FILL
 	_no_backing(button)
-	root.add_child(button)
+	nav_grid.add_child(button)
+	# One independent PNG for the ornament AND its ATTACHED, BLANK nameplate.
 	var art := TextureRect.new()
-	art.name = "IndependentIconLayer"
+	art.name = "IndependentIconAndBaseLayer"
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art.texture = _icon_texture(str(NAV_ICONS[menu_id]))
+	art.texture = load(PRIMARY_ICON_PATH % str(NAV_ICONS[menu_id]))
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	button.add_child(art)
+	# Native Thai text, NOT printed on the PNG. Replaceable at runtime for any locale.
+	var caption := Label.new()
+	caption.name = "GridCaption"
+	caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	caption.anchor_top = 0.77
+	caption.anchor_bottom = 0.958
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.add_theme_color_override("font_color", Color.WHITE)
+	caption.add_theme_color_override("font_outline_color", Color("#020711"))
+	caption.add_theme_constant_override("outline_size", 3)
+	caption.add_theme_font_size_override("font_size", 14)
+	button.add_child(caption)
 	nav_buttons[menu_id] = button
+	nav_labels[menu_id] = caption
 
 func _restyle_gm_icon() -> void:
 	if not is_instance_valid(gameplay) or not is_instance_valid(gameplay.owner_gm_button):
 		return
 	var gm_button: Button = gameplay.owner_gm_button
-	# Only the OUTSIDE GM icon changes; permission checks and inner GM panel stay intact.
+	# GM permission checks, authenticated routes and inner GM menu are unchanged.
 	_no_backing(gm_button)
+	gm_button.custom_minimum_size = Vector2(82, 102)
+	gm_button.size = Vector2(82, 102)
 	var art := TextureRect.new()
-	art.name = "GM_IndependentRedShield"
-	art.texture = _icon_texture("gm")
+	art.name = "GM_IllustrationAndBlankBase"
+	art.texture = load(PRIMARY_ICON_PATH % "gm")
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -129,16 +162,30 @@ func _restyle_gm_icon() -> void:
 	gm_button.add_child(art)
 	var caption := Label.new()
 	caption.name = "GM_Caption"
-	caption.text = "GM"
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	caption.add_theme_font_size_override("font_size", 14)
-	caption.add_theme_color_override("font_color", Color("#FFFFFF"))
-	caption.add_theme_color_override("font_outline_color", Color("#45101D"))
+	caption.anchor_left = 0.0
+	caption.anchor_right = 1.0
+	caption.anchor_top = 0.77
+	caption.anchor_bottom = 0.958
+	caption.add_theme_font_size_override("font_size", 13)
+	caption.add_theme_color_override("font_color", Color.WHITE)
+	caption.add_theme_color_override("font_outline_color", Color("#020711"))
 	caption.add_theme_constant_override("outline_size", 3)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	gm_button.add_child(caption)
+
+func _refresh_primary_captions() -> void:
+	for menu_id in NAV_IDS:
+		var caption: Label = nav_labels[menu_id]
+		caption.text = MainNavLocale.label_for(str(menu_id), current_locale)
+		var button: Button = nav_buttons[menu_id]
+		button.tooltip_text = caption.text
+	if is_instance_valid(gameplay) and is_instance_valid(gameplay.owner_gm_button):
+		var gm_caption: Label = gameplay.owner_gm_button.get_node_or_null("GM_Caption")
+		if is_instance_valid(gm_caption):
+			gm_caption.text = MainNavLocale.label_for("GM", current_locale)
+
 
 func _gold_button(button: Button) -> void:
 	_no_backing(button)
@@ -464,6 +511,10 @@ func _input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	if not is_instance_valid(gameplay):
 		return
+	var requested_locale: String = str(GameState.settings.get("language", "th"))
+	if requested_locale != current_locale:
+		current_locale = requested_locale
+		_refresh_primary_captions()
 	var modal_open: bool = (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
 	# Never cover Bag next-page buttons, item slots or modal confirmation controls.
 	# Six new icons return automatically when the modal closes; GM/Settings are untouched.
@@ -484,27 +535,36 @@ func _responsive() -> void:
 	var wide: bool = view.x >= 1160.0 and not portrait
 	var responsive = load("res://scripts/responsive_ui.gd")
 	var bounds: Rect2 = responsive.safe_bounds(get_viewport())
-	# Godot Web's portrait canvas can be ~3x the physical phone width.
-	# Follow the existing gameplay touch scale instead of drawing 15px icons.
 	var touch_scale: float = responsive.input_scale(bounds, float(GameState.settings.get("ui_scale", 1.0))) if portrait else 1.0
 	var columns: int = 6 if wide else 3
-	var icon_size: float = (48.0 if portrait else (54.0 if wide else 50.0)) * touch_scale
+	# Preserve the high-detail icon AND its blank label plate's 256:314 aspect ratio.
+	# Mobile fonts are rendered at their native canvas size; no blurry container scaling.
+	var icon_width: float = (54.0 if portrait else (86.0 if wide else 74.0)) * touch_scale
+	var icon_height: float = icon_width * 314.0 / 256.0
 	var gap: float = (9.0 if wide else 8.0) * touch_scale
-	var right_edge: float = view.x - ((10.0 if portrait else (180.0 if wide else 175.0)) * touch_scale)
+	var right_edge: float = view.x - (180.0 if wide else (10.0 if portrait else 175.0)) * touch_scale
 	var first_y: float = (265.0 * touch_scale) if portrait else (94.0 if wide else 104.0)
 	var row_count: int = int(ceil(float(NAV_IDS.size()) / float(columns)))
-	var total_width: float = float(columns) * icon_size + float(columns - 1) * gap
+	var total_width: float = float(columns) * icon_width + float(columns - 1) * gap
+	var total_height: float = float(row_count) * icon_height + float(row_count - 1) * gap
 	var left_x: float = maxf(8.0 * touch_scale, right_edge - total_width)
-	for i in range(NAV_IDS.size()):
-		var button: Button = nav_buttons[NAV_IDS[i]]
-		button.position = Vector2(left_x + float(i % columns) * (icon_size + gap), first_y + float(i / columns) * (icon_size + gap))
-		button.size = Vector2.ONE * icon_size
+	nav_grid.columns = columns
+	nav_grid.add_theme_constant_override("h_separation", roundi(gap))
+	nav_grid.add_theme_constant_override("v_separation", roundi(gap))
+	nav_grid.position = Vector2(left_x, first_y)
+	nav_grid.size = Vector2(total_width, total_height)
+	for menu_id in NAV_IDS:
+		var button: Button = nav_buttons[menu_id]
+		button.custom_minimum_size = Vector2(icon_width, icon_height)
+		button.size = Vector2(icon_width, icon_height)
+		var caption: Label = nav_labels[menu_id]
+		caption.add_theme_font_size_override("font_size", roundi(14.0 * touch_scale))
+		caption.add_theme_constant_override("outline_size", maxi(2, roundi(3.0 * touch_scale)))
+	nav_grid.queue_sort()
 	if not current_menu.is_empty():
-		var menu_y: float = first_y + float(row_count) * (icon_size + gap) + 2.0 * touch_scale
+		var menu_y: float = first_y + total_height + 5.0 * touch_scale
 		var item_count: int = row_buttons.size()
 		var needed_height: float = 66.0 + 6.0 + 2.0 * 9.0 + float(item_count) * 55.0 + float(maxi(0, item_count - 1)) * 3.0 + (45.0 if current_menu not in ["Bag", "Menu"] else 0.0)
-		# Keep the menu's CanvasItem scale at 1.0. Grow native typography,
-		# SVG icons and frame geometry rather than magnifying raster text.
 		_scale_menu_contents(touch_scale)
 		var menu_width: float = minf(548.0 * touch_scale, view.x - 20.0 * touch_scale)
 		var max_height: float = maxf(140.0 * touch_scale, view.y - menu_y - 10.0 * touch_scale)
@@ -514,17 +574,23 @@ func _responsive() -> void:
 		menu_panel.position = Vector2(clampf(desired_left, min_left, max_left), menu_y)
 		menu_panel.size = Vector2(menu_width, minf(needed_height * touch_scale, max_height))
 	_update_web_diagnostics()
+	call_deferred("_update_web_diagnostics")
 
 func _update_web_diagnostics() -> void:
 	if not OS.has_feature("web"):
 		return
 	var rectangles: Dictionary = {}
+	var caption_texts: Dictionary = {}
 	for menu_id in NAV_IDS:
 		var rect: Rect2 = (nav_buttons[menu_id] as Button).get_global_rect()
 		rectangles[menu_id] = [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+		caption_texts[menu_id] = (nav_labels[menu_id] as Label).text
 	var area: Rect2 = menu_panel.get_global_rect()
 	var data := {
 		"buttons": rectangles,
+		"caption_texts": caption_texts,
+		"locale": current_locale,
+		"native_grid": nav_grid is GridContainer,
 		"open": not current_menu.is_empty(),
 		"menu": current_menu,
 		"rows": row_buttons.size(),

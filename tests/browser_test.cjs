@@ -58,6 +58,33 @@ async function closeBag(page) {
     const start = await diagnostics(page);
     if (!start.hud_status_rect || !start.hud_quest_rect || !start.gm_button_visible)
       throw Error('Existing gameplay HUD or offline GM control missing');
+    // Settings-only acceptance: verify the header is separate from the GM button,
+    // opens 10 actual Godot rows, renders golden fill, and collapses again.
+    const settingsReady = await page.evaluate(() => window.leoSettingsRich);
+    if(!settingsReady || settingsReady.open || settingsReady.rows !== 10)
+      throw Error('Settings component did not initialize: '+JSON.stringify(settingsReady));
+    if(settingsReady.header[0] + settingsReady.header[2] >= start.gm_button_rect[0])
+      throw Error('Closed Settings gear overlaps the original GM button');
+    await clickGodot(page, [settingsReady.header[0] + settingsReady.header[2]/2,
+                             settingsReady.header[1] + settingsReady.header[3]/2]);
+    await page.waitForFunction(() => window.leoSettingsRich?.open === true,null,{timeout:6000});
+    const openedSettings = await page.evaluate(() => window.leoSettingsRich);
+    if(openedSettings.panel[1] < openedSettings.header[1] + openedSettings.header[3] - 2)
+      throw Error('Settings rows do not drop underneath the gear header');
+    await page.waitForTimeout(300);
+    const settingsCapture = PNG.sync.read(await page.screenshot({path:'build/leo-settings-rich-desktop.png'}));
+    const sample = (x,y) => {
+      const pixel = (Math.round(y) * settingsCapture.width + Math.round(x)) * 4;
+      return [...settingsCapture.data.slice(pixel,pixel+3)];
+    };
+    const goldSamples = [[openedSettings.panel[0]+openedSettings.panel[2]-80,openedSettings.panel[1]+30],
+                         [openedSettings.panel[0]+openedSettings.panel[2]-80,openedSettings.panel[1]+88]];
+    const goldPixels = goldSamples.map(([x,y])=>sample(x,y));
+    if(!goldPixels.some(([r,g,b])=>r>155 && g>80 && b<140))
+      throw Error('Settings does not render a gold background layer: '+JSON.stringify({openedSettings,goldPixels}));
+    await clickGodot(page,[openedSettings.header[0] + openedSettings.header[2]/2,
+                           openedSettings.header[1] + openedSettings.header[3]/2]);
+    await page.waitForFunction(() => window.leoSettingsRich?.open === false,null,{timeout:6000});
     await page.locator('canvas').click({position:{x:600,y:400}});
     await openBag(page);
     let d = await diagnostics(page);

@@ -85,8 +85,43 @@ async function closeBag(page) {
     await clickGodot(page,[openedSettings.header[0] + openedSettings.header[2]/2,
                            openedSettings.header[1] + openedSettings.header[3]/2]);
     await page.waitForFunction(() => window.leoSettingsRich?.open === false,null,{timeout:6000});
+    // Eight-button nav: six new independent SVG icons; GM and Settings remain original.
+    const navStart = await page.evaluate(() => window.leoMainRichNav);
+    const requiredIcons = ['Bag','Menu','Guild','Party','Friends','Notice'];
+    if(!navStart || requiredIcons.some(id => !navStart.buttons[id]) || !navStart.legacy_menu_hidden)
+      throw Error('Rich main icons or legacy hamburger replacement missing: '+JSON.stringify(navStart));
+    const pressIcon = async id => {
+      const state = await page.evaluate(() => window.leoMainRichNav);
+      const r = state.buttons[id];
+      await clickGodot(page, [r[0]+r[2]/2, r[1]+r[3]/2]);
+      await page.waitForFunction(expected => window.leoMainRichNav?.menu === expected,id,{timeout:15000});
+    };
+    await page.screenshot({path:'build/leo-primary-icons-desktop.png'});
+    await pressIcon('Bag');
+    let bagNav = await page.evaluate(() => window.leoMainRichNav);
+    const expectedBag = ['Bag','Storage','Trade','Status','Shop','Cash','Pet','Skills'];
+    if(bagNav.rows !== 8 || JSON.stringify(bagNav.items) !== JSON.stringify(expectedBag))
+      throw Error('Bag rich menu contents changed: '+JSON.stringify(bagNav));
+    await page.screenshot({path:'build/leo-bag-rich-desktop.png'});
+    await pressIcon('Menu');
+    let mainNav = await page.evaluate(() => window.leoMainRichNav);
+    if(mainNav.rows !== 5 || JSON.stringify(mainNav.items) !== JSON.stringify(['World','Warp','Quest','Auto','Connect']))
+      throw Error('Main menu must preserve map, warp, quest, auto-hunt, connect: '+JSON.stringify(mainNav));
+    await page.screenshot({path:'build/leo-main-menu-rich-desktop.png'});
+    for(const [name, count] of [['Guild',3],['Party',2],['Friends',2],['Notice',2]]) {
+      await pressIcon(name);
+      const social = await page.evaluate(() => window.leoMainRichNav);
+      if(social.rows !== count)throw Error('Independent '+name+' main button not functional: '+JSON.stringify(social));
+    }
+    { // Clicking the already-open Notice icon collapses to the EMPTY menu id.
+      const nav = await page.evaluate(() => window.leoMainRichNav);
+      const r = nav.buttons.Notice;
+      await clickGodot(page, [r[0] + r[2] / 2, r[1] + r[3] / 2]);
+      await page.waitForFunction(() => window.leoMainRichNav?.open === false, null, {timeout:15000});
+    }
     await page.locator('canvas').click({position:{x:600,y:400}});
     await openBag(page);
+    await page.waitForFunction(() => window.leoMainRichNav?.icons_visible === false, null, {timeout:10000});
     let d = await diagnostics(page);
     if (!d.silver.open || d.silver.extension || d.silver.slots !== 100 || d.silver.pages !== 2 || d.silver.equipment !== 14)
       throw Error('Silver Bag did not render seven parallel equipment pairs and 100 slots: '+JSON.stringify(d.silver));
@@ -176,7 +211,19 @@ async function closeBag(page) {
     portraitPage.on('pageerror',e=>errors.push('Portrait: '+e.message));
     await portraitPage.goto(URL);
     await portraitPage.waitForFunction(()=>window.leoDiagnostics?.orientation==='portrait',null,{timeout:60000});
+    // Physical mobile targets must not shrink to unreadable 15px SVG icons.
+    const portraitNav = await portraitPage.evaluate(()=>window.leoMainRichNav);
+    const portraitDiag = await diagnostics(portraitPage);
+    const mobileIconWidth = portraitNav.buttons.Bag[2] * portraitDiag.screen_size[0] / portraitDiag.viewport_size[0];
+    if (mobileIconWidth < 35 || mobileIconWidth > 95)
+      throw Error('New main icon must be touch-sized on portrait phones: '+JSON.stringify({mobileIconWidth,portraitNav,portraitDiag}));
     await portraitPage.screenshot({path:'build/leo-portrait.png'});
+    const touchBag = portraitNav.buttons.Bag;
+    await clickGodot(portraitPage,[touchBag[0]+touchBag[2]/2,touchBag[1]+touchBag[3]/2]);
+    await portraitPage.waitForFunction(()=>window.leoMainRichNav?.menu==='Bag',null,{timeout:15000});
+    await portraitPage.screenshot({path:'build/leo-portrait-rich-bag.png'});
+    await clickGodot(portraitPage,[touchBag[0]+touchBag[2]/2,touchBag[1]+touchBag[3]/2]);
+    await portraitPage.waitForFunction(()=>window.leoMainRichNav?.open===false,null,{timeout:15000});
     await openBag(portraitPage);
     d=await diagnostics(portraitPage);
     if(d.silver.slots!==100 || d.silver.equipment!==14 || d.silver.extension)

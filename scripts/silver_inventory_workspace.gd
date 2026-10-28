@@ -383,7 +383,7 @@ func _build() -> void:
 
 func _build_character_preview(parent: VBoxContainer) -> void:
 	# A lightweight 3D portrait of the current equipped character, not a
-	# prepainted person. The viewport draws on demand rather than every frame.
+	# prepainted person. Rendering resumes only when this workspace is visible.
 	avatar_preview_frame = _panel(parent, "Character_Equipment_Panel.png", 211.0)
 	avatar_preview_frame.name = "LiveCharacterPortrait"
 	avatar_preview_frame.custom_minimum_size.y = 415.0
@@ -402,7 +402,7 @@ func _build_character_preview(parent: VBoxContainer) -> void:
 	avatar_viewport.size = Vector2i(144, 290)
 	avatar_viewport.own_world_3d = true
 	avatar_viewport.transparent_bg = true
-	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	viewport_holder.add_child(avatar_viewport)
 	var stage_root := Node3D.new()
 	avatar_viewport.add_child(stage_root)
@@ -440,11 +440,15 @@ func _refresh_character_preview() -> void:
 	model.name = "PortraitModel"
 	avatar_stage.add_child(model)
 	game.call("_copy_preview_meshes", current_avatar, model)
-	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	# UPDATE_ONCE can capture the transparent blank render target before
+	# WebGL has uploaded the live character's mesh and materials on desktop.
+	# Keep the tiny 144x290 portrait updating while its UI is visible.
+	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 
 
 func open_workspace() -> void:
 	visible = true
+	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_set_extension("")
 	_refresh_equipment()
 	_refresh_contents()
@@ -454,6 +458,7 @@ func open_workspace() -> void:
 
 func close_workspace() -> void:
 	hide()
+	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	extension_mode = ""
 	if is_instance_valid(game):
 		game.call("_close_panel")

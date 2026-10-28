@@ -56,6 +56,9 @@ async function openPlayerMenu(page,entryName){
  if(!(drawer.bag_page_count>=3&&drawer.bag_page_size<100&&drawer.bag_page_size>=12))throw Error('Inventory must paginate all 200 slots: '+JSON.stringify(drawer));
  if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<90||drawer.bag_preview_rect[3]<180)throw Error('Center character 3D preview missing or too small: '+JSON.stringify(drawer));
  if(drawer.bag_equipment_count!==19||drawer.bag_equipment_visible!==19)throw Error('All 19 equipment slots must fit: '+JSON.stringify(drawer));
+ if(drawer.pet_gear_count!==6||!drawer.pet_shadow_visible||drawer.pet_live_preview)throw Error('Empty pet card must show silhouette and six distinct gear slots: '+JSON.stringify(drawer));
+ if(drawer.bag_grid_right>drawer.bag_right_rect[0]+drawer.bag_right_rect[2]+1)throw Error('Inventory item buttons spill outside right panel: '+JSON.stringify(drawer));
+ if(drawer.bag_grid_bottom>drawer.bag_right_rect[1]+drawer.bag_right_rect[3]+1)throw Error('Inventory item buttons spill below page: '+JSON.stringify(drawer));
  const equip=drawer.bag_equipment_rects;
  const region=drawer.bag_equipment_regions;
  const order=['hat','shirt','gloves','pants','shoes'];
@@ -218,6 +221,8 @@ async function openPlayerMenu(page,entryName){
  await portraitPage.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
  const bagPortrait=await portraitPage.evaluate(()=>window.leoDiagnostics);
  if(bagPortrait.bag_columns<3||bagPortrait.bag_columns>5||bagPortrait.bag_page_count<2)throw Error('Portrait inventory grid/pages invalid: '+JSON.stringify(bagPortrait));
+ if(bagPortrait.pet_gear_count!==6||!bagPortrait.pet_shadow_visible)throw Error('Portrait pet equipment and empty silhouette missing: '+JSON.stringify(bagPortrait));
+ if(bagPortrait.bag_grid_right>bagPortrait.bag_right_rect[0]+bagPortrait.bag_right_rect[2]+2)throw Error('Portrait inventory cells extend outside the panel: '+JSON.stringify(bagPortrait));
  if(bagPortrait.bag_right_rect[1]>bagPortrait.bag_left_rect[1])throw Error('Portrait bag must show item grid before equipment: '+JSON.stringify(bagPortrait));
  await portraitPage.screenshot({path:'build/leo-portrait-bag.png'});
  await portraitPage.keyboard.press('Escape');

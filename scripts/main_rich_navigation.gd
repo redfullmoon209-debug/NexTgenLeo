@@ -412,28 +412,39 @@ func _process(_delta: float) -> void:
 		_update_web_diagnostics()
 
 func _responsive() -> void:
-	var view := get_viewport().get_visible_rect().size
-	var portrait := view.y > view.x
-	var wide := view.x >= 1160.0 and not portrait
-	var columns := 6 if wide else 3
-	var icon_size := 54.0 if wide else (48.0 if portrait else 50.0)
-	var gap := 9.0 if wide else 8.0
-	var right_edge := view.x - (180.0 if wide else (175.0 if not portrait else 10.0))
-	var first_y := 94.0 if wide else (277.0 if portrait else 104.0)
-	var row_count := int(ceil(float(NAV_IDS.size()) / float(columns)))
-	var total_width := float(columns) * icon_size + float(columns - 1) * gap
-	var left_x := maxf(8.0, right_edge - total_width)
+	var view: Vector2 = get_viewport().get_visible_rect().size
+	var portrait: bool = view.y > view.x
+	var wide: bool = view.x >= 1160.0 and not portrait
+	var responsive = load("res://scripts/responsive_ui.gd")
+	var bounds: Rect2 = responsive.safe_bounds(get_viewport())
+	# Godot Web's portrait canvas can be ~3x the physical phone width.
+	# Follow the existing gameplay touch scale instead of drawing 15px icons.
+	var touch_scale: float = responsive.input_scale(bounds, float(GameState.settings.get("ui_scale", 1.0))) if portrait else 1.0
+	var columns: int = 6 if wide else 3
+	var icon_size: float = (48.0 if portrait else (54.0 if wide else 50.0)) * touch_scale
+	var gap: float = (9.0 if wide else 8.0) * touch_scale
+	var right_edge: float = view.x - ((10.0 if portrait else (180.0 if wide else 175.0)) * touch_scale)
+	var first_y: float = (265.0 * touch_scale) if portrait else (94.0 if wide else 104.0)
+	var row_count: int = int(ceil(float(NAV_IDS.size()) / float(columns)))
+	var total_width: float = float(columns) * icon_size + float(columns - 1) * gap
+	var left_x: float = maxf(8.0 * touch_scale, right_edge - total_width)
 	for i in range(NAV_IDS.size()):
 		var button: Button = nav_buttons[NAV_IDS[i]]
 		button.position = Vector2(left_x + float(i % columns) * (icon_size + gap), first_y + float(i / columns) * (icon_size + gap))
 		button.size = Vector2.ONE * icon_size
 	if not current_menu.is_empty():
-		var menu_width := minf(548.0, view.x - 20.0)
-		var menu_y := first_y + float(row_count) * (icon_size + gap) + 2.0
-		var item_count := row_buttons.size()
-		var needed_height := 66.0 + 6.0 + 2.0 * 9.0 + float(item_count) * 55.0 + float(maxi(0, item_count - 1)) * 3.0 + (45.0 if current_menu not in ["Bag", "Menu"] else 0.0)
-		var max_height := maxf(148.0, view.y - menu_y - 10.0)
-		menu_panel.position = Vector2(clampf(right_edge - menu_width, 10.0, maxf(10.0, view.x - menu_width - 10.0)), menu_y)
+		var menu_y: float = first_y + float(row_count) * (icon_size + gap) + 2.0 * touch_scale
+		var item_count: int = row_buttons.size()
+		var needed_height: float = 66.0 + 6.0 + 2.0 * 9.0 + float(item_count) * 55.0 + float(maxi(0, item_count - 1)) * 3.0 + (45.0 if current_menu not in ["Bag", "Menu"] else 0.0)
+		# Scale the entire rich dropdown in portrait: native-size Thai labels
+		# and >=48px touchscreen rows, while remaining scrollable on small devices.
+		menu_panel.scale = Vector2.ONE * touch_scale
+		var menu_width: float = minf(548.0, view.x / touch_scale - 20.0)
+		var max_height: float = maxf(140.0, (view.y - menu_y - 10.0 * touch_scale) / touch_scale)
+		var min_left: float = 10.0 * touch_scale
+		var desired_left: float = right_edge - menu_width * touch_scale
+		var max_left: float = maxf(min_left, view.x - menu_width * touch_scale - min_left)
+		menu_panel.position = Vector2(clampf(desired_left, min_left, max_left), menu_y)
 		menu_panel.size = Vector2(menu_width, minf(needed_height, max_height))
 	_update_web_diagnostics()
 

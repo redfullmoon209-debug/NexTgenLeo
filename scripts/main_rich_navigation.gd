@@ -543,7 +543,7 @@ func _responsive() -> void:
 	var icon_height: float = icon_width * 314.0 / 256.0
 	var gap: float = (9.0 if wide else 8.0) * touch_scale
 	var right_edge: float = view.x - (180.0 if wide else (10.0 if portrait else 175.0)) * touch_scale
-	var first_y: float = (265.0 * touch_scale) if portrait else (94.0 if wide else 104.0)
+	var first_y: float = (265.0 * touch_scale) if portrait else 149.0
 	var row_count: int = int(ceil(float(NAV_IDS.size()) / float(columns)))
 	var total_width: float = float(columns) * icon_width + float(columns - 1) * gap
 	var total_height: float = float(row_count) * icon_height + float(row_count - 1) * gap

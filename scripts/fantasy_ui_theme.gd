@@ -9,25 +9,23 @@ const TEXT := Color("#F8F5F0")
 const MUTED := Color("#B2CBEC")
 const BLUE := Color("#55B3FF")
 var _tick := 0.0
-var _normal: StyleBoxFlat
-var _hover: StyleBoxFlat
-var _pressed: StyleBoxFlat
+var _normal: StyleBox
+var _hover: StyleBox
+var _pressed: StyleBox
 var _disabled: StyleBoxFlat
 var _focus: StyleBoxFlat
-var _plate: StyleBoxFlat
+var _plate: StyleBox
 var _input: StyleBoxFlat
 var _progress_bg: StyleBoxFlat
 
 func _ready() -> void:
-	_normal = _box(Color("#071B3B"), EDGE, 9, 2)
-	_hover = _box(Color("#123B83"), GOLD, 9, 2)
-	_pressed = _box(Color("#0D5DB8"), Color("#FFF0C0"), 9, 2)
+	var png_style = load("res://scripts/royal_png_ui.gd")
+	_normal = png_style.style("button_normal")
+	_hover = png_style.style("button_hover")
+	_pressed = png_style.style("button_selected")
 	_disabled = _box(Color("#11213D"), Color("#51688A"), 9, 1)
 	_focus = _box(Color.TRANSPARENT, GOLD, 9, 2)
-	_plate = _box(Color("#071B3CFB"), Color("#F1C475"), 12, 2)
-	_plate.border_width_top = 3
-	_plate.shadow_size = 9
-	_plate.shadow_offset = Vector2(0, 4)
+	_plate = png_style.style("panel")
 	_input = _box(PANEL, EDGE, 8, 2)
 	_progress_bg = _box(Color("#040F25"), Color("#6B9DD9"), 6, 1)
 	set_process(true)

@@ -2,7 +2,7 @@ extends CanvasLayer
 ## Isolated, four-component Settings Rich Menu. No image crops or gameplay changes.
 ## Icon: vector glyph; Text: Label; Background: StyleBox fill; Frame: StyleBox border.
 const TITLES := ["กราฟิกและหน้าจอ", "เสียง", "การควบคุม", "จัดตำแหน่ง HUD", "ตั้งค่า Auto Hunt", "ตั้งค่า Auto Potion", "การแจ้งเตือน", "ภาษา", "บัญชีและความปลอดภัย", "ออกจากเกม"]
-const ICONS := ["▣", "◖))", "✣", "▦", "⚔", "♥", "♟", "◉", "⬡", "⇥"]
+const ICON_FILES := ["graphics", "audio", "controls", "hud", "auto_hunt", "auto_potion", "notifications", "language", "security", "exit"]
 const ICON_COLORS := ["#149cf4", "#1198f2", "#168ff3", "#1a9dff", "#d8e7f4", "#f0444d", "#ffcd18", "#39bbd5", "#178ff1", "#248df5"]
 var panel: PanelContainer
 var toggle: Button
@@ -32,15 +32,12 @@ func _ready() -> void:
 	header_content.offset_right = -17
 	header_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toggle.add_child(header_content)
-	var gear := Label.new()
-	gear.text = "⚙"
-	gear.custom_minimum_size.x = 48
-	gear.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	gear.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	gear.add_theme_font_size_override("font_size", 37)
-	gear.add_theme_color_override("font_color", Color("#168FF5"))
-	gear.add_theme_color_override("font_outline_color", Color("#061D40"))
-	gear.add_theme_constant_override("outline_size", 4)
+	var gear := TextureRect.new()
+	gear.texture = load("res://assets/ui/settings/icons/gear.svg")
+	gear.custom_minimum_size = Vector2(48, 48)
+	gear.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	gear.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	gear.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_content.add_child(gear)
 	var header_title := Label.new()
 	header_title.text = "ตั้งค่าเกม"
@@ -126,15 +123,11 @@ func _add_row(index: int) -> void:
 	contents.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_theme_constant_override("separation", 12)
 	button.add_child(contents)
-	var icon := Label.new()
-	icon.text = ICONS[index]
-	icon.custom_minimum_size.x = 47
-	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	icon.add_theme_font_size_override("font_size", 28)
-	icon.add_theme_color_override("font_color", Color(ICON_COLORS[index]))
-	icon.add_theme_color_override("font_outline_color", Color("#092340"))
-	icon.add_theme_constant_override("outline_size", 3)
+	var icon := TextureRect.new()
+	icon.texture = load("res://assets/ui/settings/icons/%s.svg" % ICON_FILES[index])
+	icon.custom_minimum_size = Vector2(47, 47)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_child(icon)
 	var label := Label.new()

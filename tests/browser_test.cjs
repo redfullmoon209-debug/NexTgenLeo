@@ -58,6 +58,17 @@ async function closeBag(page) {
     const start = await diagnostics(page);
     if (!start.hud_status_rect || !start.hud_quest_rect || !start.gm_button_visible)
       throw Error('Existing gameplay HUD or offline GM control missing');
+    // Scoped Settings UI QA: real Godot-rendered golden layer, dropdown and close.
+    // The collapsed gear is positioned away from GM / menu controls.
+    await page.locator('canvas').click({position:{x:925,y:45}});
+    await page.waitForTimeout(800);
+    const settingsCapture = PNG.sync.read(await page.screenshot({path:'build/leo-settings-rich-desktop.png'}));
+    const settingsPixelIndex = (120 * settingsCapture.width + 940) * 4;
+    const settingsGold = [...settingsCapture.data.slice(settingsPixelIndex, settingsPixelIndex + 3)];
+    if (!(settingsGold[0] > 160 && settingsGold[1] > 75 && settingsGold[2] < 140))
+      throw Error('Settings dropdown did not render its separate golden background layer: '+JSON.stringify(settingsGold));
+    await page.locator('canvas').click({position:{x:925,y:45}});
+    await page.waitForTimeout(200);
     await page.locator('canvas').click({position:{x:600,y:400}});
     await openBag(page);
     let d = await diagnostics(page);

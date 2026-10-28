@@ -39,7 +39,7 @@ func _ready() -> void:
 	z_index = 130
 	_build()
 	get_viewport().size_changed.connect(_layout)
-	GameState.inventory_changed.connect(_refresh_contents)
+	GameState.inventory_changed.connect(_on_inventory_changed)
 	GameState.appearance_changed.connect(_refresh_equipment)
 	visible = false
 
@@ -47,7 +47,7 @@ func _frame_style(filename: String, edge: float = 15.0) -> StyleBox:
 	var path := ROOT + filename
 	if ResourceLoader.exists(path):
 		var style := StyleBoxTexture.new()
-		style.texture = load(path)
+		style.texture = load(path) as Texture2D
 		style.texture_margin_left = edge
 		style.texture_margin_right = edge
 		style.texture_margin_top = edge
@@ -167,10 +167,7 @@ func _build() -> void:
 	gear_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gear_stack.add_theme_constant_override("separation", 7)
 	gear_scroll.add_child(gear_stack)
-	var sections := HBoxContainer.new()
-	sections.add_theme_constant_override("separation", 4)
-	gear_stack.add_child(sections)
-	# Both columns use the same empty slot image; fashion gear is cosmetic.
+		# Both columns use the same empty slot image; fashion gear is cosmetic.
 	equipment_grid = GridContainer.new()
 	equipment_grid.columns = 2
 	equipment_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -193,7 +190,7 @@ func _build() -> void:
 	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stats_column.add_child(stats_label)
 	# Main inventory pane.
-	var bag := _panel(columns, "Inventory_Panel.png", 490.0)
+	var bag := _panel(columns, "Inventory_Panel.png", 445.0)
 	bag.name = "InventoryRight"
 	var bag_stack := VBoxContainer.new()
 	bag_stack.add_theme_constant_override("separation", 5)
@@ -264,9 +261,10 @@ func _set_extension(mode: String) -> void:
 		if mode == "Quest":
 			extension_content.add_child(_label("สถานะ: %s   %d / 5" % [GameState.quest_state, GameState.quest_kills], 14))
 			_button("ไปหา NPC ภารกิจ", func():
-				if is_instance_valid(game.get("npc")):
+				var quest_npc: Node3D = game.get("npc")
+				if is_instance_valid(quest_npc):
 					game.set("npc_navigation", true)
-					game.world.auto_destination = game.npc.position
+					game.world.auto_destination = quest_npc.position
 				close_workspace()
 			, extension_content, 43)
 		else:
@@ -280,7 +278,7 @@ func _layout() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	size = viewport_size
 	var needed_width := MAIN_WIDTH + (EXT_WIDTH + 8.0 if extension_frame.visible else 0.0)
-	var scale_value := minf(1.0, (viewport_size.x - 16.0) / needed_width, (viewport_size.y - 16.0) / MAIN_HEIGHT)
+	var scale_value := minf(minf(1.0, (viewport_size.x - 16.0) / needed_width), (viewport_size.y - 16.0) / MAIN_HEIGHT)
 	scale_value = maxf(0.28, scale_value)
 	main_frame.scale = Vector2.ONE * scale_value
 	main_frame.size = Vector2(MAIN_WIDTH, MAIN_HEIGHT)
@@ -336,6 +334,10 @@ func _equipment_row(slot_id: String, caption: String) -> void:
 	var note := _label(caption, 11)
 	note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(note)
+
+func _on_inventory_changed() -> void:
+	if visible:
+		_refresh_contents()
 
 func _refresh_contents() -> void:
 	if not is_instance_valid(item_grid):

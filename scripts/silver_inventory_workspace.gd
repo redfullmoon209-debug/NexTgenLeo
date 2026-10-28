@@ -31,6 +31,7 @@ var extension_mode := ""
 var page := 0
 var bulk_selection: Dictionary = {}
 var bulk_mode := false
+var _frame_cache: Dictionary = {}
 
 func _ready() -> void:
 	name = "SilverInventoryWorkspace"
@@ -44,6 +45,9 @@ func _ready() -> void:
 	visible = false
 
 func _frame_style(filename: String, edge: float = 15.0) -> StyleBox:
+	var key := filename + ":" + str(edge)
+	if _frame_cache.has(key):
+		return _frame_cache[key]
 	var path := ROOT + filename
 	if ResourceLoader.exists(path):
 		var style := StyleBoxTexture.new()
@@ -57,6 +61,7 @@ func _frame_style(filename: String, edge: float = 15.0) -> StyleBox:
 		style.content_margin_top = 7
 		style.content_margin_bottom = 7
 		style.draw_center = true
+		_frame_cache[key] = style
 		return style
 	var fallback := StyleBoxFlat.new()
 	fallback.bg_color = Color(0.025, 0.035, 0.05, 0.83)
@@ -67,6 +72,7 @@ func _frame_style(filename: String, edge: float = 15.0) -> StyleBox:
 	fallback.content_margin_right = 8
 	fallback.content_margin_top = 8
 	fallback.content_margin_bottom = 8
+	_frame_cache[key] = fallback
 	return fallback
 
 func _slot_style() -> StyleBox:
@@ -179,7 +185,11 @@ func _build() -> void:
 	var preview_row := HBoxContainer.new()
 	preview_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gear_stack.add_child(preview_row)
-	game.call("_build_bag_avatar_preview", preview_row)
+	# Do not instantiate a second animated GLB viewport on this overlay:
+	# its textures can exceed the WebGL memory budget when combined with 100 cells.
+	var avatar_note := _label("ตัวละคร 3D แสดงในเกมด้านหลังหน้าต่าง", 12)
+	avatar_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	preview_row.add_child(avatar_note)
 	# PvE/PvP is a separate panel, and no invented PvP stats are displayed.
 	var stats := _panel(mid, "PVE_PVP_Stats_Panel.png")
 	stats.custom_minimum_size.y = 110
@@ -308,8 +318,7 @@ func _refresh_equipment() -> void:
 		_equipment_row(str(definition.warrior), str(definition.name))
 		_equipment_row(str(definition.fashion), str(definition.name))
 	stats_label.text = "PvE  ATK %d  DEF %d  HP %d / %d\nPvP  แยกค่าสถานะเมื่อระบบ PvP เปิดใช้งาน" % [GameState.attack_power(), GameState.defense(), GameState.hp, GameState.max_hp]
-	if is_instance_valid(game):
-		game.call("_sync_bag_avatar_preview")
+
 
 func _equipment_row(slot_id: String, caption: String) -> void:
 	var row := HBoxContainer.new()

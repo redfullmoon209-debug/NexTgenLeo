@@ -58,7 +58,7 @@ func _ready() -> void:
 	header_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	header_arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	header_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		header_content.add_child(header_arrow)
+	header_content.add_child(header_arrow)
 	panel = PanelContainer.new()
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
@@ -183,7 +183,7 @@ func _add_row(index: int) -> void:
 	arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		contents.add_child(arrow)
+	contents.add_child(arrow)
 
 func _input(event: InputEvent) -> void:
 	# Scoped click/touch hit area only. No fullscreen interception and no HUD changes.

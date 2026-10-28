@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## Isolated, four-component Settings Rich Menu. No image crops or gameplay changes.
-## Actual independent layers: Icon SVG / editable Thai Label / Background SVG / Base Frame SVG.
+## Independent layers: SVG icons / editable Thai Labels / gold background Panel / frame Panel.
 const TITLES := ["กราฟิกและหน้าจอ", "เสียง", "การควบคุม", "จัดตำแหน่ง HUD", "ตั้งค่า Auto Hunt", "ตั้งค่า Auto Potion", "การแจ้งเตือน", "ภาษา", "บัญชีและความปลอดภัย", "ออกจากเกม"]
 const ICON_FILES := ["graphics", "audio", "controls", "hud", "auto_hunt", "auto_potion", "notifications", "language", "security", "exit"]
 var panel: PanelContainer
@@ -26,7 +26,7 @@ func _ready() -> void:
 	toggle.anchor_right = 1.0
 	toggle.anchor_top = 0.0
 	toggle.anchor_bottom = 0.0
-	toggle.pressed.connect(_toggle)
+	# Handle the header hitbox directly; Godot Web can lose Button.pressed beneath canvas overlays.
 	root.add_child(toggle)
 	_decorate_button(toggle)
 	var header_content := HBoxContainer.new()
@@ -186,6 +186,23 @@ func _add_row(index: int) -> void:
 	arrow.add_theme_constant_override("outline_size", 4)
 	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_child(arrow)
+
+func _input(event: InputEvent) -> void:
+	# Scoped click/touch hit area only. No fullscreen interception and no HUD changes.
+	var point := Vector2.INF
+	if event is InputEventMouseButton:
+		if not event.pressed or event.button_index != MOUSE_BUTTON_LEFT:
+			return
+		point = event.position
+	elif event is InputEventScreenTouch:
+		if not event.pressed:
+			return
+		point = event.position
+	else:
+		return
+	if toggle.get_global_rect().has_point(point):
+		_toggle()
+		get_viewport().set_input_as_handled()
 
 func _toggle() -> void:
 	panel.visible = not panel.visible

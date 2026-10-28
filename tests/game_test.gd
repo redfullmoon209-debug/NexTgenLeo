@@ -195,7 +195,7 @@ func run() -> void:
 	check(workspace.bulk_mode, "multi-selection mode can be enabled")
 	workspace._toggle_bulk()
 	check(not workspace.bulk_mode and workspace.bulk_selection.is_empty(), "multi-selection mode can be canceled")
-	check(is_instance_valid(game.bag_character_preview) and is_instance_valid(game.bag_preview_stage), "existing 3D avatar preview remains available")
+	check(workspace.equipment_grid.get_child_count() == 16, "parallel warrior/fashion equipment remains visible without a duplicate 3D viewport")
 	check(workspace.stats_label.text.contains("PvE"), "PvE text is displayed separately")
 	workspace.close_workspace()
 	check(not workspace.visible and game.active_panel == "", "closing inventory returns to the world")

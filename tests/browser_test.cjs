@@ -121,6 +121,7 @@ async function closeBag(page) {
     }
     await page.locator('canvas').click({position:{x:600,y:400}});
     await openBag(page);
+    await page.waitForFunction(() => window.leoMainRichNav?.icons_visible === false, null, {timeout:10000});
     let d = await diagnostics(page);
     if (!d.silver.open || d.silver.extension || d.silver.slots !== 100 || d.silver.pages !== 2 || d.silver.equipment !== 14)
       throw Error('Silver Bag did not render seven parallel equipment pairs and 100 slots: '+JSON.stringify(d.silver));

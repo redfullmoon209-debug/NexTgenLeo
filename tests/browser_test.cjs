@@ -41,6 +41,22 @@ async function closeBag(page) {
     let d = await diagnostics(page);
     if (!d.silver.open || d.silver.extension || d.silver.slots !== 100 || d.silver.pages !== 2 || d.silver.equipment !== 14)
       throw Error('Silver Bag did not render seven parallel equipment pairs and 100 slots: '+JSON.stringify(d.silver));
+    if (d.silver.menus !== 14 || d.silver.menu_icons !== 14 || d.silver.accessories !== 5)
+      throw Error('Sidebar must have 14 original PNG icons and jewelry row needs five slots: '+JSON.stringify(d.silver));
+    if (!d.silver.portrait_meshes || d.silver.portrait_meshes < 6)
+      throw Error('Live character preview is missing its meshes');
+    const portraitBounds=d.silver.portrait_rect;
+    const warrior=d.silver.warrior_rects.hat;
+    const fashion=d.silver.fashion_rects.fashion_hat;
+    if(!warrior||!fashion||warrior[0]+warrior[2]>portraitBounds[0]+2 || fashion[0]<portraitBounds[0]+portraitBounds[2]-2)
+      throw Error('Warrior equipment must be LEFT of portrait and fashion RIGHT: '+JSON.stringify({warrior,portraitBounds,fashion}));
+    let lastX=-Infinity;
+    for(const id of ['ring','bracelet_left','accessory','bracelet_right','ring_right']){
+      const rect=d.silver.accessory_rects[id];
+      if(!rect||rect[0]<=lastX)throw Error('Jewelry missing or in wrong order: '+id+' '+JSON.stringify(d.silver.accessory_rects));
+      lastX=rect[0];
+    }
+    await page.screenshot({path:'build/leo-silver-character-and-jewelry.png'});
     if (d.silver.main_rect[0] < 0 || d.silver.main_rect[2] > d.viewport_size[0]+1)
       throw Error('Main base outside screen: '+JSON.stringify(d.silver.main_rect));
     await page.screenshot({path:'build/leo-dual-bag-desktop.png'});

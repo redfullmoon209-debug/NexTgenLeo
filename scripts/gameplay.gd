@@ -395,13 +395,48 @@ func _style(bg: Color, border: Color, radius := 10) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg
 	style.border_color = border
-	style.set_border_width_all(1)
+	style.set_border_width_all(2)
+	style.border_width_top = 3
 	style.set_corner_radius_all(radius)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.shadow_color = Color("#164B9970")
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(0, 2)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
 	return style
+
+func _royal_button_style(selected: bool, hover: bool = false) -> StyleBoxFlat:
+	var bg := Color("#0754C5") if selected else Color("#071D42")
+	if hover:
+		bg = Color("#116DDB") if selected else Color("#153E83")
+	var border := Color("#FFE3A0") if selected or hover else Color("#C89855")
+	var style := _style(bg, border, 9)
+	style.border_width_top = 3
+	style.shadow_color = Color("#167AFFA9") if selected else Color("#071B4170")
+	style.shadow_size = 9 if selected else 5
+	style.content_margin_left = 11
+	style.content_margin_right = 5
+	return style
+
+func _add_royal_trim(target: PanelContainer) -> void:
+	# Scalable ornamental corners stay sharp without requiring a bitmap UI.
+	var decoration := Control.new()
+	decoration.set_script(load("res://scripts/royal_ui_trim.gd"))
+	decoration.name = "SapphireGoldFrame"
+	decoration.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	target.add_child(decoration)
+	decoration.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+func _royal_heading(caption: String, font_size: int = 14) -> Label:
+	var heading := _label("✦  " + caption, font_size)
+	heading.add_theme_color_override("font_color", Color("#FFE3A1"))
+	heading.add_theme_color_override("font_shadow_color", Color("#06377F"))
+	heading.add_theme_constant_override("shadow_offset_x", 1)
+	heading.add_theme_constant_override("shadow_offset_y", 1)
+	heading.set_meta("leo_fantasy_skin", true)
+	return heading
 
 func _label(text: String, size := 16) -> Label:
 	var label := Label.new()
@@ -415,10 +450,16 @@ func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.text = text
 	button.custom_minimum_size = Vector2(74, 40)
-	button.add_theme_stylebox_override("normal", _style(Color("101d36f3"), Color("b48a49")))
-	button.add_theme_stylebox_override("hover", _style(Color("163b70"), Color("e7c478")))
-	button.add_theme_stylebox_override("pressed", _style(Color("174b91"), Color("ffde8a")))
-	button.add_theme_color_override("font_color", Color("f8e8c5"))
+	button.add_theme_stylebox_override("normal", _royal_button_style(false))
+	button.add_theme_stylebox_override("hover", _royal_button_style(false, true))
+	button.add_theme_stylebox_override("pressed", _royal_button_style(true))
+	button.add_theme_stylebox_override("disabled", _style(Color("#102039"), Color("#475D7D")))
+	button.add_theme_color_override("font_color", Color("#F8EDDA"))
+	button.add_theme_color_override("font_hover_color", Color("#FFFFFF"))
+	button.add_theme_color_override("font_pressed_color", Color("#FFFFFF"))
+	button.add_theme_color_override("font_disabled_color", Color("#899CB8"))
+	button.add_theme_font_size_override("font_size", 15)
+	button.set_meta("leo_fantasy_skin", true)
 	button.pressed.connect(callback)
 	(parent if parent != null else world.hud).add_child(button)
 	return button
@@ -458,7 +499,7 @@ func _build_player_dropdown() -> void:
 	player_dropdown.z_index = 91
 	player_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
 	player_dropdown.set_meta("leo_fantasy_skin", true)
-	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("081a34f8")))
+	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("#061632FD")))
 	world.hud.add_child(player_dropdown)
 	var scroll := ScrollContainer.new()
 	scroll.name = "DropdownScroll"
@@ -469,10 +510,20 @@ func _build_player_dropdown() -> void:
 	player_dropdown_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_dropdown_column.add_theme_constant_override("separation", 3)
 	scroll.add_child(player_dropdown_column)
-	var title := _label("NEX TGEN LEO\nเมนูหลัก", 17)
-	title.add_theme_color_override("font_color", Color("f6d991"))
+	var title := _label("NEXT GEN LEO\n✦ เมนูหลัก ✦", 19)
+	title.add_theme_color_override("font_color", Color("#FFE3A1"))
+	title.add_theme_color_override("font_shadow_color", Color("#2379D1"))
+	title.add_theme_constant_override("shadow_offset_x", 1)
+	title.add_theme_constant_override("shadow_offset_y", 1)
+	title.set_meta("leo_fantasy_skin", true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	player_dropdown_column.add_child(title)
+	var title_rule := ColorRect.new()
+	title_rule.name = "RoyalMenuHeadingDivider"
+	title_rule.color = Color("#DBB36C")
+	title_rule.custom_minimum_size = Vector2(0, 2)
+	title_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	player_dropdown_column.add_child(title_rule)
 	var specs := [
 		["Bag", "▣", "[B]"],
 		["Shop", "▤", "[P]"],
@@ -487,18 +538,23 @@ func _build_player_dropdown() -> void:
 	]
 	for spec in specs:
 		var menu_id: String = str(spec[0])
-		var title_text: String = "  %s  %s  %s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), str(spec[2])]
+		var title_text: String = "%s  %s%s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), ("  " + str(spec[2])) if menu_id != "Status" else ""]
+		# The longest title is shown in full. Keep the [C] shortcut as tooltip
+		# instead of truncating "ตัวละครและอุปกรณ์" on narrow screens.
 		var entry := _button(title_text, func(): _open_player_menu(menu_id), player_dropdown_column)
 		entry.name = "Menu_" + menu_id
-		entry.custom_minimum_size = Vector2(135, 45)
+		entry.custom_minimum_size = Vector2(230, 49)
 		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.clip_text = false
 		entry.set_meta("leo_fantasy_skin", true)
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("10223cef")))
-		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("19478aff")))
-		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("2561b6ff")))
+		entry.add_theme_font_size_override("font_size", 15)
+		entry.add_theme_stylebox_override("normal", _royal_button_style(false))
+		entry.add_theme_stylebox_override("hover", _royal_button_style(false, true))
+		entry.add_theme_stylebox_override("pressed", _royal_button_style(true))
+		entry.tooltip_text = _thai_panel_name(menu_id) + ("  " + str(spec[2]) if str(spec[2]) != "" else "")
 		dropdown_entries[menu_id] = entry
+	_add_royal_trim(player_dropdown)
 	player_dropdown.hide()
 	menu_toggle_button = _button("", _toggle_player_dropdown)
 	menu_toggle_button.name = "PlayerMainMenuButton"
@@ -563,8 +619,8 @@ func _refresh_sidebar_selection() -> void:
 		if not is_instance_valid(entry):
 			continue
 		var selected: bool = str(menu_id) == active_panel
-		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("1251a5fa") if selected else Color("10223cef")))
-		entry.add_theme_color_override("font_color", Color("ffffff") if selected else Color("f4dfb5"))
+		entry.add_theme_stylebox_override("normal", _royal_button_style(selected))
+		entry.add_theme_color_override("font_color", Color("#FFFFFF") if selected else Color("#FDE9C5"))
 
 func _open_player_menu(name: String) -> void:
 	if player_dropdown.visible and panel.visible and active_panel == name:
@@ -957,15 +1013,16 @@ func _layout() -> void:
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
+	var sidebar_width: float = minf(268.0, maxf(200.0, size.x * 0.235))
 	if is_instance_valid(player_dropdown):
 		player_dropdown.scale = Vector2.ONE * visual_scale if portrait else Vector2.ONE
 		if portrait:
 			var max_local_width := bounds.size.x / visual_scale
 			var max_local_height := bounds.size.y / visual_scale
-			player_dropdown.size = Vector2(minf(240.0, max_local_width), minf(475.0, max_local_height - 225.0))
+			player_dropdown.size = Vector2(minf(285.0, max_local_width), minf(570.0, max_local_height - 225.0))
 			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x * visual_scale, menu_top + 58.0 * visual_scale)
 		else:
-			player_dropdown.size = Vector2(154.0, maxf(160.0, size.y - 24.0))
+			player_dropdown.size = Vector2(sidebar_width, maxf(160.0, size.y - 24.0))
 			player_dropdown.position = Vector2(12.0, 12.0)
 	if not _workspace_has_bag_dock():
 		bag_dock_panel.hide()
@@ -981,17 +1038,17 @@ func _layout() -> void:
 	else:
 		# Fixed desktop workspace: left navigation, unchanged 19-slot bag
 		# and optional selected-system pane, leaving game scenery at right.
-		var content_x: float = 174.0
+		var content_x: float = 20.0 + sidebar_width
 		var content_height: float = maxf(160.0, size.y - 24.0)
 		if active_panel == "Bag":
 			panel.position = Vector2(content_x, 12.0)
 			panel.size = Vector2(minf(555.0, maxf(260.0, size.x - content_x - 24.0)), content_height)
 		elif _workspace_has_bag_dock():
-			var dock_width: float = minf(555.0, maxf(535.0, size.x - content_x - 350.0))
+			var dock_width: float = minf(535.0, maxf(515.0, size.x - content_x - 340.0))
 			bag_dock_panel.position = Vector2(content_x, 12.0)
 			bag_dock_panel.size = Vector2(dock_width, content_height)
 			panel.position = Vector2(content_x + dock_width + 8.0, 12.0)
-			panel.size = Vector2(minf(285.0, maxf(200.0, size.x - panel.position.x - 170.0)), content_height)
+			panel.size = Vector2(minf(285.0, maxf(200.0, size.x - panel.position.x - 165.0)), content_height)
 		else:
 			panel.position = Vector2(content_x, 12.0)
 			panel.size = Vector2(minf(540.0, maxf(230.0, size.x - content_x - 24.0)), content_height)

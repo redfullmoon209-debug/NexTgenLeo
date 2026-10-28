@@ -491,29 +491,39 @@ func _layout() -> void:
 	item_grid.columns = 6
 
 func _refresh_equipment() -> void:
-	if not is_instance_valid(equipment_grid):
+	if not is_instance_valid(warrior_stack) or not is_instance_valid(fashion_stack) or not is_instance_valid(accessory_stack):
 		return
-	for child in equipment_grid.get_children():
-		equipment_grid.remove_child(child)
-		child.queue_free()
-	var warrior_head := _label("ชุดนักรบ", 14)
-	warrior_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	equipment_grid.add_child(warrior_head)
-	var fashion_head := _label("ชุดแฟชั่น", 14)
-	fashion_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	equipment_grid.add_child(fashion_head)
+	for stack in [warrior_stack, fashion_stack, accessory_stack]:
+		for child in stack.get_children():
+			stack.remove_child(child)
+			child.queue_free()
+	equipment_buttons.clear()
+	accessory_buttons.clear()
+	# One reusable PNG per slot, with the live item icon drawn only when worn.
 	for definition in EQUIPMENT_KEYS:
-		_equipment_row(str(definition.warrior), str(definition.name))
-		_equipment_row(str(definition.fashion), str(definition.name))
+		_equipment_slot(str(definition["warrior"]), str(definition["name"]), warrior_stack, false)
+		_equipment_slot(str(definition["fashion"]), str(definition["name"]), fashion_stack, false)
+	# Ordered exactly: ring, bracelet, necklace, bracelet, ring.
+	for definition in [
+		{"id":"ring","title":"แหวน"},
+		{"id":"bracelet_left","title":"กำไล"},
+		{"id":"accessory","title":"สร้อย"},
+		{"id":"bracelet_right","title":"กำไล"},
+		{"id":"ring_right","title":"แหวน"}
+	]:
+		_equipment_slot(str(definition["id"]), str(definition["title"]), accessory_stack, true)
 	stats_label.text = "PvE  ATK %d  DEF %d  HP %d / %d\nPvP  แยกค่าสถานะเมื่อระบบ PvP เปิดใช้งาน" % [GameState.attack_power(), GameState.defense(), GameState.hp, GameState.max_hp]
 
-
-func _equipment_row(slot_id: String, caption: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	equipment_grid.add_child(row)
+func _equipment_slot(slot_id: String, caption: String, parent: BoxContainer, is_jewelry: bool) -> void:
+	var unit := VBoxContainer.new()
+	unit.name = "SlotContainer_" + slot_id
+	unit.size_flags_horizontal = Control.SIZE_EXPAND_FILL if is_jewelry else Control.SIZE_SHRINK_CENTER
+	unit.add_theme_constant_override("separation", 1)
+	parent.add_child(unit)
 	var slot := Button.new()
-	slot.custom_minimum_size = Vector2(46, 46)
+	slot.name = ("JewelrySlot_" if is_jewelry else "EquipmentSlot_") + slot_id
+	slot.custom_minimum_size = Vector2(48, 48)
+	slot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	slot.add_theme_stylebox_override("normal", _slot_style())
 	slot.add_theme_stylebox_override("hover", _slot_style())
 	slot.add_theme_stylebox_override("pressed", _slot_style())
@@ -525,15 +535,19 @@ func _equipment_row(slot_id: String, caption: String) -> void:
 		slot.tooltip_text = str(details.get("name", slot_id))
 		var png_path: String = str(details.get("icon_png", ""))
 		if png_path != "" and ResourceLoader.exists(png_path):
-			slot.icon = load(png_path)
+			slot.icon = load(png_path) as Texture2D
 			slot.expand_icon = true
 		else:
 			slot.text = str(details.get("icon", "◆"))
 	slot.pressed.connect(func(): game.call("_bag_equipment_clicked", slot_id))
-	row.add_child(slot)
-	var note := _label(caption, 11)
-	note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(note)
+	unit.add_child(slot)
+	var note := _label(caption, 11 if not is_jewelry else 10)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	unit.add_child(note)
+	if is_jewelry:
+		accessory_buttons[slot_id] = slot
+	else:
+		equipment_buttons[slot_id] = slot
 
 func _on_inventory_changed() -> void:
 	if visible:

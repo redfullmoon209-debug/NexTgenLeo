@@ -48,6 +48,10 @@ var player_dropdown: PanelContainer
 var player_dropdown_column: VBoxContainer
 var dropdown_backdrop: ColorRect
 var dropdown_entries: Dictionary = {}
+var bag_dock_panel: PanelContainer
+var bag_dock_menu: VBoxContainer
+var bag_page_size := 40
+var bag_page_count := 5
 var gm_authorized := false
 var active_panel := ""
 var bag_page := 0
@@ -409,9 +413,10 @@ func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.text = text
 	button.custom_minimum_size = Vector2(74, 40)
-	button.add_theme_stylebox_override("normal", _style(Color("182b40e8"), Color("697d8f")))
-	button.add_theme_stylebox_override("hover", _style(Color("33506b"), Color("ddc58d")))
-	button.add_theme_stylebox_override("pressed", _style(Color("44617d"), Color("f1d89d")))
+	button.add_theme_stylebox_override("normal", _style(Color("101d36f3"), Color("b48a49")))
+	button.add_theme_stylebox_override("hover", _style(Color("163b70"), Color("e7c478")))
+	button.add_theme_stylebox_override("pressed", _style(Color("174b91"), Color("ffde8a")))
+	button.add_theme_color_override("font_color", Color("f8e8c5"))
 	button.pressed.connect(callback)
 	(parent if parent != null else world.hud).add_child(button)
 	return button
@@ -440,9 +445,9 @@ func _build_player_dropdown() -> void:
 	dropdown_backdrop.z_index = 80
 	dropdown_backdrop.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
-			_close_player_dropdown()
+			_close_panel()
 		elif event is InputEventScreenTouch and event.pressed:
-			_close_player_dropdown()
+			_close_panel()
 	)
 	world.hud.add_child(dropdown_backdrop)
 	dropdown_backdrop.hide()
@@ -451,7 +456,7 @@ func _build_player_dropdown() -> void:
 	player_dropdown.z_index = 91
 	player_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
 	player_dropdown.set_meta("leo_fantasy_skin", true)
-	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("0d213ceF")))
+	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("081a34f8")))
 	world.hud.add_child(player_dropdown)
 	var scroll := ScrollContainer.new()
 	scroll.name = "DropdownScroll"
@@ -462,7 +467,8 @@ func _build_player_dropdown() -> void:
 	player_dropdown_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_dropdown_column.add_theme_constant_override("separation", 3)
 	scroll.add_child(player_dropdown_column)
-	var title := _label("เมนูหลัก", 17)
+	var title := _label("NEX TGEN LEO\nเมนูหลัก", 17)
+	title.add_theme_color_override("font_color", Color("f6d991"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	player_dropdown_column.add_child(title)
 	var specs := [
@@ -482,14 +488,14 @@ func _build_player_dropdown() -> void:
 		var title_text: String = "  %s  %s  %s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), str(spec[2])]
 		var entry := _button(title_text, func(): _open_player_menu(menu_id), player_dropdown_column)
 		entry.name = "Menu_" + menu_id
-		entry.custom_minimum_size = Vector2(215, 38)
+		entry.custom_minimum_size = Vector2(135, 45)
 		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.set_meta("leo_fantasy_skin", true)
 		entry.add_theme_font_size_override("font_size", 14)
-		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("152e4adf")))
-		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("2c4f73ff")))
-		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("365e82ff")))
+		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("10223cef")))
+		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("19478aff")))
+		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("2561b6ff")))
 		dropdown_entries[menu_id] = entry
 	player_dropdown.hide()
 	menu_toggle_button = _button("", _toggle_player_dropdown)
@@ -527,17 +533,21 @@ func _build_player_dropdown() -> void:
 	_refresh_gm_button()
 
 func _toggle_player_dropdown() -> void:
+	var viewport_size: Vector2 = world.get_viewport().get_visible_rect().size
+	if viewport_size.y > viewport_size.x:
+		# Narrow phones use the menu as a modal list; desktop uses a pinned sidebar.
+		if player_dropdown.visible:
+			_close_player_dropdown()
+		else:
+			dropdown_backdrop.show()
+			player_dropdown.show()
+			player_dropdown.move_to_front()
+			menu_toggle_button.move_to_front()
+		return
 	if player_dropdown.visible:
-		_close_player_dropdown()
+		_close_panel()
 	else:
-		panel.hide()
-		active_panel = ""
-		dropdown_backdrop.show()
-		player_dropdown.show()
-		player_dropdown.move_to_front()
-		menu_toggle_button.move_to_front()
-		if owner_gm_button.visible:
-			owner_gm_button.move_to_front()
+		_show_panel("Bag")
 
 func _close_player_dropdown() -> void:
 	if is_instance_valid(player_dropdown):
@@ -545,9 +555,45 @@ func _close_player_dropdown() -> void:
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.hide()
 
+func _refresh_sidebar_selection() -> void:
+	for menu_id in dropdown_entries:
+		var entry: Button = dropdown_entries[menu_id]
+		if not is_instance_valid(entry):
+			continue
+		var selected: bool = str(menu_id) == active_panel
+		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("1251a5fa") if selected else Color("10223cef")))
+		entry.add_theme_color_override("font_color", Color("ffffff") if selected else Color("f4dfb5"))
+
 func _open_player_menu(name: String) -> void:
-	_close_player_dropdown()
+	if player_dropdown.visible and panel.visible and active_panel == name:
+		return
 	_show_panel(name)
+
+func _workspace_has_bag_dock() -> bool:
+	var view_size: Vector2 = world.get_viewport().get_visible_rect().size
+	return view_size.x >= 1180.0 and view_size.x >= view_size.y and not network.active and not network.connecting and active_panel not in ["", "Bag", "GM", "Death", "OwnerLogin"]
+
+func _refresh_bag_dock() -> void:
+	if not _workspace_has_bag_dock():
+		bag_dock_panel.hide()
+		return
+	for child in bag_dock_menu.get_children():
+		bag_dock_menu.remove_child(child)
+		child.queue_free()
+	# Reuse the original inventory/equipment builder. Never create a smaller
+	# replacement equipment view: preserve all 19 slots and their ordering.
+	var detail_panel: PanelContainer = panel
+	var detail_menu: VBoxContainer = menu
+	var detail_name: String = active_panel
+	panel = bag_dock_panel
+	menu = bag_dock_menu
+	active_panel = "Bag"
+	menu.add_child(_label("กระเป๋า / ตัวละครและอุปกรณ์", 16))
+	_bag()
+	panel = detail_panel
+	menu = detail_menu
+	active_panel = detail_name
+	bag_dock_panel.show()
 
 func _player_entry_rects() -> Dictionary:
 	var rects: Dictionary = {}
@@ -730,7 +776,7 @@ func _build_ui() -> void:
 	panel.z_index = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.set_meta("leo_fantasy_skin", true)
-	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("102440f7")))
+	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -739,6 +785,20 @@ func _build_ui() -> void:
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(menu)
 	panel.hide()
+	bag_dock_panel = PanelContainer.new()
+	bag_dock_panel.name = "PersistentBagDock"
+	bag_dock_panel.z_index = 96
+	bag_dock_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	bag_dock_panel.set_meta("leo_fantasy_skin", true)
+	bag_dock_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
+	world.hud.add_child(bag_dock_panel)
+	var bag_scroll := ScrollContainer.new()
+	bag_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	bag_dock_panel.add_child(bag_scroll)
+	bag_dock_menu = VBoxContainer.new()
+	bag_dock_menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bag_scroll.add_child(bag_dock_menu)
+	bag_dock_panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
 
@@ -896,30 +956,43 @@ func _layout() -> void:
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
 	if is_instance_valid(player_dropdown):
-		player_dropdown.scale = Vector2.ONE * visual_scale
+		player_dropdown.scale = Vector2.ONE * visual_scale if portrait else Vector2.ONE
 		if portrait:
 			var max_local_width := bounds.size.x / visual_scale
 			var max_local_height := bounds.size.y / visual_scale
 			player_dropdown.size = Vector2(minf(240.0, max_local_width), minf(475.0, max_local_height - 225.0))
 			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x * visual_scale, menu_top + 58.0 * visual_scale)
 		else:
-			var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
-			player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
-			player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
-	panel.position = bounds.position if portrait else Vector2(12, 12)
-	if active_panel == "Bag":
-		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
-		if portrait:
-			bag_width = bounds.size.x
-		var bag_height: float = maxf(160.0, size.y - 24.0)
-		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), bag_height)
-	else:
-		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
+			player_dropdown.size = Vector2(154.0, maxf(160.0, size.y - 24.0))
+			player_dropdown.position = Vector2(12.0, 12.0)
+	if not _workspace_has_bag_dock():
+		bag_dock_panel.hide()
+	bag_dock_panel.scale = Vector2.ONE
+	panel.scale = Vector2.ONE
 	if portrait:
+		panel.position = bounds.position
 		panel.scale = Vector2.ONE * visual_scale
 		panel.size = bounds.size / visual_scale
+	elif active_panel in ["GM", "Death", "OwnerLogin"] or active_panel.is_empty():
+		panel.position = Vector2(12, 12)
+		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 	else:
-		panel.scale = Vector2.ONE
+		# Fixed desktop workspace: left navigation, unchanged 19-slot bag
+		# and optional selected-system pane, leaving game scenery at right.
+		var content_x: float = 174.0
+		var content_height: float = maxf(160.0, size.y - 24.0)
+		if active_panel == "Bag":
+			panel.position = Vector2(content_x, 12.0)
+			panel.size = Vector2(minf(555.0, maxf(260.0, size.x - content_x - 24.0)), content_height)
+		elif _workspace_has_bag_dock():
+			var dock_width: float = minf(555.0, maxf(535.0, size.x - content_x - 350.0))
+			bag_dock_panel.position = Vector2(content_x, 12.0)
+			bag_dock_panel.size = Vector2(dock_width, content_height)
+			panel.position = Vector2(content_x + dock_width + 8.0, 12.0)
+			panel.size = Vector2(minf(285.0, maxf(200.0, size.x - panel.position.x - 170.0)), content_height)
+		else:
+			panel.position = Vector2(content_x, 12.0)
+			panel.size = Vector2(minf(540.0, maxf(230.0, size.x - content_x - 24.0)), content_height)
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -1250,6 +1323,13 @@ func _refresh_hud() -> void:
 		if active_panel == "Bag" and is_instance_valid(bag_character_panel) and is_instance_valid(bag_inventory_panel):
 			bag_left_rect = bag_character_panel.get_global_rect()
 			bag_right_rect = bag_inventory_panel.get_global_rect()
+		var page_next_center := Vector2.ZERO
+		var page_prev_center := Vector2.ZERO
+		if active_panel == "Bag" and is_instance_valid(bag_inventory_panel):
+			var pages: Control = bag_inventory_panel.find_child("InventoryPagination", true, false)
+			if is_instance_valid(pages) and pages.get_child_count() >= 3:
+				page_prev_center = (pages.get_child(0) as Control).get_global_rect().get_center()
+				page_next_center = (pages.get_child(pages.get_child_count() - 1) as Control).get_global_rect().get_center()
 		var bulk_toggle_center := Vector2.ZERO
 		var bulk_sell_center := Vector2.ZERO
 		var bulk_first_slot_center := Vector2.ZERO
@@ -1281,7 +1361,7 @@ func _refresh_hud() -> void:
 			var mesh_count_value: Variant = imported_avatar_visual.get("rendered_mesh_count")
 			if mesh_count_value != null:
 				model_mesh_count = int(mesh_count_value)
-		var diagnostic := {"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var diagnostic := {"bag_page_next":[page_next_center.x,page_next_center.y],"bag_page_prev":[page_prev_center.x,page_prev_center.y],"bag_page":bag_page + 1,"bag_page_size":bag_page_size,"bag_page_count":bag_page_count,"bag_dock_open":bag_dock_panel.visible,"bag_dock_rect":[bag_dock_panel.position.x,bag_dock_panel.position.y,bag_dock_panel.size.x,bag_dock_panel.size.y],"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -1384,7 +1464,9 @@ func _select_hunt_radius(radius: float) -> void:
 func _close_panel() -> void:
 	_close_player_dropdown()
 	panel.hide()
+	bag_dock_panel.hide()
 	active_panel = ""
+	_refresh_sidebar_selection()
 
 func _thai_panel_name(name: String) -> String:
 	var names := {"BulkSellConfirm":"ยืนยันขายหลายชิ้น", "Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
@@ -1394,15 +1476,23 @@ func _show_panel(name: String) -> void:
 	if name == "GM" and not _can_use_gm():
 		_tell("GM ออนไลน์ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
 		return
-	_close_player_dropdown()
 	if panel.visible and active_panel == name:
 		_close_panel()
 		return
 	active_panel = name
+	var view_size: Vector2 = world.get_viewport().get_visible_rect().size
+	var landscape_menu: bool = view_size.x >= view_size.y and name not in ["GM", "Death", "OwnerLogin"]
+	if landscape_menu:
+		dropdown_backdrop.show()
+		player_dropdown.show()
+	else:
+		_close_player_dropdown()
 	for child in menu.get_children():
 		menu.remove_child(child)
 		child.queue_free()
 	_layout()
+	_refresh_sidebar_selection()
+	_refresh_bag_dock()
 	panel.show()
 	panel.move_to_front() # last sibling receives clicks before HUD controls beneath it
 	var heading := _label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 21)
@@ -1493,12 +1583,12 @@ func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: floa
 func _silver_panel_style(radius: int = 10, surface: Color = Color("0b1c34f6")) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = surface
-	style.border_color = Color("b6c9df")
+	style.border_color = Color("d6b26c")
 	style.set_border_width_all(1)
-	style.border_width_top = 2
+	style.border_width_top = 3
 	style.set_corner_radius_all(radius)
-	style.shadow_color = Color("020714c8")
-	style.shadow_size = 6
+	style.shadow_color = Color("071d64d4")
+	style.shadow_size = 7
 	style.shadow_offset = Vector2(0, 3)
 	style.content_margin_left = 6
 	style.content_margin_right = 6
@@ -1574,7 +1664,7 @@ func _bag() -> void:
 	panes.name = "BagTwoPane"
 	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panes.add_theme_constant_override("separation", 7)
-	panes.custom_minimum_size.y = maxf(170.0, panel.size.y - 125.0)
+	panes.custom_minimum_size.y = maxf(170.0, panel.size.y - (74.0 if panel == bag_dock_panel else 125.0))
 	menu.add_child(panes)
 
 	# Green area: status and supported equipment slots, always visible
@@ -1582,7 +1672,7 @@ func _bag() -> void:
 	bag_character_panel = PanelContainer.new()
 	bag_character_panel.name = "CharacterAndEquipment"
 	bag_character_panel.set_meta("leo_fantasy_skin", true)
-	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("122944f8")))
+	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
 	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_character_panel.custom_minimum_size.x = 230
@@ -1673,7 +1763,7 @@ func _bag() -> void:
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
 	bag_inventory_panel.set_meta("leo_fantasy_skin", true)
-	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("122944f8")))
+	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
 	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_inventory_panel.custom_minimum_size.x = 275
@@ -1683,17 +1773,40 @@ func _bag() -> void:
 	inventory_column.add_theme_constant_override("separation", 3)
 	bag_inventory_panel.add_child(inventory_column)
 	inventory_column.add_child(_label("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
-	inventory_column.add_child(_label("ทอง %d  แคช %d  หน้า %d/2" % [GameState.gold, GameState.cash, bag_page + 1], 12))
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 4)
-	inventory_column.add_child(actions)
-	var first_page := _button("◀ 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
-	var second_page := _button("2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
-	var sort_button := _button("จัดเรียง", func(): bag_bulk_selection.clear(); GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
-	for button in [first_page, second_page, sort_button]:
-		button.custom_minimum_size = Vector2(60, 32)
-		button.add_theme_font_size_override("font_size", 12)
-	# The selection row is separate to avoid crowding the five-column grid.
+	var inventory_summary: Label = _label("ทอง %d  แคช %d" % [GameState.gold, GameState.cash], 12)
+	inventory_column.add_child(inventory_summary)
+	# No vertical scrolling inside the item grid. Screen capacity determines
+	# how many of the fixed 200 slots are visible per numbered page.
+	var grid_width: float = maxf(180.0, (panel.size.x - 300.0) if wide else (panel.size.x - 38.0))
+	var grid_columns: int = clampi(int(grid_width / 54.0), 3, 5 if portrait_bag else 6)
+	var usable_height: float = maxf(140.0, panel.size.y - (235.0 if panel == bag_dock_panel else 269.0))
+	var grid_rows: int = clampi(int(usable_height / 54.0), 3, 12)
+	bag_page_size = clampi(grid_columns * grid_rows, grid_columns * 3, 100)
+	bag_page_count = maxi(1, int(ceil(200.0 / float(bag_page_size))))
+	bag_page = clampi(bag_page, 0, bag_page_count - 1)
+	inventory_summary.text = "ทอง %d  แคช %d  หน้า %d/%d" % [GameState.gold, GameState.cash, bag_page + 1, bag_page_count]
+	var page_actions := HBoxContainer.new()
+	page_actions.name = "InventoryPagination"
+	page_actions.add_theme_constant_override("separation", 3)
+	inventory_column.add_child(page_actions)
+	var first_page := _button("◀", func(): _change_bag_page(-1), page_actions)
+	first_page.custom_minimum_size = Vector2(35, 31)
+	first_page.disabled = bag_page == 0
+	# Show only nearby numbered pages so buttons never overflow the grid.
+	var first_visible: int = clampi(bag_page - 1, 0, maxi(0, bag_page_count - 3))
+	for step in range(first_visible, mini(bag_page_count, first_visible + 3)):
+		var page_number: int = step
+		var page_button: Button = _button(str(step + 1), func(): _set_bag_page(page_number), page_actions)
+		page_button.custom_minimum_size = Vector2(30, 31)
+		page_button.add_theme_font_size_override("font_size", 12)
+		if step == bag_page:
+			page_button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("f9d37b"), true))
+	var last_page := _button("▶", func(): _change_bag_page(1), page_actions)
+	last_page.custom_minimum_size = Vector2(35, 31)
+	last_page.disabled = bag_page == bag_page_count - 1
+	var sort_button := _button("จัดเรียง", func(): bag_bulk_selection.clear(); GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _refresh_bag_contents(), inventory_column)
+	sort_button.custom_minimum_size = Vector2(60, 32)
+	# Multi-item selection and selling remain active across every page.
 	var bulk_actions := HBoxContainer.new()
 	bulk_actions.name = "BulkSellActions"
 	bulk_actions.add_theme_constant_override("separation", 4)
@@ -1706,26 +1819,22 @@ func _bag() -> void:
 	bulk_sell.name = "BulkSaleButton"
 	bulk_sell.custom_minimum_size = Vector2(123, 32)
 	bulk_sell.disabled = not bag_bulk_mode or selected_count == 0
-	var inventory_scroll := ScrollContainer.new()
-	inventory_scroll.name = "BagSlotsScroll"
-	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inventory_scroll.custom_minimum_size.y = maxf(125.0, panel.size.y - 220.0) if wide else 205.0
-	inventory_column.add_child(inventory_scroll)
 	bag_slot_grid = GridContainer.new()
 	bag_slot_grid.name = "InventorySlots"
-	bag_slot_grid.columns = 5 if wide else clampi(int((panel.size.x - 50.0) / 54.0), 2, 5)
-	bag_slot_grid.add_theme_constant_override("h_separation", 4)
-	bag_slot_grid.add_theme_constant_override("v_separation", 4)
-	inventory_scroll.add_child(bag_slot_grid)
-	for offset in range(100):
-		var index := bag_page * 100 + offset
+	bag_slot_grid.columns = grid_columns
+	bag_slot_grid.add_theme_constant_override("h_separation", 3)
+	bag_slot_grid.add_theme_constant_override("v_separation", 3)
+	inventory_column.add_child(bag_slot_grid)
+	for offset in range(bag_page_size):
+		var index: int = bag_page * bag_page_size + offset
+		if index >= 200:
+			break
 		var slot_text := "·"
 		var item_tip := "ช่องว่าง %d" % (index + 1)
 		if index < GameState.inventory.size():
 			var slot: Dictionary = GameState.inventory[index]
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
-			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
+			slot_text = "%s\\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
 		if bag_bulk_mode and bag_bulk_selection.has(index):
 			slot_text = "✓ " + slot_text
@@ -1736,23 +1845,37 @@ func _bag() -> void:
 				_item_menu(index)
 		, bag_slot_grid)
 		button.name = "InventorySlot%d" % index
-		button.custom_minimum_size = Vector2(47, 46)
+		button.custom_minimum_size = Vector2(44, 43)
 		button.tooltip_text = item_tip
-		button.add_theme_font_size_override("font_size", 12)
+		button.add_theme_font_size_override("font_size", 11)
 		button.set_meta("leo_fantasy_skin", true)
-		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("7693b2"), index < GameState.inventory.size()))
-		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("b8cde6"), true, true))
-		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("dbe8f7"), true, true))
+		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("b89855"), index < GameState.inventory.size()))
+		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("e7c679"), true, true))
+		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("ffe4ac"), true, true))
 	# On tall phones, show actual inventory items first. Equipment remains
 	# below the grid, accessible by the outer menu's vertical scrolling.
 	if portrait_bag:
 		panes.move_child(bag_inventory_panel, 0)
 
+func _set_bag_page(new_page: int) -> void:
+	bag_page = clampi(new_page, 0, bag_page_count - 1)
+	_refresh_bag_contents()
+
+func _change_bag_page(delta: int) -> void:
+	_set_bag_page(bag_page + delta)
+
+func _refresh_bag_contents() -> void:
+	var selected_panel: String = active_panel
+	if selected_panel == "Bag":
+		_close_panel()
+		_show_panel("Bag")
+	elif is_instance_valid(bag_dock_panel) and bag_dock_panel.visible:
+		_refresh_bag_dock()
+
 func _toggle_bulk_mode() -> void:
 	bag_bulk_mode = not bag_bulk_mode
 	bag_bulk_selection.clear()
-	_close_panel()
-	_show_panel("Bag")
+	_refresh_bag_contents()
 
 func _toggle_bulk_item(index: int) -> void:
 	if not bag_bulk_mode or index < 0 or index >= GameState.inventory.size():
@@ -1761,8 +1884,7 @@ func _toggle_bulk_item(index: int) -> void:
 		bag_bulk_selection.erase(index)
 	else:
 		bag_bulk_selection[index] = int(GameState.inventory[index].count)
-	_close_panel()
-	_show_panel("Bag")
+	_refresh_bag_contents()
 
 func _bag_bulk_confirm_open() -> void:
 	if bag_bulk_selection.is_empty():
@@ -2009,6 +2131,7 @@ func pointer_over_ui(point: Vector2) -> bool:
 	for chooser in gm_choosers.values():
 		if is_instance_valid(chooser) and chooser.get_popup().visible: return true
 	if panel.visible and panel.get_global_rect().has_point(point): return true
+	if bag_dock_panel.visible and bag_dock_panel.get_global_rect().has_point(point): return true
 	if is_instance_valid(player_dropdown) and player_dropdown.visible: return true
 	for button in buttons + skill_buttons + [world.jump_button, world.run_button]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(point): return true

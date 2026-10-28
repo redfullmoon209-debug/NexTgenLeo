@@ -373,7 +373,7 @@ func _input(event: InputEvent) -> void:
 	# Scoped hitboxes, identical in principle to the proven Settings toggle.
 	for menu_id in NAV_IDS:
 		var button: Button = nav_buttons[menu_id]
-		if button.get_global_rect().has_point(point):
+		if button.is_visible_in_tree() and button.get_global_rect().has_point(point):
 			_open_menu(menu_id)
 			get_viewport().set_input_as_handled()
 			return

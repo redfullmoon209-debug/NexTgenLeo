@@ -57,6 +57,11 @@ jobs:
           cp build/leo-portrait.png build/web/ui-portrait-preview.png
           test -s build/leo-portrait-bag.png
           cp build/leo-portrait-bag.png build/web/ui-portrait-bag-preview.png
+          test -s build/leo-silver-character-and-jewelry.png
+          cp build/leo-silver-character-and-jewelry.png build/web/ui-silver-character-and-jewelry.png
+          # Unique, immutable entry page: bypasses old cached index.html
+          # while loading the exact build-matched JS/WASM/PCK assets.
+          cp build/web/index.html "build/web/play-${GITHUB_SHA}.html"
           test -s build/leo-inventory-extension-desktop.png
           cp build/leo-inventory-extension-desktop.png build/web/ui-inventory-extension-preview.png
       - uses: actions/upload-artifact@v4
@@ -129,3 +134,29 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Publish playable Godot web export [skip ci]"
           git push origin HEAD:main
+
+  verify-live:
+    name: Verify public Pages serves current playable build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [publish, mirror]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify unique build URL is served by public GitHub Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="game-${GITHUB_SHA}.js"
+          url="https://redfullmoon209-debug.github.io/NexTgenLeo/play-${GITHUB_SHA}.html"
+          for attempt in $(seq 1 20); do
+            html="$(curl -fsSL --connect-timeout 8 --max-time 20 -H 'Cache-Control: no-cache' "${url}?check=${attempt}" 2>/dev/null || true)"
+            if [[ "${html}" == *"${expected}"* ]]; then
+              echo "Verified live UI export: ${url}"
+              echo "${url}" >> "${GITHUB_STEP_SUMMARY}"
+              exit 0
+            fi
+            echo "Pages has not served this exact build yet (attempt ${attempt}); checking again."
+            sleep 10
+          done
+          echo "::error::Public Pages still does not serve the current build. Do not send the old link."
+          exit 1
+

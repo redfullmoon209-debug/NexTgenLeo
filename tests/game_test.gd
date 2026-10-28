@@ -238,7 +238,7 @@ func run() -> void:
 		if name == "GM":
 			check(game.owner_gm_button.visible, "red GM button remains visible in offline sandbox")
 		game._show_panel(name)
-		check(game.panel.visible, "open " + name)
+		check(game.silver_workspace.visible if name == "Bag" else game.panel.visible, "open " + name)
 	game._close_panel()
 	game._set_gm_authorized(false)
 	check(game.owner_gm_button.visible and not game.gm_authorized, "offline sandbox keeps GM test button after role reset")

@@ -44,6 +44,10 @@ func _ready() -> void:
 	# Isolated Settings Rich Menu; other HUD and gameplay systems remain unchanged.
 	var settings_menu: Node = load("res://scripts/settings_rich_menu.gd").new()
 	add_child(settings_menu)
+	# Buttons 3-8: reusable isolated gold menus; GM and Settings retain their original systems.
+	var primary_navigation: Node = load("res://scripts/main_rich_navigation.gd").new()
+	primary_navigation.gameplay = gameplay
+	add_child(primary_navigation)
 
 func _make_world() -> void:
 	var light := DirectionalLight3D.new()

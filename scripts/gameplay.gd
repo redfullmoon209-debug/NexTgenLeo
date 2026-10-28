@@ -1456,7 +1456,7 @@ func _save() -> void:
 
 func _input(event: InputEvent) -> void:
 	# Handle each action finger independently; emulated mouse handles only one finger.
-	if event is InputEventScreenTouch and event.pressed and not panel.visible and not player_dropdown.visible:
+	if event is InputEventScreenTouch and event.pressed and not panel.visible and not player_dropdown.visible and not (is_instance_valid(silver_workspace) and silver_workspace.visible):
 		for i in range(skill_buttons.size()):
 			if skill_buttons[i].get_global_rect().has_point(event.position):
 				if skill_buttons[i].disabled:
@@ -2367,6 +2367,7 @@ func pointer_over_ui(point: Vector2) -> bool:
 	# Popup windows can extend beyond their parent panel; reserve pointer input until dismissed.
 	for chooser in gm_choosers.values():
 		if is_instance_valid(chooser) and chooser.get_popup().visible: return true
+	if is_instance_valid(silver_workspace) and silver_workspace.visible: return true
 	if panel.visible and panel.get_global_rect().has_point(point): return true
 	if bag_dock_panel.visible and bag_dock_panel.get_global_rect().has_point(point): return true
 	if is_instance_valid(player_dropdown) and player_dropdown.visible: return true

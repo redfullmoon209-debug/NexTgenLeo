@@ -42,7 +42,7 @@ func _ready() -> void:
 	var fantasy_skin: Node = load("res://scripts/fantasy_ui_theme.gd").new()
 	add_child(fantasy_skin)
 	# Isolated Settings Rich Menu; other HUD and gameplay systems remain unchanged.
-	var settings_menu := load("res://scripts/settings_rich_menu.gd").new()
+	var settings_menu: Node = load("res://scripts/settings_rich_menu.gd").new()
 	add_child(settings_menu)
 
 func _make_world() -> void:

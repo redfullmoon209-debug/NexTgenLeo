@@ -5,6 +5,8 @@ const TITLES := ["กราฟิกและหน้าจอ", "เสีย�
 const ICON_FILES := ["graphics", "audio", "controls", "hud", "auto_hunt", "auto_potion", "notifications", "language", "security", "exit"]
 var panel: PanelContainer
 var toggle: Button
+var header_title: Label
+var header_arrow: Label
 var list: VBoxContainer
 
 func _ready() -> void:
@@ -40,7 +42,7 @@ func _ready() -> void:
 	gear.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	gear.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_content.add_child(gear)
-	var header_title := Label.new()
+	header_title = Label.new()
 	header_title.text = "ตั้งค่าเกม"
 	header_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -49,15 +51,15 @@ func _ready() -> void:
 	header_title.add_theme_color_override("font_outline_color", Color.BLACK)
 	header_title.add_theme_constant_override("outline_size", 5)
 	header_content.add_child(header_title)
-	var chevron := Label.new()
-	chevron.name = "Chevron"
-	chevron.text = "⌄"
-	chevron.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	chevron.add_theme_font_size_override("font_size", 28)
-	chevron.add_theme_color_override("font_color", Color.WHITE)
-	chevron.add_theme_color_override("font_outline_color", Color.BLACK)
-	chevron.add_theme_constant_override("outline_size", 4)
-	header_content.add_child(chevron)
+	header_arrow = Label.new()
+	header_arrow.name = "Chevron"
+	header_arrow.text = "⌄"
+	header_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header_arrow.add_theme_font_size_override("font_size", 28)
+	header_arrow.add_theme_color_override("font_color", Color.WHITE)
+	header_arrow.add_theme_color_override("font_outline_color", Color.BLACK)
+	header_arrow.add_theme_constant_override("outline_size", 4)
+	header_content.add_child(header_arrow)
 	panel = PanelContainer.new()
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
@@ -81,25 +83,56 @@ func _ready() -> void:
 		_add_row(i)
 	panel.visible = false
 	header_title.hide()
-	chevron.hide()
+	header_arrow.hide()
 	get_viewport().size_changed.connect(_responsive)
 	_responsive()
 
 func _decorate_button(button: Button) -> void:
-	# Each layer is a standalone Godot node. No cropping of a composite preview.
+	# Four real independent Godot elements, with reliable rendering on web/mobile:
+	# Background Panel, Frame Panel, Icon TextureRect, editable Thai Label.
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	for asset in ["background", "base_frame"]:
-		var layer_rect := NinePatchRect.new()
-		layer_rect.name = "Layer_" + asset
-		layer_rect.texture = load("res://assets/ui/settings/layers/%s.svg" % asset)
-		layer_rect.patch_margin_left = 38
-		layer_rect.patch_margin_right = 38
-		layer_rect.patch_margin_top = 30
-		layer_rect.patch_margin_bottom = 30
-		layer_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		button.add_child(layer_rect)
-		layer_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var background := Panel.new()
+	background.name = "Layer_background"
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color("#F5A918")
+	fill.set_corner_radius_all(26)
+	fill.shadow_color = Color("#4B2608A0")
+	fill.shadow_size = 3
+	background.add_theme_stylebox_override("panel", fill)
+	button.add_child(background)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var frame := Panel.new()
+	frame.name = "Layer_base_frame"
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var trim := StyleBoxFlat.new()
+	trim.bg_color = Color.TRANSPARENT
+	trim.border_color = Color("#201007")
+	trim.set_border_width_all(4)
+	trim.set_corner_radius_all(26)
+	frame.add_theme_stylebox_override("panel", trim)
+	button.add_child(frame)
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Beveled gold inner border and light top band are independent visual accents.
+	var shine := Panel.new()
+	shine.name = "Layer_gold_highlight"
+	shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shine_style := StyleBoxFlat.new()
+	shine_style.bg_color = Color.TRANSPARENT
+	shine_style.border_color = Color("#FFF1A0")
+	shine_style.border_width_top = 2
+	shine_style.border_width_left = 1
+	shine_style.border_width_right = 1
+	shine_style.border_width_bottom = 1
+	shine_style.set_corner_radius_all(23)
+	shine.add_theme_stylebox_override("panel", shine_style)
+	button.add_child(shine)
+	shine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shine.offset_left = 5
+	shine.offset_right = -5
+	shine.offset_top = 5
+	shine.offset_bottom = -5
 
 func _panel_style() -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
@@ -156,13 +189,18 @@ func _add_row(index: int) -> void:
 
 func _toggle() -> void:
 	panel.visible = not panel.visible
-	var header_content := toggle.get_node("HBoxContainer") as HBoxContainer
-	var header_title := header_content.get_child(1) as Label
-	var chevron := header_content.get_node("Chevron") as Label
 	header_title.visible = panel.visible
-	chevron.visible = panel.visible
-	chevron.text = "⌃" if panel.visible else "⌄"
+	header_arrow.visible = panel.visible
+	header_arrow.text = "⌃" if panel.visible else "⌄"
 	_responsive()
+
+func _update_web_diagnostics() -> void:
+	if not OS.has_feature("web"):
+		return
+	var r := toggle.get_global_rect()
+	var p := panel.get_global_rect()
+	var data := {"open": panel.visible, "header": [r.position.x, r.position.y, r.size.x, r.size.y], "panel": [p.position.x, p.position.y, p.size.x, p.size.y], "rows": list.get_child_count()}
+	JavaScriptBridge.eval("window.leoSettingsRich = " + JSON.stringify(data), true)
 
 func _responsive() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
@@ -189,3 +227,4 @@ func _responsive() -> void:
 	panel.offset_right = open_right
 	panel.offset_top = menu_top + header_height + 4.0
 	panel.offset_bottom = minf(viewport_size.y - 8.0, menu_top + header_height + 4.0 + 10.0 * 64.0 + 22.0)
+	_update_web_diagnostics()

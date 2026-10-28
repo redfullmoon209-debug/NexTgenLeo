@@ -1868,7 +1868,10 @@ func _bag() -> void:
 	# sizing the right grid. The old estimate subtracted 300px and clipped cells.
 	var grid_width: float = maxf(180.0, (panel.size.x - 263.0) if wide else (panel.size.x - 28.0))
 	var grid_columns: int = clampi(int(grid_width / 52.0), 3, 5)
-	var slot_side: float = clampf(floorf((grid_width - float(grid_columns - 1) * 3.0) / float(grid_columns)), 40.0, 62.0)
+	# Keep five crisp cells inside the real 555px workspace after gold borders.
+	# Extra inset is needed only in horizontal two-pane mode.
+	var side_inset: float = 4.0 if wide else 0.0
+	var slot_side: float = clampf(floorf((grid_width - float(grid_columns - 1) * 3.0) / float(grid_columns)) - side_inset, 40.0, 62.0)
 	var usable_height: float = maxf(140.0, panel.size.y - (235.0 if panel == bag_dock_panel else 269.0))
 	var grid_rows: int = clampi(int(usable_height / (slot_side + 3.0)), 3, 12)
 	bag_page_size = clampi(grid_columns * grid_rows, grid_columns * 3, 100)

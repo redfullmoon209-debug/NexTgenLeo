@@ -183,16 +183,75 @@ func _gold_button(button: Button) -> void:
 	shine.offset_top = 5
 	shine.offset_bottom = -5
 
-func _panel_style() -> StyleBoxFlat:
+func _scale_gold_layers(button: Button, scale_factor: float) -> void:
+	# Gold background/frame/highlight are independent and need native-size geometry.
+	var backdrop: Panel = button.get_node("Layer_background")
+	var backdrop_style: StyleBoxFlat = backdrop.get_theme_stylebox("panel")
+	backdrop_style.set_corner_radius_all(roundi(26.0 * scale_factor))
+	backdrop_style.shadow_size = roundi(3.0 * scale_factor)
+	var frame: Panel = button.get_node("Layer_base_frame")
+	var frame_style: StyleBoxFlat = frame.get_theme_stylebox("panel")
+	frame_style.set_corner_radius_all(roundi(26.0 * scale_factor))
+	frame_style.set_border_width_all(maxi(1,roundi(4.0 * scale_factor)))
+	var highlight: Panel = button.get_node("Layer_gold_highlight")
+	var highlight_style: StyleBoxFlat = highlight.get_theme_stylebox("panel")
+	highlight_style.set_corner_radius_all(roundi(23.0 * scale_factor))
+	highlight_style.border_width_top = maxi(1,roundi(2.0 * scale_factor))
+	highlight_style.border_width_left = maxi(1,roundi(1.0 * scale_factor))
+	highlight_style.border_width_right = maxi(1,roundi(1.0 * scale_factor))
+	highlight_style.border_width_bottom = maxi(1,roundi(1.0 * scale_factor))
+	highlight.offset_left = 5.0 * scale_factor
+	highlight.offset_right = -5.0 * scale_factor
+	highlight.offset_top = 5.0 * scale_factor
+	highlight.offset_bottom = -5.0 * scale_factor
+
+func _scale_menu_contents(scale_factor: float) -> void:
+	# NEVER scale a Label/Panel node in portrait: it upscales 19px Thai glyphs
+	# into blurry 60px textures. Set native font and control dimensions instead.
+	menu_panel.scale = Vector2.ONE
+	menu_panel.add_theme_stylebox_override("panel", _panel_style(scale_factor))
+	var outer: VBoxContainer = menu_panel.get_node("MenuLayoutOuter")
+	outer.add_theme_constant_override("separation", roundi(6.0 * scale_factor))
+	menu_header.custom_minimum_size = Vector2(0.0, 66.0 * scale_factor)
+	_scale_gold_layers(menu_header, scale_factor)
+	var heading: HBoxContainer = menu_header.get_node("HeadingContent")
+	heading.offset_left = 17.0 * scale_factor
+	heading.offset_right = -17.0 * scale_factor
+	heading.add_theme_constant_override("separation", roundi(12.0 * scale_factor))
+	menu_header_icon.custom_minimum_size = Vector2.ONE * (45.0 * scale_factor)
+	menu_header_title.add_theme_font_size_override("font_size", roundi(24.0 * scale_factor))
+	menu_header_title.add_theme_constant_override("outline_size", roundi(5.0 * scale_factor))
+	var header_arrow: TextureRect = heading.get_node("HeaderUp")
+	header_arrow.custom_minimum_size = Vector2.ONE * (32.0 * scale_factor)
+	row_column.add_theme_constant_override("separation", roundi(3.0 * scale_factor))
+	for row in row_buttons:
+		row.custom_minimum_size = Vector2(0.0, 55.0 * scale_factor)
+		_scale_gold_layers(row, scale_factor)
+		var contents: HBoxContainer = row.get_node("RowContents")
+		contents.offset_left = 15.0 * scale_factor
+		contents.offset_right = -15.0 * scale_factor
+		contents.add_theme_constant_override("separation", roundi(11.0 * scale_factor))
+		var artwork: TextureRect = contents.get_node("RowIcon")
+		artwork.custom_minimum_size = Vector2.ONE * (44.0 * scale_factor)
+		var caption: Label = contents.get_node("RowCaption")
+		caption.add_theme_font_size_override("font_size", roundi(19.0 * scale_factor))
+		caption.add_theme_constant_override("outline_size", roundi(5.0 * scale_factor))
+		var arrow: TextureRect = contents.get_node("RowChevron")
+		arrow.custom_minimum_size = Vector2.ONE * (29.0 * scale_factor)
+	var hint: Label = row_column.get_node_or_null("OnlineHint")
+	if is_instance_valid(hint):
+		hint.add_theme_font_size_override("font_size", roundi(15.0 * scale_factor))
+
+func _panel_style(scale_factor: float = 1.0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = Color("#160F09F2")
 	s.border_color = Color("#DDA128")
-	s.set_border_width_all(3)
-	s.set_corner_radius_all(19)
-	s.content_margin_left = 9
-	s.content_margin_right = 9
-	s.content_margin_top = 9
-	s.content_margin_bottom = 9
+	s.set_border_width_all(maxi(1,roundi(3.0 * scale_factor)))
+	s.set_corner_radius_all(roundi(19.0 * scale_factor))
+	s.content_margin_left = 9.0 * scale_factor
+	s.content_margin_right = 9.0 * scale_factor
+	s.content_margin_top = 9.0 * scale_factor
+	s.content_margin_bottom = 9.0 * scale_factor
 	return s
 
 func _decorate_label(label: Label, font_size: int) -> void:
@@ -209,6 +268,7 @@ func _build_gold_dropdown() -> void:
 	menu_panel.add_theme_stylebox_override("panel", _panel_style())
 	root.add_child(menu_panel)
 	var outer := VBoxContainer.new()
+	outer.name = "MenuLayoutOuter"
 	outer.add_theme_constant_override("separation", 6)
 	menu_panel.add_child(outer)
 	menu_header = Button.new()
@@ -217,6 +277,7 @@ func _build_gold_dropdown() -> void:
 	_gold_button(menu_header)
 	outer.add_child(menu_header)
 	var heading := HBoxContainer.new()
+	heading.name = "HeadingContent"
 	heading.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	heading.offset_left = 17
 	heading.offset_right = -17
@@ -235,6 +296,7 @@ func _build_gold_dropdown() -> void:
 	_decorate_label(menu_header_title, 24)
 	heading.add_child(menu_header_title)
 	var up := TextureRect.new()
+	up.name = "HeaderUp"
 	up.texture = load("res://assets/ui/settings/icons/chevron_up.svg")
 	up.custom_minimum_size = Vector2(32, 32)
 	up.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -270,6 +332,7 @@ func _add_row(target_id: String, title: String, icon_name: String, index: int) -
 	_gold_button(row)
 	row_column.add_child(row)
 	var contents := HBoxContainer.new()
+	contents.name = "RowContents"
 	contents.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	contents.offset_left = 15
 	contents.offset_right = -15
@@ -277,6 +340,7 @@ func _add_row(target_id: String, title: String, icon_name: String, index: int) -
 	contents.add_theme_constant_override("separation", 11)
 	row.add_child(contents)
 	var artwork := TextureRect.new()
+	artwork.name = "RowIcon"
 	artwork.texture = _icon_texture(icon_name)
 	artwork.custom_minimum_size = Vector2(44, 44)
 	artwork.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -284,12 +348,14 @@ func _add_row(target_id: String, title: String, icon_name: String, index: int) -
 	artwork.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_child(artwork)
 	var caption := Label.new()
+	caption.name = "RowCaption"
 	caption.text = str(index + 1) + ". " + title
 	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_decorate_label(caption, 19)
 	contents.add_child(caption)
 	var arrow := TextureRect.new()
+	arrow.name = "RowChevron"
 	arrow.texture = load("res://assets/ui/settings/icons/chevron_right.svg")
 	arrow.custom_minimum_size = Vector2(29, 29)
 	arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -322,6 +388,7 @@ func _open_menu(menu_id: String) -> void:
 	# Online guild, party, friends and announcement services are not claimed ready.
 	if menu_id not in ["Bag", "Menu"]:
 		var hint := Label.new()
+		hint.name = "OnlineHint"
 		hint.text = "ระบบเซิร์ฟเวอร์ออนไลน์: อยู่ระหว่างพัฒนา"
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -436,16 +503,16 @@ func _responsive() -> void:
 		var menu_y: float = first_y + float(row_count) * (icon_size + gap) + 2.0 * touch_scale
 		var item_count: int = row_buttons.size()
 		var needed_height: float = 66.0 + 6.0 + 2.0 * 9.0 + float(item_count) * 55.0 + float(maxi(0, item_count - 1)) * 3.0 + (45.0 if current_menu not in ["Bag", "Menu"] else 0.0)
-		# Scale the entire rich dropdown in portrait: native-size Thai labels
-		# and >=48px touchscreen rows, while remaining scrollable on small devices.
-		menu_panel.scale = Vector2.ONE * touch_scale
-		var menu_width: float = minf(548.0, view.x / touch_scale - 20.0)
-		var max_height: float = maxf(140.0, (view.y - menu_y - 10.0 * touch_scale) / touch_scale)
+		# Keep the menu's CanvasItem scale at 1.0. Grow native typography,
+		# SVG icons and frame geometry rather than magnifying raster text.
+		_scale_menu_contents(touch_scale)
+		var menu_width: float = minf(548.0 * touch_scale, view.x - 20.0 * touch_scale)
+		var max_height: float = maxf(140.0 * touch_scale, view.y - menu_y - 10.0 * touch_scale)
 		var min_left: float = 10.0 * touch_scale
-		var desired_left: float = right_edge - menu_width * touch_scale
-		var max_left: float = maxf(min_left, view.x - menu_width * touch_scale - min_left)
+		var desired_left: float = right_edge - menu_width
+		var max_left: float = maxf(min_left, view.x - menu_width - min_left)
 		menu_panel.position = Vector2(clampf(desired_left, min_left, max_left), menu_y)
-		menu_panel.size = Vector2(menu_width, minf(needed_height, max_height))
+		menu_panel.size = Vector2(menu_width, minf(needed_height * touch_scale, max_height))
 	_update_web_diagnostics()
 
 func _update_web_diagnostics() -> void:

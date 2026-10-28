@@ -45,11 +45,11 @@ async function closeBag(page) {
       throw Error('Sidebar must have 14 original PNG icons and jewelry row needs five slots: '+JSON.stringify(d.silver));
     if (!d.silver.portrait_meshes || d.silver.portrait_meshes < 6)
       throw Error('Live character preview is missing its meshes');
-    const portrait=d.silver.portrait_rect;
+    const portraitBounds=d.silver.portrait_rect;
     const warrior=d.silver.warrior_rects.hat;
     const fashion=d.silver.fashion_rects.fashion_hat;
-    if(!warrior||!fashion||warrior[0]+warrior[2]>portrait[0]+2 || fashion[0]<portrait[0]+portrait[2]-2)
-      throw Error('Warrior equipment must be LEFT of portrait and fashion RIGHT: '+JSON.stringify({warrior,portrait,fashion}));
+    if(!warrior||!fashion||warrior[0]+warrior[2]>portraitBounds[0]+2 || fashion[0]<portraitBounds[0]+portraitBounds[2]-2)
+      throw Error('Warrior equipment must be LEFT of portrait and fashion RIGHT: '+JSON.stringify({warrior,portraitBounds,fashion}));
     let lastX=-Infinity;
     for(const id of ['ring','bracelet_left','accessory','bracelet_right','ring_right']){
       const rect=d.silver.accessory_rects[id];

@@ -79,6 +79,8 @@ func _ready() -> void:
 	for i in range(TITLES.size()):
 		_add_row(i)
 	panel.visible = false
+	header_title.hide()
+	chevron.hide()
 	get_viewport().size_changed.connect(_responsive)
 	_responsive()
 
@@ -152,21 +154,36 @@ func _add_row(index: int) -> void:
 
 func _toggle() -> void:
 	panel.visible = not panel.visible
-	var chevron := toggle.get_node("HBoxContainer/Chevron") as Label
+	var header_content := toggle.get_node("HBoxContainer") as HBoxContainer
+	var header_title := header_content.get_child(1) as Label
+	var chevron := header_content.get_node("Chevron") as Label
+	header_title.visible = panel.visible
+	chevron.visible = panel.visible
 	chevron.text = "⌃" if panel.visible else "⌄"
+	_responsive()
 
 func _responsive() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
-	var width := minf(640.0, viewport_size.x - 20.0)
+	var is_wide := viewport_size.x >= 1160.0
 	var header_height := 66.0
-	# Header is always the first row; menu expands downward, never as a centered popup.
-	var x_right := -12.0
-	var x_left := x_right - width
-	toggle.offset_left = x_left
-	toggle.offset_right = x_right
-	toggle.offset_top = 12.0
-	toggle.offset_bottom = 12.0 + header_height
-	panel.offset_left = x_left
-	panel.offset_right = x_right
-	panel.offset_top = 12.0 + header_height + 4.0
-	panel.offset_bottom = minf(viewport_size.y - 8.0, 12.0 + header_height + 4.0 + 10.0 * 64.0 + 22.0)
+	var menu_width := minf(560.0, viewport_size.x - 20.0)
+	# Collapsed gear occupies only its OWN small button, not the GM / menu buttons.
+	# 1280px: x=892..964, GM starts at x=975. All other HUD remains untouched.
+	var collapsed_right := -316.0 if is_wide else -12.0
+	var collapsed_top := 12.0 if is_wide else 180.0
+	var open_right := -180.0 if is_wide else -10.0
+	var menu_top := 12.0 if is_wide else 10.0
+	if panel.visible:
+		toggle.offset_left = open_right - menu_width
+		toggle.offset_right = open_right
+		toggle.offset_top = menu_top
+		toggle.offset_bottom = menu_top + header_height
+	else:
+		toggle.offset_left = collapsed_right - 72.0
+		toggle.offset_right = collapsed_right
+		toggle.offset_top = collapsed_top
+		toggle.offset_bottom = collapsed_top + header_height
+	panel.offset_left = open_right - menu_width
+	panel.offset_right = open_right
+	panel.offset_top = menu_top + header_height + 4.0
+	panel.offset_bottom = minf(viewport_size.y - 8.0, menu_top + header_height + 4.0 + 10.0 * 64.0 + 22.0)

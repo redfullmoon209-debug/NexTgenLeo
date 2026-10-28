@@ -14,45 +14,63 @@ func _ready() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	# One top header: gear lives INSIDE the gold frame; rows drop directly below.
 	toggle = Button.new()
-	toggle.text = "⚙"
+	toggle.text = ""
 	toggle.tooltip_text = "ตั้งค่าเกม"
-	toggle.add_theme_font_size_override("font_size", 28)
-	toggle.custom_minimum_size = Vector2(56, 52)
 	toggle.anchor_left = 1.0
 	toggle.anchor_right = 1.0
-	toggle.offset_left = -265
-	toggle.offset_right = -209
-	toggle.offset_top = 10
-	toggle.offset_bottom = 62
+	toggle.anchor_top = 0.0
+	toggle.anchor_bottom = 0.0
 	toggle.pressed.connect(_toggle)
+	for state in ["normal", "hover", "pressed"]:
+		toggle.add_theme_stylebox_override(state, _gold_style())
 	root.add_child(toggle)
+	var header_content := HBoxContainer.new()
+	header_content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	header_content.offset_left = 17
+	header_content.offset_right = -17
+	header_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toggle.add_child(header_content)
+	var gear := Label.new()
+	gear.text = "⚙"
+	gear.custom_minimum_size.x = 48
+	gear.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gear.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	gear.add_theme_font_size_override("font_size", 37)
+	gear.add_theme_color_override("font_color", Color("#168FF5"))
+	gear.add_theme_color_override("font_outline_color", Color("#061D40"))
+	gear.add_theme_constant_override("outline_size", 4)
+	header_content.add_child(gear)
+	var header_title := Label.new()
+	header_title.text = "ตั้งค่าเกม"
+	header_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header_title.add_theme_font_size_override("font_size", 25)
+	header_title.add_theme_color_override("font_color", Color.WHITE)
+	header_title.add_theme_color_override("font_outline_color", Color.BLACK)
+	header_title.add_theme_constant_override("outline_size", 5)
+	header_content.add_child(header_title)
+	var chevron := Label.new()
+	chevron.name = "Chevron"
+	chevron.text = "⌄"
+	chevron.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	chevron.add_theme_font_size_override("font_size", 28)
+	chevron.add_theme_color_override("font_color", Color.WHITE)
+	chevron.add_theme_color_override("font_outline_color", Color.BLACK)
+	chevron.add_theme_constant_override("outline_size", 4)
+	header_content.add_child(chevron)
 	panel = PanelContainer.new()
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -320
-	panel.offset_right = 320
-	panel.offset_top = -360
-	panel.offset_bottom = 360
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 0.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	root.add_child(panel)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 6)
 	panel.add_child(outer)
-	var heading := Button.new()
-	heading.text = "⚙   ตั้งค่าเกม   ⌃"
-	heading.custom_minimum_size.y = 65
-	heading.add_theme_font_size_override("font_size", 27)
-	heading.add_theme_color_override("font_color", Color.WHITE)
-	heading.add_theme_color_override("font_outline_color", Color.BLACK)
-	heading.add_theme_constant_override("outline_size", 5)
-	heading.add_theme_stylebox_override("normal", _gold_style())
-	heading.add_theme_stylebox_override("hover", _gold_style())
-	heading.pressed.connect(_toggle)
-	outer.add_child(heading)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -141,12 +159,21 @@ func _add_row(index: int) -> void:
 
 func _toggle() -> void:
 	panel.visible = not panel.visible
+	var chevron := toggle.get_node("HBoxContainer/Chevron") as Label
+	chevron.text = "⌃" if panel.visible else "⌄"
 
 func _responsive() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	var width := minf(640.0, viewport_size.x - 20.0)
-	var height := minf(720.0, viewport_size.y - 20.0)
-	panel.offset_left = -width / 2.0
-	panel.offset_right = width / 2.0
-	panel.offset_top = -height / 2.0
-	panel.offset_bottom = height / 2.0
+	var header_height := 66.0
+	# Header is always the first row; menu expands downward, never as a centered popup.
+	var x_right := -12.0
+	var x_left := x_right - width
+	toggle.offset_left = x_left
+	toggle.offset_right = x_right
+	toggle.offset_top = 12.0
+	toggle.offset_bottom = 12.0 + header_height
+	panel.offset_left = x_left
+	panel.offset_right = x_right
+	panel.offset_top = 12.0 + header_height + 4.0
+	panel.offset_bottom = minf(viewport_size.y - 8.0, 12.0 + header_height + 4.0 + 10.0 * 64.0 + 22.0)

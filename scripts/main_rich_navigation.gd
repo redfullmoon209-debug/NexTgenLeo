@@ -395,12 +395,21 @@ func _input(event: InputEvent) -> void:
 	_close_menu()
 
 func _process(_delta: float) -> void:
-	if current_menu.is_empty() or not is_instance_valid(gameplay):
+	if not is_instance_valid(gameplay):
 		return
-	if is_instance_valid(gameplay.panel) and gameplay.panel.visible:
+	var modal_open := (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
+	# Never cover Bag next-page buttons, item slots or modal confirmation controls.
+	# Six new icons return automatically when the modal closes; GM/Settings are untouched.
+	var visibility_changed := false
+	for menu_id in NAV_IDS:
+		var icon_button: Button = nav_buttons[menu_id]
+		if icon_button.visible == modal_open:
+			icon_button.visible = not modal_open
+			visibility_changed = true
+	if modal_open and not current_menu.is_empty():
 		_close_menu()
-	elif is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible:
-		_close_menu()
+	elif visibility_changed:
+		_update_web_diagnostics()
 
 func _responsive() -> void:
 	var view := get_viewport().get_visible_rect().size
@@ -443,6 +452,7 @@ func _update_web_diagnostics() -> void:
 		"rows": row_buttons.size(),
 		"items": row_targets,
 		"panel": [area.position.x, area.position.y, area.size.x, area.size.y],
-		"legacy_menu_hidden": is_instance_valid(gameplay) and not gameplay.menu_toggle_button.visible
+		"legacy_menu_hidden": is_instance_valid(gameplay) and not gameplay.menu_toggle_button.visible,
+		"icons_visible": (nav_buttons["Bag"] as Button).visible
 	}
 	JavaScriptBridge.eval("window.leoMainRichNav = " + JSON.stringify(data), true)

@@ -1656,7 +1656,7 @@ func _bag() -> void:
 	panes.name = "BagTwoPane"
 	panes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panes.add_theme_constant_override("separation", 7)
-	panes.custom_minimum_size.y = maxf(170.0, panel.size.y - 125.0)
+	panes.custom_minimum_size.y = maxf(170.0, panel.size.y - (74.0 if panel == bag_dock_panel else 125.0))
 	menu.add_child(panes)
 
 	# Green area: status and supported equipment slots, always visible
@@ -1766,16 +1766,35 @@ func _bag() -> void:
 	bag_inventory_panel.add_child(inventory_column)
 	inventory_column.add_child(_label("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
 	inventory_column.add_child(_label("ทอง %d  แคช %d  หน้า %d/2" % [GameState.gold, GameState.cash, bag_page + 1], 12))
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 4)
-	inventory_column.add_child(actions)
-	var first_page := _button("◀ 1", func(): bag_page = 0; _close_panel(); _show_panel("Bag"), actions)
-	var second_page := _button("2 ▶", func(): bag_page = 1; _close_panel(); _show_panel("Bag"), actions)
-	var sort_button := _button("จัดเรียง", func(): bag_bulk_selection.clear(); GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _close_panel(); _show_panel("Bag"), actions)
-	for button in [first_page, second_page, sort_button]:
-		button.custom_minimum_size = Vector2(60, 32)
-		button.add_theme_font_size_override("font_size", 12)
-	# The selection row is separate to avoid crowding the five-column grid.
+	# No vertical scrolling inside the item grid. Screen capacity determines
+	# how many of the fixed 200 slots are visible per numbered page.
+	var grid_width: float = maxf(180.0, (panel.size.x - 282.0) if wide else (panel.size.x - 28.0))
+	var grid_columns: int = clampi(int(grid_width / 51.0), 3, 6)
+	var usable_height: float = maxf(140.0, panel.size.y - (235.0 if panel == bag_dock_panel else 269.0))
+	var grid_rows: int = clampi(int(usable_height / 50.0), 3, 13)
+	bag_page_size = clampi(grid_columns * grid_rows, grid_columns * 3, 100)
+	bag_page_count = maxi(1, int(ceil(200.0 / float(bag_page_size))))
+	bag_page = clampi(bag_page, 0, bag_page_count - 1)
+	var page_actions := HBoxContainer.new()
+	page_actions.name = "InventoryPagination"
+	page_actions.add_theme_constant_override("separation", 3)
+	inventory_column.add_child(page_actions)
+	var first_page := _button("◀", func(): _change_bag_page(-1), page_actions)
+	first_page.custom_minimum_size = Vector2(35, 31)
+	first_page.disabled = bag_page == 0
+	for step in range(bag_page_count):
+		var page_number: int = step
+		var page_button: Button = _button(str(step + 1), func(): _set_bag_page(page_number), page_actions)
+		page_button.custom_minimum_size = Vector2(30, 31)
+		page_button.add_theme_font_size_override("font_size", 12)
+		if step == bag_page:
+			page_button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("f9d37b"), true))
+	var last_page := _button("▶", func(): _change_bag_page(1), page_actions)
+	last_page.custom_minimum_size = Vector2(35, 31)
+	last_page.disabled = bag_page == bag_page_count - 1
+	var sort_button := _button("จัดเรียง", func(): bag_bulk_selection.clear(); GameState.inventory.sort_custom(func(a,b): return str(a.id) < str(b.id)); _refresh_bag_contents(), inventory_column)
+	sort_button.custom_minimum_size = Vector2(60, 32)
+	# Multi-item selection and selling remain active across every page.
 	var bulk_actions := HBoxContainer.new()
 	bulk_actions.name = "BulkSellActions"
 	bulk_actions.add_theme_constant_override("separation", 4)
@@ -1788,26 +1807,22 @@ func _bag() -> void:
 	bulk_sell.name = "BulkSaleButton"
 	bulk_sell.custom_minimum_size = Vector2(123, 32)
 	bulk_sell.disabled = not bag_bulk_mode or selected_count == 0
-	var inventory_scroll := ScrollContainer.new()
-	inventory_scroll.name = "BagSlotsScroll"
-	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	inventory_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inventory_scroll.custom_minimum_size.y = maxf(125.0, panel.size.y - 220.0) if wide else 205.0
-	inventory_column.add_child(inventory_scroll)
 	bag_slot_grid = GridContainer.new()
 	bag_slot_grid.name = "InventorySlots"
-	bag_slot_grid.columns = 5 if wide else clampi(int((panel.size.x - 50.0) / 54.0), 2, 5)
-	bag_slot_grid.add_theme_constant_override("h_separation", 4)
-	bag_slot_grid.add_theme_constant_override("v_separation", 4)
-	inventory_scroll.add_child(bag_slot_grid)
-	for offset in range(100):
-		var index := bag_page * 100 + offset
+	bag_slot_grid.columns = grid_columns
+	bag_slot_grid.add_theme_constant_override("h_separation", 3)
+	bag_slot_grid.add_theme_constant_override("v_separation", 3)
+	inventory_column.add_child(bag_slot_grid)
+	for offset in range(bag_page_size):
+		var index: int = bag_page * bag_page_size + offset
+		if index >= 200:
+			break
 		var slot_text := "·"
 		var item_tip := "ช่องว่าง %d" % (index + 1)
 		if index < GameState.inventory.size():
 			var slot: Dictionary = GameState.inventory[index]
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
-			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
+			slot_text = "%s\\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
 		if bag_bulk_mode and bag_bulk_selection.has(index):
 			slot_text = "✓ " + slot_text
@@ -1818,23 +1833,37 @@ func _bag() -> void:
 				_item_menu(index)
 		, bag_slot_grid)
 		button.name = "InventorySlot%d" % index
-		button.custom_minimum_size = Vector2(47, 46)
+		button.custom_minimum_size = Vector2(44, 43)
 		button.tooltip_text = item_tip
-		button.add_theme_font_size_override("font_size", 12)
+		button.add_theme_font_size_override("font_size", 11)
 		button.set_meta("leo_fantasy_skin", true)
-		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("7693b2"), index < GameState.inventory.size()))
-		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("b8cde6"), true, true))
-		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("dbe8f7"), true, true))
+		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("b89855"), index < GameState.inventory.size()))
+		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("e7c679"), true, true))
+		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("ffe4ac"), true, true))
 	# On tall phones, show actual inventory items first. Equipment remains
 	# below the grid, accessible by the outer menu's vertical scrolling.
 	if portrait_bag:
 		panes.move_child(bag_inventory_panel, 0)
 
+func _set_bag_page(new_page: int) -> void:
+	bag_page = clampi(new_page, 0, bag_page_count - 1)
+	_refresh_bag_contents()
+
+func _change_bag_page(delta: int) -> void:
+	_set_bag_page(bag_page + delta)
+
+func _refresh_bag_contents() -> void:
+	var selected_panel: String = active_panel
+	if selected_panel == "Bag":
+		_close_panel()
+		_show_panel("Bag")
+	elif is_instance_valid(bag_dock_panel) and bag_dock_panel.visible:
+		_refresh_bag_dock()
+
 func _toggle_bulk_mode() -> void:
 	bag_bulk_mode = not bag_bulk_mode
 	bag_bulk_selection.clear()
-	_close_panel()
-	_show_panel("Bag")
+	_refresh_bag_contents()
 
 func _toggle_bulk_item(index: int) -> void:
 	if not bag_bulk_mode or index < 0 or index >= GameState.inventory.size():
@@ -1843,8 +1872,7 @@ func _toggle_bulk_item(index: int) -> void:
 		bag_bulk_selection.erase(index)
 	else:
 		bag_bulk_selection[index] = int(GameState.inventory[index].count)
-	_close_panel()
-	_show_panel("Bag")
+	_refresh_bag_contents()
 
 func _bag_bulk_confirm_open() -> void:
 	if bag_bulk_selection.is_empty():

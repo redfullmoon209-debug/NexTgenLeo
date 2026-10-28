@@ -5,6 +5,7 @@ extends CanvasLayer
 
 const ICON_PATH := "res://assets/ui/main_nav/icons/%s.svg"
 const PRIMARY_ICON_PATH := "res://assets/ui/main_nav/illustrated/%s.png"
+const PRIMARY_ASSET_NAMES := {"Bag":"bag","Menu":"menu","Guild":"guild","Party":"party","Friends":"friends","Notice":"notice"}
 const MainNavLocale = preload("res://scripts/main_nav_locale.gd")
 const NAV_IDS := ["Bag", "Menu", "Guild", "Party", "Friends", "Notice"]
 const NAV_LABELS := {
@@ -113,7 +114,8 @@ func _create_main_icon(menu_id: String) -> void:
 	var button := Button.new()
 	button.name = "Primary_" + menu_id
 	button.tooltip_text = str(NAV_LABELS[menu_id])
-	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Clicks are routed through _input; IGNORE lets two-finger camera gestures pass through.
+	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.size_flags_horizontal = Control.SIZE_FILL
 	button.size_flags_vertical = Control.SIZE_FILL
 	_no_backing(button)
@@ -122,7 +124,7 @@ func _create_main_icon(menu_id: String) -> void:
 	var art := TextureRect.new()
 	art.name = "IndependentIconAndBaseLayer"
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art.texture = load(PRIMARY_ICON_PATH % str(NAV_ICONS[menu_id]))
+	art.texture = load(PRIMARY_ICON_PATH % str(PRIMARY_ASSET_NAMES[menu_id]))
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -479,7 +481,8 @@ func _input(event: InputEvent) -> void:
 			return
 		point = event.position
 	elif event is InputEventScreenTouch:
-		if not event.pressed:
+		# Fingers 2+ participate in camera pinch/drag; never steal those gestures.
+		if not event.pressed or event.index >= 2:
 			return
 		point = event.position
 	else:

@@ -229,8 +229,12 @@ func _responsive() -> void:
 	var collapsed_top := 12.0 if is_wide else 180.0
 	var open_right := -180.0 if is_wide else -10.0
 	var menu_top := 12.0 if is_wide else 10.0
-	# Center the gear inside its existing gold capsule when collapsed.
-	# Keep the expanded header exactly as approved: left-aligned gear + Thai title + chevron.
+	# Closed: show ONLY the blue gear. Remove the yellow/gold background and borders.
+	# Open: restore the exact approved golden header and ten menu rows.
+	for layer_name in ["Layer_background", "Layer_base_frame", "Layer_gold_highlight"]:
+		var decoration := toggle.get_node_or_null(layer_name) as CanvasItem
+		if decoration != null:
+			decoration.visible = panel.visible
 	header_content.offset_left = 17.0 if panel.visible else 0.0
 	header_content.offset_right = -17.0 if panel.visible else 0.0
 	header_content.alignment = BoxContainer.ALIGNMENT_BEGIN if panel.visible else BoxContainer.ALIGNMENT_CENTER

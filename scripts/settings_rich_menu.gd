@@ -7,6 +7,7 @@ var panel: PanelContainer
 var toggle: Button
 var header_title: Label
 var header_arrow: TextureRect
+var header_content: HBoxContainer
 var list: VBoxContainer
 
 func _ready() -> void:
@@ -29,7 +30,7 @@ func _ready() -> void:
 	# Handle the header hitbox directly; Godot Web can lose Button.pressed beneath canvas overlays.
 	root.add_child(toggle)
 	_decorate_button(toggle)
-	var header_content := HBoxContainer.new()
+	header_content = HBoxContainer.new()
 	header_content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	header_content.offset_left = 17
 	header_content.offset_right = -17
@@ -228,6 +229,11 @@ func _responsive() -> void:
 	var collapsed_top := 12.0 if is_wide else 180.0
 	var open_right := -180.0 if is_wide else -10.0
 	var menu_top := 12.0 if is_wide else 10.0
+	# Center the gear inside its existing gold capsule when collapsed.
+	# Keep the expanded header exactly as approved: left-aligned gear + Thai title + chevron.
+	header_content.offset_left = 17.0 if panel.visible else 0.0
+	header_content.offset_right = -17.0 if panel.visible else 0.0
+	header_content.alignment = BoxContainer.ALIGNMENT_BEGIN if panel.visible else BoxContainer.ALIGNMENT_CENTER
 	if panel.visible:
 		toggle.offset_left = open_right - menu_width
 		toggle.offset_right = open_right

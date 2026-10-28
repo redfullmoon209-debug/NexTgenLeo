@@ -834,7 +834,7 @@ func _build_ui() -> void:
 	panel.z_index = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.set_meta("leo_fantasy_skin", true)
-	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
+	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("#061632FC")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -842,13 +842,14 @@ func _build_ui() -> void:
 	menu = VBoxContainer.new()
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(menu)
+	_add_royal_trim(panel)
 	panel.hide()
 	bag_dock_panel = PanelContainer.new()
 	bag_dock_panel.name = "PersistentBagDock"
 	bag_dock_panel.z_index = 96
 	bag_dock_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	bag_dock_panel.set_meta("leo_fantasy_skin", true)
-	bag_dock_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
+	bag_dock_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("#061632FC")))
 	world.hud.add_child(bag_dock_panel)
 	var bag_scroll := ScrollContainer.new()
 	bag_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -856,6 +857,7 @@ func _build_ui() -> void:
 	bag_dock_menu = VBoxContainer.new()
 	bag_dock_menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_scroll.add_child(bag_dock_menu)
+	_add_royal_trim(bag_dock_panel)
 	bag_dock_panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -1567,7 +1569,7 @@ func _show_panel(name: String) -> void:
 	_refresh_bag_dock()
 	panel.show()
 	panel.move_to_front() # last sibling receives clicks before HUD controls beneath it
-	var heading := _label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 21)
+	var heading := _royal_heading(_thai_panel_name(name) + "   /   NEXT GEN LEO", 20)
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu.add_child(heading)
 	_button("ปิด [Esc]", _close_panel, menu)
@@ -1655,25 +1657,25 @@ func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: floa
 func _silver_panel_style(radius: int = 10, surface: Color = Color("0b1c34f6")) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = surface
-	style.border_color = Color("d6b26c")
-	style.set_border_width_all(1)
+	style.border_color = Color("#EFC47B")
+	style.set_border_width_all(2)
 	style.border_width_top = 3
 	style.set_corner_radius_all(radius)
-	style.shadow_color = Color("071d64d4")
-	style.shadow_size = 7
+	style.shadow_color = Color("#1455BD99")
+	style.shadow_size = 10
 	style.shadow_offset = Vector2(0, 3)
-	style.content_margin_left = 6
-	style.content_margin_right = 6
-	style.content_margin_top = 5
-	style.content_margin_bottom = 5
+	style.content_margin_left = 7
+	style.content_margin_right = 7
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
 	return style
 
 func _equipment_slot_style(accent: Color, active: bool, hovered: bool = false) -> StyleBoxFlat:
-	var bg := Color("1e3c5f") if hovered else (Color("1a3456") if active else Color("10243e"))
+	var bg := Color("#144A91") if hovered else (Color("#0D326B") if active else Color("#071B3A"))
 	var style := _silver_panel_style(7, bg)
-	style.border_color = accent.lightened(0.18) if hovered else accent
-	style.shadow_color = Color("020714b5")
-	style.shadow_size = 3 if hovered else 2
+	style.border_color = Color("#FFE3A1") if hovered else accent.lerp(Color("#E8BC74"), 0.65)
+	style.shadow_color = Color("#1975D6A0") if hovered else Color("#0C3C9377")
+	style.shadow_size = 5 if hovered else 3
 	style.shadow_offset = Vector2(0, 2)
 	style.content_margin_left = 1
 	style.content_margin_right = 1
@@ -1694,8 +1696,8 @@ func _bag_equipment_slot(slot_id: String, title: String, region: String, parent:
 	button.custom_minimum_size = Vector2(34, slot_height)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_text = true
-	button.add_theme_font_size_override("font_size", 9)
-	button.add_theme_color_override("font_color", Color("ecf3ff"))
+	button.add_theme_font_size_override("font_size", 10)
+	button.add_theme_color_override("font_color", Color("#F3F7FF"))
 	button.add_theme_color_override("font_hover_color", Color.WHITE)
 	button.add_theme_stylebox_override("normal", _equipment_slot_style(accent, filled))
 	button.add_theme_stylebox_override("hover", _equipment_slot_style(accent, filled, true))
@@ -1745,7 +1747,7 @@ func _bag() -> void:
 	bag_character_panel = PanelContainer.new()
 	bag_character_panel.name = "CharacterAndEquipment"
 	bag_character_panel.set_meta("leo_fantasy_skin", true)
-	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
+	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("#071E43FB")))
 	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_character_panel.custom_minimum_size.x = 230
@@ -1754,6 +1756,7 @@ func _bag() -> void:
 	character_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	character_scroll.custom_minimum_size.y = 220.0 if not wide else maxf(160.0, panel.size.y - 135.0)
 	bag_character_panel.add_child(character_scroll)
+	_add_royal_trim(bag_character_panel)
 	var character := VBoxContainer.new()
 	character.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	character.add_theme_constant_override("separation", 3)
@@ -1767,7 +1770,7 @@ func _bag() -> void:
 	_bag_bar(character, Color("518fdb"), float(GameState.exp), float(GameState.exp_required()), "EXP")
 	# Exact positional mapping from the reference markup:
 	# left weapons / mount / loot pet, center player, right five armor items.
-	character.add_child(_label("ตัวละครและอุปกรณ์", 14))
+	character.add_child(_royal_heading("ตัวละครและอุปกรณ์", 14))
 	bag_equipment_frame = HBoxContainer.new()
 	bag_equipment_frame.name = "EquipmentAroundAvatar"
 	bag_equipment_frame.add_theme_constant_override("separation", 3)
@@ -1801,7 +1804,7 @@ func _bag() -> void:
 		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "armor", equipment_right, Color("bac9da"), 39.0)
 
 	# Silver jewelry row, left-to-right: ring / bracelet / necklace / bracelet / ring.
-	character.add_child(_label("เครื่องประดับ", 13))
+	character.add_child(_royal_heading("เครื่องประดับ", 13))
 	var jewelry_row := HBoxContainer.new()
 	jewelry_row.name = "JewelryRow"
 	jewelry_row.add_theme_constant_override("separation", 3)
@@ -1817,7 +1820,7 @@ func _bag() -> void:
 		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "jewelry", jewelry_row, Color("d4deea"), 38.0)
 
 	# Five isolated cosmetic slots. Cosmetics never replace functional armor.
-	character.add_child(_label("ชุดแฟชั่น", 13))
+	character.add_child(_royal_heading("ชุดแฟชั่น", 13))
 	var fashion_row := HBoxContainer.new()
 	fashion_row.name = "FashionRow"
 	fashion_row.add_theme_constant_override("separation", 3)
@@ -1838,7 +1841,7 @@ func _bag() -> void:
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
 	bag_inventory_panel.set_meta("leo_fantasy_skin", true)
-	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
+	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("#071E43FB")))
 	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_inventory_panel.custom_minimum_size.x = 275
@@ -1847,7 +1850,8 @@ func _bag() -> void:
 	inventory_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inventory_column.add_theme_constant_override("separation", 3)
 	bag_inventory_panel.add_child(inventory_column)
-	inventory_column.add_child(_label("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
+	_add_royal_trim(bag_inventory_panel)
+	inventory_column.add_child(_royal_heading("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
 	var inventory_summary: Label = _label("ทอง %d  แคช %d" % [GameState.gold, GameState.cash], 12)
 	inventory_column.add_child(inventory_summary)
 	# No vertical scrolling inside the item grid. Screen capacity determines
@@ -1930,7 +1934,7 @@ func _bag() -> void:
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 11)
 		button.set_meta("leo_fantasy_skin", true)
-		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("b89855"), index < GameState.inventory.size()))
+		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("#D6AB68"), index < GameState.inventory.size()))
 		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("e7c679"), true, true))
 		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("ffe4ac"), true, true))
 	# On tall phones, show actual inventory items first. Equipment remains
@@ -2028,14 +2032,15 @@ func _build_bag_pet_section(parent: VBoxContainer) -> void:
 	var card := PanelContainer.new()
 	card.name = "PetEquipmentSection"
 	card.set_meta("leo_fantasy_skin", true)
-	card.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102442f8")))
+	card.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("#081D45FB")))
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(card)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 2)
 	card.add_child(stack)
+	_add_royal_trim(card)
 	var has_pet: bool = GameState.equipped.has("loot_pet")
-	stack.add_child(_label("สัตว์เลี้ยงของฉัน  •  Lv.%d" % GameState.pet_level, 13))
+	stack.add_child(_royal_heading("สัตว์เลี้ยงของฉัน  •  Lv.%d" % GameState.pet_level, 13))
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 3)
 	stack.add_child(body)
@@ -2049,7 +2054,7 @@ func _build_bag_pet_section(parent: VBoxContainer) -> void:
 	bag_pet_preview_frame.name = "EquippedPetPortrait"
 	bag_pet_preview_frame.custom_minimum_size = Vector2(130.0, 118.0)
 	bag_pet_preview_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bag_pet_preview_frame.add_theme_stylebox_override("panel", _silver_panel_style(8, Color("071930f7")))
+	bag_pet_preview_frame.add_theme_stylebox_override("panel", _silver_panel_style(8, Color("#061833FA")))
 	body.add_child(bag_pet_preview_frame)
 	_build_bag_pet_preview(bag_pet_preview_frame)
 	var status: Label = _label("สัตว์เลี้ยงเก็บของ" if has_pet else "ยังไม่ได้สวมใส่สัตว์เลี้ยง", 10)

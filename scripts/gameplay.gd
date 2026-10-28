@@ -571,7 +571,7 @@ func _open_player_menu(name: String) -> void:
 
 func _workspace_has_bag_dock() -> bool:
 	var view_size: Vector2 = world.get_viewport().get_visible_rect().size
-	return view_size.x >= 1180.0 and view_size.x > view_size.y and not network.active and not network.connecting and active_panel not in ["", "Bag", "GM", "Death", "OwnerLogin"]
+	return view_size.x >= 1180.0 and view_size.x >= view_size.y and not network.active and not network.connecting and active_panel not in ["", "Bag", "GM", "Death", "OwnerLogin"]
 
 func _refresh_bag_dock() -> void:
 	if not _workspace_has_bag_dock():
@@ -965,7 +965,8 @@ func _layout() -> void:
 		else:
 			player_dropdown.size = Vector2(154.0, maxf(160.0, size.y - 24.0))
 			player_dropdown.position = Vector2(12.0, 12.0)
-	bag_dock_panel.hide()
+	if not _workspace_has_bag_dock():
+		bag_dock_panel.hide()
 	bag_dock_panel.scale = Vector2.ONE
 	panel.scale = Vector2.ONE
 	if portrait:
@@ -1480,7 +1481,7 @@ func _show_panel(name: String) -> void:
 		return
 	active_panel = name
 	var view_size: Vector2 = world.get_viewport().get_visible_rect().size
-	var landscape_menu: bool = view_size.x > view_size.y and name not in ["GM", "Death", "OwnerLogin"]
+	var landscape_menu: bool = view_size.x >= view_size.y and name not in ["GM", "Death", "OwnerLogin"]
 	if landscape_menu:
 		dropdown_backdrop.show()
 		player_dropdown.show()

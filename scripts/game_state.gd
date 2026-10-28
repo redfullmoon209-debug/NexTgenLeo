@@ -10,6 +10,8 @@ const RARITIES := ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
 const SAVE_PATH := "user://character_v1.json"
 # Cosmetic fashion and companions are display-only and must not grant combat stats.
 const COMBAT_EQUIPMENT_SLOTS := ["weapon", "weapon_left", "hat", "shirt", "gloves", "pants", "shoes", "ring", "bracelet_left", "accessory", "bracelet_right", "ring_right"]
+# Separate from 19 character/mount/fashion slots: pet gear never alters player combat.
+const PET_ACCESSORY_SLOTS := ["pet_necklace", "pet_ring", "pet_collar", "pet_armor", "pet_wings", "pet_charm"]
 var balance: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/balance.json"))
 var class_rank := 0
 var level := 1
@@ -27,6 +29,7 @@ var stamina := 100.0
 var max_stamina := 100
 var inventory: Array[Dictionary] = []
 var equipped: Dictionary = {}
+var pet_equipped: Dictionary = {}
 var pet_level := 1
 var pet_exp := 0
 var pet_stage := 1
@@ -237,6 +240,50 @@ func sell_many(selections: Dictionary) -> int:
 	inventory_changed.emit()
 	return total
 
+func equip_pet_item(index: int) -> bool:
+	if index < 0 or index >= inventory.size():
+		return false
+	var saved: Dictionary = inventory[index].duplicate(true)
+	var definition: Dictionary = balance.items.get(str(saved.get("id", "")), {})
+	var slot_id: String = str(definition.get("slot", ""))
+	if str(definition.get("kind", "")) != "pet_equipment" or slot_id not in PET_ACCESSORY_SLOTS or int(saved.get("count", 0)) != 1:
+		return false
+	if not remove_item(index):
+		return false
+	if pet_equipped.has(slot_id):
+		inventory.append(pet_equipped[slot_id])
+	pet_equipped[slot_id] = saved
+	inventory_changed.emit()
+	return true
+
+func unequip_pet_item(slot_id: String) -> bool:
+	if slot_id not in PET_ACCESSORY_SLOTS or not pet_equipped.has(slot_id) or inventory.size() >= 200:
+		return false
+	inventory.append(pet_equipped[slot_id])
+	pet_equipped.erase(slot_id)
+	inventory_changed.emit()
+	return true
+
+func pet_bonus() -> Dictionary:
+	var totals := {"power":0, "defense":0, "loot_radius":0.0}
+	for slot_id in PET_ACCESSORY_SLOTS:
+		if not pet_equipped.has(slot_id):
+			continue
+		var entry: Dictionary = pet_equipped[slot_id]
+		var definition: Dictionary = balance.items.get(str(entry.get("id", "")), {})
+		if str(definition.get("slot", "")) != slot_id or str(definition.get("kind", "")) != "pet_equipment":
+			continue
+		totals.power += int(definition.get("pet_power", 0))
+		totals.defense += int(definition.get("pet_defense", 0))
+		totals.loot_radius += float(definition.get("pet_loot_radius", 0.0))
+	return totals
+
+func pet_pickup_radius() -> float:
+	# The pet's pickup bonus applies only when a loot pet is actually equipped.
+	if not equipped.has("loot_pet"):
+		return 4.0
+	return clampf(4.0 + float(pet_bonus().loot_radius), 4.0, 8.0)
+
 func use_item(index: int) -> String:
 	if index < 0 or index >= inventory.size():
 		return "Invalid item"
@@ -245,6 +292,9 @@ func use_item(index: int) -> String:
 	if hp <= 0 and item.kind not in ["revive", "warp"]:
 		return "Revive first"
 	match str(item.kind):
+		"pet_equipment":
+			if not equip_pet_item(index):
+				return "Pet equipment cannot be equipped"
 		"equipment":
 			var slot: String = item.slot
 			remove_item(index)
@@ -334,7 +384,7 @@ func save_game() -> bool:
 	return DirAccess.rename_absolute(SAVE_PATH + ".tmp", SAVE_PATH) == OK
 
 func _save_keys() -> Array:
-	return ["class_rank","level","exp","gold","cash","selected_element","selected_path","selected_job","faction","gender","hp","stamina","inventory","equipped","pet_level","pet_exp","pet_stage","pet_enabled","quest_state","quest_kills","advancement_ready","map_index","location","settings","buffs","skill_mode","skill_loadout"]
+	return ["class_rank","level","exp","gold","cash","selected_element","selected_path","selected_job","faction","gender","hp","stamina","inventory","equipped","pet_equipped","pet_level","pet_exp","pet_stage","pet_enabled","quest_state","quest_kills","advancement_ready","map_index","location","settings","buffs","skill_mode","skill_loadout"]
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -351,6 +401,18 @@ func load_game() -> bool:
 		if item is Dictionary and item.get("id", "") in balance.items and inventory.size() < 200:
 			item.count = clampi(int(item.get("count", 1)), 1, int(balance.items[item.id].stack))
 			inventory.append(item)
+	# Legacy saves have no pet slots. Validate any new entries on load so a
+	# corrupted offline save cannot masquerade as a character equipment slot.
+	if not pet_equipped is Dictionary:
+		pet_equipped = {}
+	for slot_id in pet_equipped.keys():
+		var entry: Variant = pet_equipped[slot_id]
+		if slot_id not in PET_ACCESSORY_SLOTS or not entry is Dictionary:
+			pet_equipped.erase(slot_id)
+			continue
+		var definition: Dictionary = balance.items.get(str(entry.get("id", "")), {})
+		if definition.get("kind", "") != "pet_equipment" or definition.get("slot", "") != slot_id:
+			pet_equipped.erase(slot_id)
 	class_rank = clampi(class_rank, 0, 10)
 	level = clampi(level, 1, 100)
 	map_index = clampi(map_index, 0, 4)

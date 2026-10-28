@@ -39,6 +39,25 @@ func run() -> void:
 	check(state.sell_many({0:1,1:2}) == 13, "multi-sale pays exact combined gold")
 	check(state.gold == early_gold + 13 and state.inventory.size() == 1 and int(state.inventory[0].count) == 1, "multi-sale removes descending indices without loss")
 	check(state.sell_many({}) == -1, "empty bulk sale is rejected")
+	# Pet gear occupies its own six slots; character equipment stays unchanged.
+	state.pet_equipped.clear()
+	check(state.add_item("pet_necklace_silver"), "pet necklace can be added to bag")
+	var pet_damage_before: int = state.attack_power()
+	var pet_index: int = state.inventory.size() - 1
+	check("Used" in state.use_item(pet_index), "necklace can be equipped from inventory")
+	check(state.pet_equipped.has("pet_necklace") and not state.equipped.has("pet_necklace"), "pet necklace uses distinct pet-only equipment")
+	check(int(state.pet_bonus().power) == 6 and state.attack_power() == pet_damage_before, "pet power bonus never changes player attack")
+	check(state.unequip_pet_item("pet_necklace"), "pet necklace can be unequipped")
+	check(state.pet_equipped.is_empty(), "pet equipment slots return to empty")
+	check(state.add_item("pet_wings_wind"), "pet loot wings available from item catalog")
+	check(state.equip_pet_item(state.inventory.size() - 1), "pet wings equip")
+	check(is_equal_approx(float(state.pet_bonus().loot_radius), 1.0), "pet wings add only pet loot range")
+	state.equipped["loot_pet"] = {"id":"loot_companion","count":1,"enhancement":0}
+	check(state.pet_pickup_radius() > 4.0, "worn pet receives equipped pickup-range benefit")
+	state.equipped.erase("loot_pet")
+	check(is_equal_approx(state.pet_pickup_radius(), 4.0), "pet bonuses do not apply without pet")
+	state.pet_equipped.clear()
+	state.inventory.clear()
 	state.class_rank = 0
 	state.level = 1
 	state.exp = 0
@@ -170,6 +189,19 @@ func run() -> void:
 	check(game.panel.position.x + game.panel.size.x < viewport_width - 200, "game scene remains visible to right of workspace")
 	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "bag stays above other HUD elements")
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
+	check(game.bag_character_panel.find_child("PetEquipmentSection", true, false) != null, "character pane includes dedicated pet equipment section")
+	check(game.bag_character_panel.find_child("UnassignedPetSilhouette", true, false) != null, "empty pet previews a silhouette instead of the test animal")
+	check(state.add_item("loot_companion"), "pet to preview can be obtained")
+	check("Used" in state.use_item(state.inventory.size() - 1), "loot pet can be worn")
+	game._close_panel()
+	game._show_panel("Bag")
+	await process_frame
+	check(game.bag_character_panel.find_child("EquippedPet3DPreview", true, false) != null, "worn pet renders the live in-game mesh in bag preview")
+	check(game.bag_equipment_buttons.size() == 19 and game.pet_gear_buttons.size() == 6, "worn pet leaves all original equipment slots intact")
+	check(state.unequip("loot_pet"), "loot pet can be removed")
+	game._close_panel()
+	game._show_panel("Bag")
+	await process_frame
 	check(game.bag_slot_grid != null and game.bag_slot_grid.columns >= 3 and game.bag_slot_grid.columns <= 6, "responsive bag grid has 3 to 6 columns")
 	check(game.bag_page_size > 0 and game.bag_page_size < 100 and game.bag_page_count >= 3, "200 slots are divided among responsive numbered pages")
 	check(game.bag_slot_grid.get_child_count() == game.bag_page_size, "bag renders only slots belonging to the visible page")
@@ -179,6 +211,7 @@ func run() -> void:
 	await process_frame
 	check(game.bag_page == 1 and game.bag_slot_grid.find_child("InventorySlot%d" % game.bag_page_size, true, false) != null, "second page starts at the next correct inventory slot")
 	check(game.bag_equipment_buttons.size() == 19, "page switches preserve all 19 equipment slots")
+	check(game.pet_gear_buttons.size() == 6, "pet card adds six slots without replacing any of the 19 character slots")
 	game._set_bag_page(0)
 	await process_frame
 	check(game.bag_inventory_panel.find_child("BulkSellActions", true, false) != null, "inventory has multi-selection action row")
@@ -187,6 +220,7 @@ func run() -> void:
 	game._toggle_bulk_mode()
 	check(not game.bag_bulk_mode and game.bag_bulk_selection.is_empty(), "bulk selling mode can be canceled")
 	check(game.bag_equipment_frame != null and game.bag_equipment_buttons.size() == 19, "all 19 named equipment slots are created")
+	check(game.pet_gear_buttons.size() == 6, "six pet-only accessories are in distinct named slots")
 	check(game.bag_slot_regions.size() == 19, "all equipment slots have a recorded region")
 	for armor_id in ["hat", "shirt", "gloves", "pants", "shoes"]:
 		check(game.bag_slot_regions.get(armor_id, "") == "armor", "right-hand armor slot " + armor_id)
@@ -341,9 +375,13 @@ func run() -> void:
 	var existed := FileAccess.file_exists(save_path)
 	var previous := FileAccess.get_file_as_bytes(save_path) if existed else PackedByteArray()
 	state.gold = 123
+	state.pet_equipped = {"pet_ring":{"id":"pet_ring_moon","count":1,"enhancement":0}}
 	check(state.save_game(), "save write")
 	state.gold = 0
+	state.pet_equipped.clear()
 	check(state.load_game() and state.gold == 123, "save load round trip")
+	check(state.pet_equipped.has("pet_ring"), "pet equipment persists through versioned offline save")
+	state.pet_equipped.clear()
 	if existed:
 		var restore := FileAccess.open(save_path,FileAccess.WRITE)
 		restore.store_buffer(previous)

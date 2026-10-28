@@ -62,6 +62,8 @@ var bag_inventory_panel: PanelContainer
 var bag_equipment_buttons: Array[Button] = []
 var bag_equipment_frame: HBoxContainer
 var bag_slot_regions: Dictionary = {}
+var pet_gear_buttons: Array[Button] = []
+var bag_pet_preview_frame: PanelContainer
 var bag_character_preview: SubViewportContainer
 var bag_preview_stage: Node3D
 var bag_preview_model: Node3D
@@ -1102,10 +1104,10 @@ func _killed(index: int) -> void:
 		target = -1
 		world.auto_destination = Vector3.INF
 
-func _pickup() -> void:
+func _pickup(radius: float = 4.0) -> void:
 	for i in range(drops.size() - 1, -1, -1):
 		var drop: Dictionary = drops[i]
-		if world.player.position.distance_to(drop.node.position) <= 4 and GameState.add_item(drop.id):
+		if world.player.position.distance_to(drop.node.position) <= radius and GameState.add_item(drop.id):
 			GameState.gold += int(drop.gold)
 			drop.node.queue_free()
 			drops.remove_at(i)
@@ -1178,7 +1180,7 @@ func _process(delta: float) -> void:
 		pet.position = pet.position.lerp(destination, delta * 3)
 		pet.position.y = 0.05 + sin(animation_time * 5) * 0.07
 		if GameState.hp > 0:
-			_pickup()
+			_pickup(GameState.pet_pickup_radius())
 	save_timer += delta
 	if save_timer > 10:
 		save_timer = 0
@@ -1361,7 +1363,20 @@ func _refresh_hud() -> void:
 			var mesh_count_value: Variant = imported_avatar_visual.get("rendered_mesh_count")
 			if mesh_count_value != null:
 				model_mesh_count = int(mesh_count_value)
-		var diagnostic := {"bag_page_next":[page_next_center.x,page_next_center.y],"bag_page_prev":[page_prev_center.x,page_prev_center.y],"bag_page":bag_page + 1,"bag_page_size":bag_page_size,"bag_page_count":bag_page_count,"bag_dock_open":bag_dock_panel.visible,"bag_dock_rect":[bag_dock_panel.position.x,bag_dock_panel.position.y,bag_dock_panel.size.x,bag_dock_panel.size.y],"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var slot_grid_right := 0.0
+		var slot_grid_bottom := 0.0
+		var pet_has_silhouette := false
+		var pet_has_live_preview := false
+		if active_panel == "Bag" and is_instance_valid(bag_character_panel):
+			pet_has_silhouette = is_instance_valid(bag_character_panel.find_child("UnassignedPetSilhouette", true, false))
+			pet_has_live_preview = is_instance_valid(bag_character_panel.find_child("EquippedPet3DPreview", true, false))
+			if is_instance_valid(bag_slot_grid):
+				for item_slot in bag_slot_grid.get_children():
+					if item_slot is Control:
+						var slot_rect: Rect2 = (item_slot as Control).get_global_rect()
+						slot_grid_right = maxf(slot_grid_right, slot_rect.end.x)
+						slot_grid_bottom = maxf(slot_grid_bottom, slot_rect.end.y)
+		var diagnostic := {"pet_gear_count":pet_gear_buttons.size() if active_panel == "Bag" else 0,"pet_shadow_visible":pet_has_silhouette,"pet_live_preview":pet_has_live_preview,"bag_grid_right":slot_grid_right,"bag_grid_bottom":slot_grid_bottom,"bag_page_next":[page_next_center.x,page_next_center.y],"bag_page_prev":[page_prev_center.x,page_prev_center.y],"bag_page":bag_page + 1,"bag_page_size":bag_page_size,"bag_page_count":bag_page_count,"bag_dock_open":bag_dock_panel.visible,"bag_dock_rect":[bag_dock_panel.position.x,bag_dock_panel.position.y,bag_dock_panel.size.x,bag_dock_panel.size.y],"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -1658,6 +1673,7 @@ func _bag() -> void:
 		bag_bulk_selection.clear()
 	bag_equipment_buttons.clear()
 	bag_slot_regions.clear()
+	pet_gear_buttons.clear()
 	var portrait_bag := world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x
 	var wide := panel.size.x >= 550.0 and not portrait_bag
 	var panes: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
@@ -1759,7 +1775,9 @@ func _bag() -> void:
 	]:
 		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "fashion", fashion_row, Color("829fda"), 40.0)
 
-	# Red area: smaller inventory cells with independent vertical scrolling.
+	_build_bag_pet_section(character)
+
+	# Inventory page: fixed-size slots and numbered pages, no inner scrolling.
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
 	bag_inventory_panel.set_meta("leo_fantasy_skin", true)
@@ -1777,10 +1795,13 @@ func _bag() -> void:
 	inventory_column.add_child(inventory_summary)
 	# No vertical scrolling inside the item grid. Screen capacity determines
 	# how many of the fixed 200 slots are visible per numbered page.
-	var grid_width: float = maxf(180.0, (panel.size.x - 300.0) if wide else (panel.size.x - 38.0))
-	var grid_columns: int = clampi(int(grid_width / 54.0), 3, 5 if portrait_bag else 6)
+	# Reserve character pane (230), frame padding and separation before
+	# sizing the right grid. The old estimate subtracted 300px and clipped cells.
+	var grid_width: float = maxf(180.0, (panel.size.x - 263.0) if wide else (panel.size.x - 28.0))
+	var grid_columns: int = clampi(int(grid_width / 52.0), 3, 5)
+	var slot_side: float = clampf(floorf((grid_width - float(grid_columns - 1) * 3.0) / float(grid_columns)), 40.0, 62.0)
 	var usable_height: float = maxf(140.0, panel.size.y - (235.0 if panel == bag_dock_panel else 269.0))
-	var grid_rows: int = clampi(int(usable_height / 54.0), 3, 12)
+	var grid_rows: int = clampi(int(usable_height / (slot_side + 3.0)), 3, 12)
 	bag_page_size = clampi(grid_columns * grid_rows, grid_columns * 3, 100)
 	bag_page_count = maxi(1, int(ceil(200.0 / float(bag_page_size))))
 	bag_page = clampi(bag_page, 0, bag_page_count - 1)
@@ -1822,6 +1843,7 @@ func _bag() -> void:
 	bag_slot_grid = GridContainer.new()
 	bag_slot_grid.name = "InventorySlots"
 	bag_slot_grid.columns = grid_columns
+	bag_slot_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_slot_grid.add_theme_constant_override("h_separation", 3)
 	bag_slot_grid.add_theme_constant_override("v_separation", 3)
 	inventory_column.add_child(bag_slot_grid)
@@ -1834,7 +1856,7 @@ func _bag() -> void:
 		if index < GameState.inventory.size():
 			var slot: Dictionary = GameState.inventory[index]
 			var item: Dictionary = GameState.balance.items.get(slot.id, {})
-			slot_text = "%s\\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
+			slot_text = "%s\nx%d" % [str(item.get("icon", "◆")), int(slot.count)]
 			item_tip = "%s ×%d" % [str(item.get("name", slot.id)), int(slot.count)]
 		if bag_bulk_mode and bag_bulk_selection.has(index):
 			slot_text = "✓ " + slot_text
@@ -1845,7 +1867,9 @@ func _bag() -> void:
 				_item_menu(index)
 		, bag_slot_grid)
 		button.name = "InventorySlot%d" % index
-		button.custom_minimum_size = Vector2(44, 43)
+		button.custom_minimum_size = Vector2(slot_side, slot_side)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.clip_text = true
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 11)
 		button.set_meta("leo_fantasy_skin", true)
@@ -1856,6 +1880,140 @@ func _bag() -> void:
 	# below the grid, accessible by the outer menu's vertical scrolling.
 	if portrait_bag:
 		panes.move_child(bag_inventory_panel, 0)
+
+func _pet_accessory_slot(slot_id: String, caption: String, parent: Container, min_height: float = 47.0) -> void:
+	var equipped: Dictionary = GameState.pet_equipped.get(slot_id, {})
+	var item: Dictionary = GameState.balance.items.get(str(equipped.get("id", "")), {})
+	var filled: bool = not equipped.is_empty()
+	var text_value: String = caption + ("\n" + str(item.get("icon", "◆")) if filled else "\n·")
+	var button := _button(text_value, func(): _pet_accessory_clicked(slot_id), parent)
+	button.name = "PetEquip_" + slot_id
+	button.set_meta("pet_slot_id", slot_id)
+	button.set_meta("leo_fantasy_skin", true)
+	button.custom_minimum_size = Vector2(49.0, min_height)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.clip_text = true
+	button.add_theme_font_size_override("font_size", 10)
+	button.add_theme_color_override("font_color", Color("dceaff") if not filled else Color("fce8a7"))
+	button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("d0a65d"), filled))
+	button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("f3d896"), true, true))
+	button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("ffffff"), true, true))
+	button.tooltip_text = ("%s: %s (แตะเพื่อถอด)" % [caption, str(item.get("name", ""))]) if filled else ("%s — แตะเพื่อสวมอุปกรณ์จากกระเป๋า" % caption)
+	pet_gear_buttons.append(button)
+
+func _pet_accessory_clicked(slot_id: String) -> void:
+	if GameState.pet_equipped.has(slot_id):
+		if GameState.unequip_pet_item(slot_id):
+			_save()
+			_refresh_bag_contents()
+		else:
+			_tell("กระเป๋าเต็ม ไม่สามารถถอดอุปกรณ์สัตว์เลี้ยงได้")
+		return
+	for index in range(GameState.inventory.size()):
+		var stack: Dictionary = GameState.inventory[index]
+		var definition: Dictionary = GameState.balance.items.get(str(stack.get("id", "")), {})
+		if str(definition.get("kind", "")) == "pet_equipment" and str(definition.get("slot", "")) == slot_id:
+			if GameState.equip_pet_item(index):
+				_save()
+				_refresh_bag_contents()
+			return
+	_tell("ยังไม่มี%sในกระเป๋า สามารถซื้อได้จากร้านค้า" % slot_id)
+
+func _build_bag_pet_preview(parent: PanelContainer) -> void:
+	# Do not show the default test animal as equipped. Empty slot = silhouette.
+	if not GameState.equipped.has("loot_pet") or not is_instance_valid(pet):
+		var shadow := Control.new()
+		shadow.name = "UnassignedPetSilhouette"
+		shadow.set_script(load("res://scripts/pet_silhouette.gd"))
+		shadow.custom_minimum_size = Vector2(130.0, 114.0)
+		shadow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shadow.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parent.add_child(shadow)
+		return
+	# Actual preview uses a duplicate of the currently visible game pet mesh.
+	# This will also show artist-authored pet models when replacing that mesh.
+	var display := SubViewportContainer.new()
+	display.name = "EquippedPet3DPreview"
+	display.custom_minimum_size = Vector2(130.0, 114.0)
+	display.stretch = true
+	display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	display.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(display)
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(190, 150)
+	viewport.own_world_3d = true
+	viewport.transparent_bg = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	display.add_child(viewport)
+	var stage := Node3D.new()
+	viewport.add_child(stage)
+	var model: Node3D = pet.duplicate() as Node3D
+	model.name = "PreviewOfEquippedPet"
+	model.position = Vector3.ZERO
+	model.rotation = Vector3.ZERO
+	model.visible = true
+	for child in model.get_children():
+		if child is Label3D:
+			child.visible = false
+	stage.add_child(model)
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-35, -30, 0)
+	light.light_energy = 2.4
+	stage.add_child(light)
+	var camera := Camera3D.new()
+	camera.position = Vector3(0, 1.18, -2.8)
+	stage.add_child(camera)
+	camera.look_at(Vector3(0, 0.62, 0), Vector3.UP)
+	camera.current = true
+
+func _build_bag_pet_section(parent: VBoxContainer) -> void:
+	var card := PanelContainer.new()
+	card.name = "PetEquipmentSection"
+	card.set_meta("leo_fantasy_skin", true)
+	card.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102442f8")))
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(card)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 2)
+	card.add_child(stack)
+	var has_pet: bool = GameState.equipped.has("loot_pet")
+	stack.add_child(_label("สัตว์เลี้ยงของฉัน  •  Lv.%d" % GameState.pet_level, 13))
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 3)
+	stack.add_child(body)
+	var side := VBoxContainer.new()
+	side.add_theme_constant_override("separation", 3)
+	side.custom_minimum_size.x = 50.0
+	body.add_child(side)
+	_pet_accessory_slot("pet_necklace", "สร้อยสัตว์", side, 54.0)
+	_pet_accessory_slot("pet_ring", "แหวนสัตว์", side, 54.0)
+	bag_pet_preview_frame = PanelContainer.new()
+	bag_pet_preview_frame.name = "EquippedPetPortrait"
+	bag_pet_preview_frame.custom_minimum_size = Vector2(130.0, 118.0)
+	bag_pet_preview_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bag_pet_preview_frame.add_theme_stylebox_override("panel", _silver_panel_style(8, Color("071930f7")))
+	body.add_child(bag_pet_preview_frame)
+	_build_bag_pet_preview(bag_pet_preview_frame)
+	var status: Label = _label("สัตว์เลี้ยงเก็บของ" if has_pet else "ยังไม่ได้สวมใส่สัตว์เลี้ยง", 10)
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status.add_theme_color_override("font_color", Color("f9d48c") if has_pet else Color("9db7d2"))
+	stack.add_child(status)
+	var accessories := HBoxContainer.new()
+	accessories.name = "PetAccessoryRow"
+	accessories.add_theme_constant_override("separation", 2)
+	stack.add_child(accessories)
+	for spec in [
+		{"slot":"pet_collar", "caption":"ปลอกคอ"},
+		{"slot":"pet_armor", "caption":"เกราะสัตว์"},
+		{"slot":"pet_wings", "caption":"ปีกสัตว์"},
+		{"slot":"pet_charm", "caption":"เครื่องราง"}
+	]:
+		_pet_accessory_slot(str(spec.slot), str(spec.caption), accessories, 51.0)
+	var bonus: Dictionary = GameState.pet_bonus()
+	var bonus_text := _label("พลังสัตว์ +%d  ป้องกัน +%d  ระยะเก็บ +%.1f ม." % [int(bonus.power), int(bonus.defense), float(bonus.loot_radius)], 10)
+	bonus_text.add_theme_color_override("font_color", Color("b6d9ff"))
+	stack.add_child(bonus_text)
 
 func _set_bag_page(new_page: int) -> void:
 	bag_page = clampi(new_page, 0, bag_page_count - 1)

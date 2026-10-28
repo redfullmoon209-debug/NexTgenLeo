@@ -49,6 +49,14 @@ func run() -> void:
 	check(int(state.pet_bonus().power) == 6 and state.attack_power() == pet_damage_before, "pet power bonus never changes player attack")
 	check(state.unequip_pet_item("pet_necklace"), "pet necklace can be unequipped")
 	check(state.pet_equipped.is_empty(), "pet equipment slots return to empty")
+	check(state.add_item("pet_wings_wind"), "pet loot wings available from item catalog")
+	check(state.equip_pet_item(state.inventory.size() - 1), "pet wings equip")
+	check(is_equal_approx(float(state.pet_bonus().loot_radius), 1.0), "pet wings add only pet loot range")
+	state.equipped["loot_pet"] = {"id":"loot_companion","count":1,"enhancement":0}
+	check(state.pet_pickup_radius() > 4.0, "worn pet receives equipped pickup-range benefit")
+	state.equipped.erase("loot_pet")
+	check(is_equal_approx(state.pet_pickup_radius(), 4.0), "pet bonuses do not apply without pet")
+	state.pet_equipped.clear()
 	state.inventory.clear()
 	state.class_rank = 0
 	state.level = 1
@@ -183,6 +191,17 @@ func run() -> void:
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
 	check(game.bag_character_panel.find_child("PetEquipmentSection", true, false) != null, "character pane includes dedicated pet equipment section")
 	check(game.bag_character_panel.find_child("UnassignedPetSilhouette", true, false) != null, "empty pet previews a silhouette instead of the test animal")
+	check(state.add_item("loot_companion"), "pet to preview can be obtained")
+	check("Used" in state.use_item(state.inventory.size() - 1), "loot pet can be worn")
+	game._close_panel()
+	game._show_panel("Bag")
+	await process_frame
+	check(game.bag_character_panel.find_child("EquippedPet3DPreview", true, false) != null, "worn pet renders the live in-game mesh in bag preview")
+	check(game.bag_equipment_buttons.size() == 19 and game.pet_gear_buttons.size() == 6, "worn pet leaves all original equipment slots intact")
+	check(state.unequip("loot_pet"), "loot pet can be removed")
+	game._close_panel()
+	game._show_panel("Bag")
+	await process_frame
 	check(game.bag_slot_grid != null and game.bag_slot_grid.columns >= 3 and game.bag_slot_grid.columns <= 6, "responsive bag grid has 3 to 6 columns")
 	check(game.bag_page_size > 0 and game.bag_page_size < 100 and game.bag_page_count >= 3, "200 slots are divided among responsive numbered pages")
 	check(game.bag_slot_grid.get_child_count() == game.bag_page_size, "bag renders only slots belonging to the visible page")

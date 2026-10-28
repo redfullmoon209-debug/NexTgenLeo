@@ -242,42 +242,78 @@ func _build() -> void:
 	for entry in MENU_SPECS:
 		_nav_button(str(entry["id"]), str(entry["title"]), int(entry["icon"]), nav_stack)
 	_button("ปิดหน้าต่าง [Esc]", func(): close_workspace(), nav_root, 38)
-	# Character + PvE/PvP stack in the middle.
+	# Character preview in the centre, combat equipment on the left,
+	# fashion equipment on the right, and five jewellery slots below.
 	var mid := VBoxContainer.new()
-	mid.custom_minimum_size.x = 338
+	mid.custom_minimum_size.x = 421
 	mid.add_theme_constant_override("separation", 6)
 	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(mid)
 	var gear := _panel(mid, "Character_Equipment_Panel.png")
+	gear.name = "CharacterEquipmentFrame"
 	gear.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var gear_column := VBoxContainer.new()
 	gear_column.add_theme_constant_override("separation", 4)
 	gear.add_child(gear_column)
 	gear_column.add_child(_label("ตัวละครและอุปกรณ์", 16))
 	var gear_scroll := ScrollContainer.new()
+	gear_scroll.name = "EquipmentScroll"
 	gear_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	gear_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	gear_column.add_child(gear_scroll)
 	var gear_stack := VBoxContainer.new()
 	gear_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gear_stack.add_theme_constant_override("separation", 7)
+	gear_stack.add_theme_constant_override("separation", 6)
 	gear_scroll.add_child(gear_stack)
-		# Both columns use the same empty slot image; fashion gear is cosmetic.
-	equipment_grid = GridContainer.new()
-	equipment_grid.columns = 2
+	equipment_grid = HBoxContainer.new()
+	equipment_grid.name = "WarriorCharacterFashion"
 	equipment_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_grid.add_theme_constant_override("h_separation", 5)
-	equipment_grid.add_theme_constant_override("v_separation", 5)
+	equipment_grid.add_theme_constant_override("separation", 6)
 	gear_stack.add_child(equipment_grid)
-	# Keep the existing live character preview without a second model system.
-	var preview_row := HBoxContainer.new()
-	preview_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gear_stack.add_child(preview_row)
-	# Do not instantiate a second animated GLB viewport on this overlay:
-	# its textures can exceed the WebGL memory budget when combined with 100 cells.
-	var avatar_note := _label("ตัวละคร 3D แสดงในเกมด้านหลังหน้าต่าง", 12)
-	avatar_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	preview_row.add_child(avatar_note)
+	var warrior_col := VBoxContainer.new()
+	warrior_col.custom_minimum_size.x = 63
+	warrior_col.add_theme_constant_override("separation", 3)
+	equipment_grid.add_child(warrior_col)
+	var warrior_title := _label("ชุดนักรบ", 12)
+	warrior_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warrior_col.add_child(warrior_title)
+	warrior_stack = VBoxContainer.new()
+	warrior_stack.name = "WarriorEquipmentSlots"
+	warrior_stack.add_theme_constant_override("separation", 2)
+	warrior_col.add_child(warrior_stack)
+	var character_col := VBoxContainer.new()
+	character_col.custom_minimum_size.x = 226
+	character_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character_col.add_theme_constant_override("separation", 3)
+	equipment_grid.add_child(character_col)
+	var portrait_title := _label("ตัวละคร", 12)
+	portrait_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	character_col.add_child(portrait_title)
+	_build_character_preview(character_col)
+	var fashion_col := VBoxContainer.new()
+	fashion_col.custom_minimum_size.x = 63
+	fashion_col.add_theme_constant_override("separation", 3)
+	equipment_grid.add_child(fashion_col)
+	var fashion_title := _label("ชุดแฟชั่น", 12)
+	fashion_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fashion_col.add_child(fashion_title)
+	fashion_stack = VBoxContainer.new()
+	fashion_stack.name = "FashionEquipmentSlots"
+	fashion_stack.add_theme_constant_override("separation", 2)
+	fashion_col.add_child(fashion_stack)
+	# Jewellery remains independent from fashion, in the exact requested order.
+	var jewelry_section := VBoxContainer.new()
+	jewelry_section.name = "JewelrySection"
+	jewelry_section.add_theme_constant_override("separation", 3)
+	gear_stack.add_child(jewelry_section)
+	var jewelry_title := _label("เครื่องประดับ", 13)
+	jewelry_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	jewelry_section.add_child(jewelry_title)
+	accessory_stack = HBoxContainer.new()
+	accessory_stack.name = "FiveJewelrySlots"
+	accessory_stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	accessory_stack.add_theme_constant_override("separation", 5)
+	jewelry_section.add_child(accessory_stack)
 	# PvE/PvP is a separate panel, and no invented PvP stats are displayed.
 	var stats := _panel(mid, "PVE_PVP_Stats_Panel.png")
 	stats.custom_minimum_size.y = 110
@@ -289,7 +325,7 @@ func _build() -> void:
 	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stats_column.add_child(stats_label)
 	# Main inventory pane.
-	var bag := _panel(columns, "Inventory_Panel.png", 445.0)
+	var bag := _panel(columns, "Inventory_Panel.png", 465.0)
 	bag.name = "InventoryRight"
 	var bag_stack := VBoxContainer.new()
 	bag_stack.add_theme_constant_override("separation", 5)
@@ -337,11 +373,75 @@ func _build() -> void:
 	ext_inner.add_child(extension_content)
 	extension_frame.hide()
 
+
+func _build_character_preview(parent: VBoxContainer) -> void:
+	# A lightweight 3D portrait of the current equipped character, not a
+	# prepainted person. The viewport draws on demand rather than every frame.
+	avatar_preview_frame = _panel(parent, "Character_Equipment_Panel.png", 211.0)
+	avatar_preview_frame.name = "LiveCharacterPortrait"
+	avatar_preview_frame.custom_minimum_size.y = 415.0
+	var frame_inner := VBoxContainer.new()
+	avatar_preview_frame.add_child(frame_inner)
+	var viewport_holder := SubViewportContainer.new()
+	viewport_holder.name = "LivePortraitViewportContainer"
+	viewport_holder.stretch = true
+	viewport_holder.custom_minimum_size = Vector2(190.0, 390.0)
+	viewport_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	viewport_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	viewport_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame_inner.add_child(viewport_holder)
+	avatar_viewport = SubViewport.new()
+	avatar_viewport.name = "LiveCharacterViewport"
+	avatar_viewport.size = Vector2i(144, 290)
+	avatar_viewport.own_world_3d = true
+	avatar_viewport.transparent_bg = true
+	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	viewport_holder.add_child(avatar_viewport)
+	var stage_root := Node3D.new()
+	avatar_viewport.add_child(stage_root)
+	avatar_stage = Node3D.new()
+	avatar_stage.name = "PortraitMeshStage"
+	stage_root.add_child(avatar_stage)
+	var key_light := DirectionalLight3D.new()
+	key_light.rotation_degrees = Vector3(-40, -32, 0)
+	key_light.light_energy = 2.6
+	stage_root.add_child(key_light)
+	var fill_light := DirectionalLight3D.new()
+	fill_light.rotation_degrees = Vector3(-18, 95, 0)
+	fill_light.light_energy = 1.25
+	stage_root.add_child(fill_light)
+	var camera := Camera3D.new()
+	camera.name = "PortraitCamera"
+	camera.position = Vector3(0.0, 1.16, -2.95)
+	camera.fov = 34.0
+	stage_root.add_child(camera)
+	camera.look_at(Vector3(0.0, 0.98, 0.0), Vector3.UP)
+	camera.current = true
+
+func _refresh_character_preview() -> void:
+	if not visible or not is_instance_valid(avatar_stage) or not is_instance_valid(game):
+		return
+	var current_avatar: Node3D = game.get("avatar")
+	if not is_instance_valid(current_avatar):
+		return
+	# No duplicate() of skinned GLBs: use the existing shared Mesh resources,
+	# which avoids the node duplication error in Godot and keeps WebGL lighter.
+	for child in avatar_stage.get_children():
+		avatar_stage.remove_child(child)
+		child.queue_free()
+	var model := Node3D.new()
+	model.name = "PortraitModel"
+	avatar_stage.add_child(model)
+	game.call("_copy_preview_meshes", current_avatar, model)
+	avatar_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
 func open_workspace() -> void:
 	visible = true
 	_set_extension("")
 	_refresh_equipment()
 	_refresh_contents()
+	_refresh_character_preview()
 	_layout()
 	move_to_front()
 

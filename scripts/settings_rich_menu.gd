@@ -6,7 +6,7 @@ const ICON_FILES := ["graphics", "audio", "controls", "hud", "auto_hunt", "auto_
 var panel: PanelContainer
 var toggle: Button
 var header_title: Label
-var header_arrow: Label
+var header_arrow: TextureRect
 var list: VBoxContainer
 
 func _ready() -> void:
@@ -21,7 +21,7 @@ func _ready() -> void:
 	# One top header: gear lives INSIDE the gold frame; rows drop directly below.
 	toggle = Button.new()
 	toggle.text = ""
-	toggle.tooltip_text = "ตั้งค่าเกม"
+	toggle.tooltip_text = ""
 	toggle.anchor_left = 1.0
 	toggle.anchor_right = 1.0
 	toggle.anchor_top = 0.0
@@ -51,15 +51,14 @@ func _ready() -> void:
 	header_title.add_theme_color_override("font_outline_color", Color.BLACK)
 	header_title.add_theme_constant_override("outline_size", 5)
 	header_content.add_child(header_title)
-	header_arrow = Label.new()
+	header_arrow = TextureRect.new()
 	header_arrow.name = "Chevron"
-	header_arrow.text = "⌄"
-	header_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header_arrow.add_theme_font_size_override("font_size", 28)
-	header_arrow.add_theme_color_override("font_color", Color.WHITE)
-	header_arrow.add_theme_color_override("font_outline_color", Color.BLACK)
-	header_arrow.add_theme_constant_override("outline_size", 4)
-	header_content.add_child(header_arrow)
+	header_arrow.texture = load("res://assets/ui/settings/icons/chevron_down.svg")
+	header_arrow.custom_minimum_size = Vector2(32, 32)
+	header_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	header_arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		header_content.add_child(header_arrow)
 	panel = PanelContainer.new()
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
@@ -77,7 +76,7 @@ func _ready() -> void:
 	outer.add_child(scroll)
 	list = VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 5)
+	list.add_theme_constant_override("separation", 3)
 	scroll.add_child(list)
 	for i in range(TITLES.size()):
 		_add_row(i)
@@ -148,7 +147,7 @@ func _panel_style() -> StyleBoxFlat:
 
 func _add_row(index: int) -> void:
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 59)
+	button.custom_minimum_size = Vector2(0, 55)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(func(): print("Settings selected: ", TITLES[index]))
 	list.add_child(button)
@@ -177,15 +176,14 @@ func _add_row(index: int) -> void:
 	label.add_theme_constant_override("outline_size", 5)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_child(label)
-	var arrow := Label.new()
-	arrow.text = "❯"
-	arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	arrow.add_theme_font_size_override("font_size", 24)
-	arrow.add_theme_color_override("font_color", Color.WHITE)
-	arrow.add_theme_color_override("font_outline_color", Color.BLACK)
-	arrow.add_theme_constant_override("outline_size", 4)
+	var arrow := TextureRect.new()
+	arrow.name = "Layer_chevron"
+	arrow.texture = load("res://assets/ui/settings/icons/chevron_right.svg")
+	arrow.custom_minimum_size = Vector2(28, 28)
+	arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	contents.add_child(arrow)
+		contents.add_child(arrow)
 
 func _input(event: InputEvent) -> void:
 	# Scoped click/touch hit area only. No fullscreen interception and no HUD changes.
@@ -208,7 +206,7 @@ func _toggle() -> void:
 	panel.visible = not panel.visible
 	header_title.visible = panel.visible
 	header_arrow.visible = panel.visible
-	header_arrow.text = "⌃" if panel.visible else "⌄"
+	header_arrow.texture = load("res://assets/ui/settings/icons/chevron_up.svg") if panel.visible else load("res://assets/ui/settings/icons/chevron_down.svg")
 	_responsive()
 
 func _update_web_diagnostics() -> void:
@@ -243,5 +241,5 @@ func _responsive() -> void:
 	panel.offset_left = open_right - menu_width
 	panel.offset_right = open_right
 	panel.offset_top = menu_top + header_height + 4.0
-	panel.offset_bottom = minf(viewport_size.y - 8.0, menu_top + header_height + 4.0 + 10.0 * 64.0 + 22.0)
+	panel.offset_bottom = minf(viewport_size.y - 8.0, menu_top + header_height + 4.0 + 10.0 * 55.0 + 9.0 * 3.0 + 22.0)
 	_update_web_diagnostics()

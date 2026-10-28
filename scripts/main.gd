@@ -308,7 +308,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion and mouse_look_button != 0:
-		if is_instance_valid(gameplay) and (gameplay.panel.visible or gameplay.layout_edit):
+		if is_instance_valid(gameplay) and (gameplay.panel.visible or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible) or gameplay.layout_edit):
 			mouse_look_button = 0
 		else:
 			_rotate_camera(event.relative)
@@ -316,7 +316,7 @@ func _input(event: InputEvent) -> void:
 		return
 	# Camera wheel belongs to the world when menus are closed, independent of GUI focus.
 	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
-		if is_instance_valid(gameplay) and not gameplay.panel.visible:
+		if is_instance_valid(gameplay) and not gameplay.panel.visible and not (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible):
 			camera.position.z = clampf(camera.position.z + (-0.6 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 0.6),2.5,16.0)
 			get_viewport().set_input_as_handled()
 			return

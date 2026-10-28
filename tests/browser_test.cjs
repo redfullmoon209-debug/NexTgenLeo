@@ -1,238 +1,130 @@
 const { chromium } = require('playwright');
-const {spawn} = require('child_process');
-async function openPlayerMenu(page,entryName){
- const old=await page.evaluate(()=>window.leoDiagnostics);
- const sx=old.screen_size[0]/old.viewport_size[0];
- const sy=old.screen_size[1]/old.viewport_size[1];
- const [x,y,w,h]=old.menu_button_rect;
- await page.mouse.click((x+w/2)*sx,(y+h/2)*sy);
- await page.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
- const opened=await page.evaluate(()=>window.leoDiagnostics);
- if(!opened.gm_button_visible)throw Error('Offline sandbox should show red local GM test orb');
- if(opened.menu_dropdown_rect[0]+opened.menu_dropdown_rect[2]>opened.viewport_size[0]-180)throw Error('Dropdown overlaps minimap');
- if(!opened.menu_entry_rects[entryName])throw Error('Player menu missing '+entryName);
- if(entryName==='Bag' && opened.screen_size[0]===1280)
-  await page.screenshot({path:'build/leo-yellow-main-dropdown.png'});
- const point=opened.menu_entry_rects[entryName];
- await page.mouse.click(point[0]*sx,point[1]*sy);
- await page.waitForFunction(name=>window.leoDiagnostics.panel===name,entryName,{timeout:15000});
+const { spawn } = require('child_process');
+
+const URL = 'http://127.0.0.1:8060';
+async function diagnostics(page) {
+  return page.evaluate(() => window.leoDiagnostics);
 }
-(async()=>{
- const server=spawn('python',['-m','http.server','8060','--bind','127.0.0.1','--directory','build/web']);
- let browser; let currentPage; let completed=false;
- const logs=[];
- try{
- browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
- const context=await browser.newContext({viewport:{width:1280,height:720}});
- const page=await context.newPage();currentPage=page;
- page.on('console',m=>logs.push({type:m.type(),text:m.text()}));page.on('pageerror',e=>logs.push({type:'pageerror',text:e.message}));
- await page.goto('http://127.0.0.1:8060');
- await page.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
- let start=await page.evaluate(()=>window.leoDiagnostics);
- if(!start.hud_status_rect||!start.hud_target_rect||!start.hud_quest_rect)throw Error('New game HUD regions missing');
- if(start.hud_status_rect[0]>25||start.hud_status_rect[2]<300||start.hud_status_rect[0]+start.hud_status_rect[2]>=start.player_screen[0])throw Error('Character HUD hides the player');
- if(start.hud_target_rect[0]<=start.hud_status_rect[0]+start.hud_status_rect[2]||start.hud_target_rect[0]+start.hud_target_rect[2]>=1100)throw Error('Target HUD overlaps player status or minimap');
- if(!start.gm_button_visible)throw Error('Offline red GM test button is missing');
- if(!(start.gm_button_rect[0]<start.menu_button_rect[0] && start.gm_button_rect[1]===start.menu_button_rect[1]))throw Error('Red GM button must sit immediately left of gold menu: '+JSON.stringify(start));
- await page.locator('canvas').click({position:{x:600,y:400}});
- await page.keyboard.down('w');try{await page.waitForFunction(s=>Math.hypot(window.leoDiagnostics.position[0]-s[0],window.leoDiagnostics.position[2]-s[2])>1.2,start.position,{timeout:20000});}finally{await page.keyboard.up('w');}
- let moved=await page.evaluate(()=>window.leoDiagnostics);
- if(Math.hypot(moved.position[0]-start.position[0],moved.position[2]-start.position[2])<1)throw Error('WASD failed');
- const [gx,gy,gw,gh]=start.gm_button_rect;
- await page.mouse.click(gx+gw/2,gy+gh/2);
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='GM',null,{timeout:15000});
- const offlineGM=await page.evaluate(()=>window.leoDiagnostics);
- if(Object.keys(offlineGM.gm_controls||{}).length!==3)throw Error('Offline GM selectors unavailable');
- await page.screenshot({path:'build/leo-offline-gm-restored.png'});
- await page.keyboard.press('Escape');
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- await openPlayerMenu(page,'Bag');
- const drawer=await page.evaluate(()=>window.leoDiagnostics);
- if(drawer.drawer_rect[0]<275||drawer.drawer_rect[0]>305||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<535||drawer.drawer_rect[2]>570||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Full-label pinned sidebar and centered bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
- if(drawer.sidebar_width<255||drawer.sidebar_width>285||!drawer.sidebar_long_label_fits)throw Error('Full Thai character-and-equipment text still clips in far-left sidebar: '+JSON.stringify({width:drawer.sidebar_width,textWidth:drawer.sidebar_long_label_text_width,fits:drawer.sidebar_long_label_fits}));
- if(drawer.royal_theme!=='sapphire-gold-v2')throw Error('New royal UHD theme is not active');
- if(drawer.drawer_rect[1]+drawer.drawer_rect[3]>720||drawer.drawer_rect[1]+drawer.drawer_rect[3]<700)throw Error('Bag does not reach viewport bottom: '+JSON.stringify(drawer.drawer_rect));
- if(drawer.drawer_rect[0]+drawer.drawer_rect[2]>drawer.viewport_size[0]-200)throw Error('Game world must remain visible to right: '+JSON.stringify(drawer));
- if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must remain left of inventory: '+JSON.stringify(drawer));
- if(drawer.bag_right_rect[0]<480||drawer.bag_right_rect[0]>710||drawer.bag_columns<3||drawer.bag_columns>6)throw Error('Inventory must be right of character equipment after wider menu: '+JSON.stringify(drawer));
- if(!(drawer.bag_page_count>=3&&drawer.bag_page_size<100&&drawer.bag_page_size>=12))throw Error('Inventory must paginate all 200 slots: '+JSON.stringify(drawer));
- if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<90||drawer.bag_preview_rect[3]<180)throw Error('Center character 3D preview missing or too small: '+JSON.stringify(drawer));
- if(drawer.bag_equipment_count!==19||drawer.bag_equipment_visible!==19)throw Error('All 19 equipment slots must fit: '+JSON.stringify(drawer));
- if(drawer.pet_gear_count!==6||!drawer.pet_shadow_visible||drawer.pet_live_preview)throw Error('Empty pet card must show silhouette and six distinct gear slots: '+JSON.stringify(drawer));
- if(drawer.bag_grid_right>drawer.bag_right_rect[0]+drawer.bag_right_rect[2]+1)throw Error('Inventory item buttons spill outside right panel: '+JSON.stringify(drawer));
- if(drawer.bag_grid_bottom>drawer.bag_right_rect[1]+drawer.bag_right_rect[3]+1)throw Error('Inventory item buttons spill below page: '+JSON.stringify(drawer));
- const equip=drawer.bag_equipment_rects;
- const region=drawer.bag_equipment_regions;
- const order=['hat','shirt','gloves','pants','shoes'];
- const accessory=['ring','bracelet_left','accessory','bracelet_right','ring_right'];
- const fashion=['fashion_hat','fashion_shirt','fashion_gloves','fashion_pants','fashion_shoes'];
- for(const [id,area] of [...order.map(id=>[id,'armor']),...['weapon','weapon_left'].map(id=>[id,'weapon']),['mount','mount'],['loot_pet','pet'],...accessory.map(id=>[id,'jewelry']),...fashion.map(id=>[id,'fashion'])]){
-  if(!equip[id]||region[id]!==area)throw Error('Missing equipment region: '+id+' '+JSON.stringify(region));
- }
- for(let i=1;i<order.length;i++)if(equip[order[i]][1]<=equip[order[i-1]][1])throw Error('Armor needs to descend vertically on the right');
- if(equip.weapon[0]+equip.weapon[2]>drawer.bag_preview_rect[0]+2||equip.weapon_left[0]+equip.weapon_left[2]>drawer.bag_preview_rect[0]+2)throw Error('Weapons not left of character preview');
- if(equip.hat[0]<drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]-2)throw Error('Armor not right of the character preview');
- if(equip.mount[1]<=equip.weapon_left[1]||equip.loot_pet[1]<=equip.mount[1])throw Error('Mount and loot pet must follow weapons downwards');
- for(const row of [accessory,fashion]){
-   for(let i=1;i<row.length;i++)if(equip[row[i]][0]<=equip[row[i-1]][0])throw Error('Equipment row must read left to right: '+row);
- }
- if(equip.fashion_hat[1]<=equip.ring[1])throw Error('Fashion row should be below jewelry row');
- if(drawer.bag_preview_rect[0]<drawer.bag_left_rect[0]||drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]>drawer.bag_left_rect[0]+drawer.bag_left_rect[2]+2)throw Error('Player preview spills outside stat pane');
- if(drawer.drawer_close[0]<drawer.drawer_rect[0]||drawer.drawer_close[0]>drawer.drawer_rect[0]+drawer.drawer_rect[2])throw Error('Close button is outside the bag window');
- if(!drawer.menu_open||!drawer.bag_page_next||drawer.bag_page_next[0]<400)throw Error('Pinned menu or numbered bag controls missing');
- await page.mouse.click(...drawer.bag_page_next);
- await page.waitForFunction(()=>window.leoDiagnostics.bag_page===2,null,{timeout:15000});
- const page2=await page.evaluate(()=>window.leoDiagnostics);
- if(page2.bag_equipment_count!==19||page2.bag_page_count!==drawer.bag_page_count)throw Error('Page switch lost equipment or capacity');
- await page.mouse.click(...page2.bag_page_prev);
- await page.waitForFunction(()=>window.leoDiagnostics.bag_page===1,null,{timeout:15000});
- await page.screenshot({path:'build/leo-dual-bag-desktop.png'});
- if(!drawer.bag_bulk_toggle||drawer.bag_bulk_toggle[0]<=0)throw Error('Bulk inventory selection toggle missing');
- await page.mouse.click(...drawer.bag_bulk_toggle);
- await page.waitForFunction(()=>window.leoDiagnostics.bag_bulk_mode,null,{timeout:15000});
- let bulk=await page.evaluate(()=>window.leoDiagnostics);
- if(bulk.bag_bulk_first_slot[0]<=0)throw Error('Bulk sale has no selectable item slot');
- await page.mouse.click(...bulk.bag_bulk_first_slot);
- await page.waitForFunction(()=>window.leoDiagnostics.bag_bulk_count===1,null,{timeout:15000});
- bulk=await page.evaluate(()=>window.leoDiagnostics);
- await page.mouse.click(...bulk.bag_bulk_sale);
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='BulkSellConfirm',null,{timeout:15000});
- await page.keyboard.press('Escape');
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- await page.keyboard.press('b');
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
- bulk=await page.evaluate(()=>window.leoDiagnostics);
- await page.mouse.click(...bulk.bag_bulk_toggle);
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag'&&!window.leoDiagnostics.bag_bulk_mode,null,{timeout:15000});
- console.log('BULK BAG: select, preview sale, cancel, restore inventory passed');
- let nav=await page.evaluate(()=>window.leoDiagnostics);
- await page.mouse.click(...nav.menu_entry_rects.Shop);
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='Shop'&&window.leoDiagnostics.bag_dock_open,null,{timeout:15000});
- let split=await page.evaluate(()=>window.leoDiagnostics);
- if(split.bag_equipment_count!==19||split.bag_dock_rect[0]<275||split.bag_dock_rect[0]+split.bag_dock_rect[2]>split.drawer_rect[0])throw Error('Shop must open right of unchanged 19-slot bag and full-text menu: '+JSON.stringify(split));
- await page.mouse.click(...split.menu_entry_rects.Quest);
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='Quest'&&window.leoDiagnostics.bag_dock_open,null,{timeout:15000});
- if((await page.evaluate(()=>window.leoDiagnostics)).bag_equipment_count!==19)throw Error('Quest must keep all 19 slots');
- await page.keyboard.press('Escape');
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- for(const [button,x] of [['left',340],['right',780]]){
-  const beforeYaw=(await page.evaluate(()=>window.leoDiagnostics)).yaw;
-  await page.mouse.move(x,460);await page.mouse.down({button});await page.mouse.move(x+130,470,{steps:8});await page.mouse.up({button});
-  await page.waitForFunction(y=>Math.abs(window.leoDiagnostics.yaw-y)>.2,beforeYaw,{timeout:15000});
- }
- await page.keyboard.press('b');await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
- let bag=await page.evaluate(()=>window.leoDiagnostics);if(bag.panel!=='Bag')throw Error('Bag menu failed');
- await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});await page.mouse.move(700,400);await page.mouse.wheel(0,-300);await page.waitForFunction(z=>window.leoDiagnostics.camera_zoom<z,start.camera_zoom,{timeout:15000});
- let zoomed=await page.evaluate(()=>window.leoDiagnostics);if(zoomed.camera_zoom>=start.camera_zoom)throw Error('Wheel zoom failed');
- await page.keyboard.press('Tab');await page.waitForFunction(()=>window.leoDiagnostics.target>=0,null,{timeout:15000});
- let target=await page.evaluate(()=>window.leoDiagnostics);if(target.target<0)throw Error('Target select failed');
- await openPlayerMenu(page,'Settings');
- const publicSettings=await page.evaluate(()=>window.leoDiagnostics);
- if(!publicSettings.gm_button_visible||Object.keys(publicSettings.menu_entry_rects).includes('GM'))throw Error('Offline GM must be a separate red button, not a player dropdown item');
- console.log('OFFLINE UI TESTS: gold dropdown navigation and separate red GM test button pass');
- await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- await page.screenshot({path:'build/leo-desktop.png'});
- // Verify actual Female.glb art can be selected with the in-game Status UI.
- await openPlayerMenu(page,'Status');
- const femaleToggle=await page.evaluate(()=>window.leoDiagnostics.gender_toggle_rect);
- if(!femaleToggle||femaleToggle[2]<10)throw Error('Character gender switch button is missing');
- await page.mouse.click(femaleToggle[0]+femaleToggle[2]/2,femaleToggle[1]+femaleToggle[3]/2);
- await page.waitForFunction(()=>window.leoDiagnostics.gender==='Female'&&window.leoDiagnostics.avatar_model_meshes>0,null,{timeout:45000});
- await page.keyboard.press('Escape');
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- await page.waitForTimeout(750);
- await page.screenshot({path:'build/leo-female-model.png'});
- await openPlayerMenu(page,'Status');
- const maleToggle=await page.evaluate(()=>window.leoDiagnostics.gender_toggle_rect);
- await page.mouse.click(maleToggle[0]+maleToggle[2]/2,maleToggle[1]+maleToggle[3]/2);
- await page.waitForFunction(()=>window.leoDiagnostics.gender==='Male'&&window.leoDiagnostics.avatar_model_meshes===0,null,{timeout:30000});
- await page.keyboard.press('Escape');
- await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- console.log('CHARACTER ASSET QA: Female.glb renders in game and Male fallback can be restored');
- console.log(JSON.stringify({start,moved,bag:bag.panel,zoom:zoomed.camera_zoom,target:target.target,logs},null,2));
- await page.setViewportSize({width:1920,height:1080});
- await page.waitForFunction(()=>window.leoDiagnostics.screen_size[0]===1920,null,{timeout:15000});
- await openPlayerMenu(page,'Bag');
- const wideBag=await page.evaluate(()=>window.leoDiagnostics);
- if(wideBag.bag_right_rect[0]<=wideBag.bag_left_rect[0])throw Error('1920 wide bag is not split');
- // Godot may keep its 1280x720 virtual viewport when Chromium is resized.
- // Verify the dock against Godot's actual viewport, not the browser's CSS size.
- if(wideBag.drawer_rect[2]>570||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.viewport_size[0]-140)throw Error('Resized royal bag must leave visible world space: '+JSON.stringify(wideBag));
- if(wideBag.drawer_rect[1]+wideBag.drawer_rect[3]>wideBag.viewport_size[1]-8)throw Error('Bag extends outside Godot viewport: '+JSON.stringify(wideBag));
- await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- console.log('MOUSE TESTS: native menu clicks, close, left/right world drag, 1920x1080 click passed');
- await context.close();
- const mobile=await browser.newContext({viewport:{width:1280,height:720},isMobile:true,hasTouch:true});
- const p=await mobile.newPage();currentPage=p;p.on('console',m=>{if(m.type()==='error')logs.push({type:'mobile-error',text:m.text()})});
- await p.goto('http://127.0.0.1:8060');await p.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
- const cdp=await mobile.newCDPSession(p);
- const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([id,x,y])=>({id,x,y}))});
- const mstart=await p.evaluate(()=>window.leoDiagnostics);
- if(!mstart.gm_button_visible)throw Error('Mobile offline GM button is missing');
- const [mx,my,mw,mh]=mstart.menu_button_rect;
- await p.touchscreen.tap(mx+mw/2,my+mh/2);
- await p.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
- const mobileMenu=await p.evaluate(()=>window.leoDiagnostics);
- const point=mobileMenu.menu_entry_rects.Bag;
- if(!point)throw Error('Touch menu has no Bag item');
- await p.touchscreen.tap(point[0],point[1]);
- await p.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
- await p.keyboard.press('Escape');
- await p.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- await p.touchscreen.tap(980,500);await p.waitForFunction(()=>window.leoDiagnostics.target>=0,null,{timeout:15000});
- await touch('touchStart',[[1,90,610]]);await touch('touchMove',[[1,135,610]]);await p.waitForFunction(()=>window.leoDiagnostics.joystick[0]>.3,null,{timeout:15000});
- let stick=await p.evaluate(()=>window.leoDiagnostics);
- await touch('touchStart',[[1,135,610],[2,1180,500]]);await p.waitForFunction(()=>window.leoDiagnostics.attacking && window.leoDiagnostics.joystick[0]>.3,null,{timeout:15000});
- let multitouch=await p.evaluate(()=>window.leoDiagnostics);
- await touch('touchEnd',[]);await p.waitForFunction(()=>Math.abs(window.leoDiagnostics.joystick[0])<.01,null,{timeout:15000});
- let released=await p.evaluate(()=>window.leoDiagnostics);
- if(Math.abs(stick.joystick[0])<.3)throw Error('Mobile joystick failed');
- if(Math.abs(multitouch.joystick[0])<.3)throw Error('Second finger stole joystick');
- if(Math.abs(released.joystick[0])>.01)throw Error('Joystick release failed');
- await touch('touchStart',[[3,700,230],[4,880,230]]);
- await touch('touchMove',[[3,700,230],[4,900,230]]);await p.waitForTimeout(50);
- await touch('touchMove',[[3,700,230],[4,1000,230]]);await p.waitForFunction(z=>window.leoDiagnostics.camera_zoom<z,mstart.camera_zoom,{timeout:15000});
- const pinch=await p.evaluate(()=>window.leoDiagnostics);
- await touch('touchEnd',[]);
- if(pinch.camera_zoom>=mstart.camera_zoom)throw Error('Pinch zoom failed');
- if(pinch.player_screen[1]<100 || pinch.player_screen[1]>600)throw Error('Zoom moves player out of frame');
- await p.screenshot({path:'build/leo-mobile.png'});
- console.log(JSON.stringify({mobile:{mstart,stick,multitouch,released,pinch},errors:logs.filter(x=>['error','pageerror','mobile-error'].includes(x.type))},null,2));
- const errors=logs.filter(x=>x.type==='pageerror'||(x.type==='error' && /SCRIPT ERROR|Parse Error|ERROR:/.test(x.text)));
- if(errors.length)throw Error(JSON.stringify(errors));
- const portraitContext=await browser.newContext({viewport:{width:430,height:932},isMobile:true,hasTouch:true});
- const portraitPage=await portraitContext.newPage();currentPage=portraitPage;
- portraitPage.on('pageerror',e=>logs.push({type:'portrait-pageerror',text:e.message}));
- await portraitPage.goto('http://127.0.0.1:8060');
- await portraitPage.waitForFunction(()=>window.leoDiagnostics?.orientation==='portrait',null,{timeout:60000});
- const portrait=await portraitPage.evaluate(()=>window.leoDiagnostics);
- const xs=430/portrait.viewport_size[0],ys=932/portrait.viewport_size[1];
- if(portrait.action_rects.length!==8)throw Error('Portrait action controls missing');
- for(const box of portrait.action_rects){
-   if(box[0]<0||box[1]<0||box[0]+box[2]>portrait.viewport_size[0]+2||box[1]+box[3]>portrait.viewport_size[1]+2)throw Error('Portrait action outside viewport '+JSON.stringify(box));
-   if(box[2]*xs<43||box[3]*ys<43)throw Error('Portrait action too small for touch '+JSON.stringify({box,xs,ys}));
- }
- if(portrait.minimap_rect[0]<portrait.hud_status_rect[0]+portrait.hud_status_rect[2]-8)throw Error('Portrait minimap overlaps player status');
- await portraitPage.screenshot({path:'build/leo-portrait.png'});
- const [pmx,pmy,pmw,pmh]=portrait.menu_button_rect;
- await portraitPage.touchscreen.tap((pmx+pmw/2)*xs,(pmy+pmh/2)*ys);
- await portraitPage.waitForFunction(()=>window.leoDiagnostics.menu_open,null,{timeout:15000});
- const mobileBagEntry=await portraitPage.evaluate(()=>window.leoDiagnostics.menu_entry_rects.Bag);
- if(!mobileBagEntry)throw Error('Portrait player menu has no Bag entry');
- await portraitPage.touchscreen.tap(mobileBagEntry[0]*xs,mobileBagEntry[1]*ys);
- await portraitPage.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
- const bagPortrait=await portraitPage.evaluate(()=>window.leoDiagnostics);
- if(bagPortrait.bag_columns<3||bagPortrait.bag_columns>5||bagPortrait.bag_page_count<2)throw Error('Portrait inventory grid/pages invalid: '+JSON.stringify(bagPortrait));
- if(bagPortrait.pet_gear_count!==6||!bagPortrait.pet_shadow_visible)throw Error('Portrait pet equipment and empty silhouette missing: '+JSON.stringify(bagPortrait));
- if(bagPortrait.bag_grid_right>bagPortrait.bag_right_rect[0]+bagPortrait.bag_right_rect[2]+2)throw Error('Portrait inventory cells extend outside the panel: '+JSON.stringify(bagPortrait));
- if(bagPortrait.bag_right_rect[1]>bagPortrait.bag_left_rect[1])throw Error('Portrait bag must show item grid before equipment: '+JSON.stringify(bagPortrait));
- await portraitPage.screenshot({path:'build/leo-portrait-bag.png'});
- await portraitPage.keyboard.press('Escape');
- await portraitPage.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
- await portraitContext.close();
- const finalErrors=logs.filter(x=>x.type==='portrait-pageerror');
- if(finalErrors.length)throw Error(JSON.stringify(finalErrors));
- completed=true;
- console.log('BROWSER TESTS: desktop, landscape touch and portrait 430x932 responsive geometry passed');
- }finally{if(!completed && currentPage && !currentPage.isClosed()){console.log('FAILURE_DIAGNOSTICS',JSON.stringify(await currentPage.evaluate(()=>window.leoDiagnostics||{status:document.body.innerText})));console.log('FAILURE_LOGS',JSON.stringify(logs));await currentPage.screenshot({path:'build/browser-failure.png'});}if(browser)await browser.close();server.kill();}
+async function clickGodot(page, point) {
+  if (!point || point.length < 2) throw Error('Missing Godot control coordinates');
+  const d = await diagnostics(page);
+  await page.mouse.click(point[0] * d.screen_size[0] / d.viewport_size[0],
+                         point[1] * d.screen_size[1] / d.viewport_size[1]);
+}
+async function openBag(page) {
+  await page.keyboard.press('b');
+  await page.waitForFunction(() => window.leoDiagnostics?.silver?.open === true, null, {timeout:15000});
+}
+async function closeBag(page) {
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.leoDiagnostics?.silver?.open === false, null, {timeout:15000});
+}
+(async () => {
+  const server = spawn('python', ['-m','http.server','8060','--bind','127.0.0.1','--directory','build/web']);
+  let browser, currentPage;
+  let completed = false;
+  const errors = [];
+  try {
+    browser = await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+    const context = await browser.newContext({viewport:{width:1280,height:720}});
+    const page = await context.newPage();
+    currentPage = page;
+    page.on('pageerror', error => errors.push('Desktop: ' + error.message));
+    page.on('console', m => {if (m.type() === 'error' && /SCRIPT ERROR|Parse Error/i.test(m.text())) errors.push(m.text());});
+    await page.goto(URL);
+    await page.waitForFunction(()=>window.leoDiagnostics, null, {timeout:60000});
+    const start = await diagnostics(page);
+    if (!start.hud_status_rect || !start.hud_quest_rect || !start.gm_button_visible)
+      throw Error('Existing gameplay HUD or offline GM control missing');
+    await page.locator('canvas').click({position:{x:600,y:400}});
+    await openBag(page);
+    let d = await diagnostics(page);
+    if (!d.silver.open || d.silver.extension || d.silver.slots !== 100 || d.silver.pages !== 2 || d.silver.equipment !== 14)
+      throw Error('Silver Bag did not render seven parallel equipment pairs and 100 slots: '+JSON.stringify(d.silver));
+    if (d.silver.main_rect[0] < 0 || d.silver.main_rect[2] > d.viewport_size[0]+1)
+      throw Error('Main base outside screen: '+JSON.stringify(d.silver.main_rect));
+    await page.screenshot({path:'build/leo-dual-bag-desktop.png'});
+    const initialCamera = d.camera_zoom;
+    await page.mouse.move(600,400);
+    await page.mouse.wheel(0,-300);
+    await page.waitForTimeout(250);
+    if (Math.abs((await diagnostics(page)).camera_zoom - initialCamera) > .02)
+      throw Error('Inventory scroll must not zoom world camera');
+    await clickGodot(page,d.silver.actions.SilverNextPage);
+    await page.waitForFunction(()=>window.leoDiagnostics.silver.page === 2,null,{timeout:15000});
+    d=await diagnostics(page);
+    if(d.silver.slots !== 100)throw Error('Second inventory page does not contain 100 slots');
+    await clickGodot(page,d.silver.actions.SilverPrevPage);
+    await page.waitForFunction(()=>window.leoDiagnostics.silver.page === 1,null,{timeout:15000});
+    for(const [button,mode] of [['SilverNavStorage','Storage'],['SilverNavTrade','Trade'],['SilverNavQuest','Quest']]){
+      d=await diagnostics(page);
+      await clickGodot(page,d.silver.actions[button]);
+      await page.waitForFunction(m=>window.leoDiagnostics.silver.extension && window.leoDiagnostics.silver.mode === m,mode,{timeout:15000});
+    }
+    d=await diagnostics(page);
+    if (d.silver.main_rect[0] + d.silver.main_rect[2] > d.silver.extension_rect[0]+2)
+      throw Error('Extension overlaps the main panel');
+    await page.screenshot({path:'build/leo-inventory-extension-desktop.png'});
+    await closeBag(page);
+    await page.mouse.move(700,400);
+    await page.mouse.wheel(0,-300);
+    await page.waitForFunction(z=>window.leoDiagnostics.camera_zoom < z,initialCamera,{timeout:15000});
+    await page.screenshot({path:'build/leo-desktop.png'});
+    // Existing GM controls remain available.
+    d=await diagnostics(page);
+    await clickGodot(page,[d.gm_button_rect[0]+d.gm_button_rect[2]/2,d.gm_button_rect[1]+d.gm_button_rect[3]/2]);
+    await page.waitForFunction(()=>window.leoDiagnostics.panel==='GM',null,{timeout:15000});
+    await page.screenshot({path:'build/leo-offline-gm-restored.png'});
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+    // At large desktop sizes, the inventory retains its correct internal model.
+    await page.setViewportSize({width:1920,height:1080});
+    await page.waitForFunction(()=>window.leoDiagnostics.screen_size[0]===1920,null,{timeout:15000});
+    await openBag(page);
+    d=await diagnostics(page);
+    if(d.silver.slots!==100 || d.silver.equipment!==14 || d.silver.extension)
+      throw Error('Resized desktop inventory lost controls');
+    await closeBag(page);
+    await context.close();
+    // Landscape touch.
+    const mobile=await browser.newContext({viewport:{width:1280,height:720},isMobile:true,hasTouch:true});
+    const touchPage=await mobile.newPage();currentPage=touchPage;
+    touchPage.on('pageerror',e=>errors.push('Landscape touch: '+e.message));
+    await touchPage.goto(URL);
+    await touchPage.waitForFunction(()=>window.leoDiagnostics,null,{timeout:60000});
+    await openBag(touchPage);
+    d=await diagnostics(touchPage);
+    if(!d.silver.open || d.silver.slots!==100 || d.silver.equipment!==14)
+      throw Error('Landscape mobile Bag failed');
+    await touchPage.screenshot({path:'build/leo-mobile.png'});
+    await closeBag(touchPage);
+    await mobile.close();
+    // Portrait 430x932.
+    const portrait=await browser.newContext({viewport:{width:430,height:932},isMobile:true,hasTouch:true});
+    const portraitPage=await portrait.newPage();currentPage=portraitPage;
+    portraitPage.on('pageerror',e=>errors.push('Portrait: '+e.message));
+    await portraitPage.goto(URL);
+    await portraitPage.waitForFunction(()=>window.leoDiagnostics?.orientation==='portrait',null,{timeout:60000});
+    await portraitPage.screenshot({path:'build/leo-portrait.png'});
+    await openBag(portraitPage);
+    d=await diagnostics(portraitPage);
+    if(d.silver.slots!==100 || d.silver.equipment!==14 || d.silver.extension)
+      throw Error('Portrait silver inventory not initialized: '+JSON.stringify(d.silver));
+    await portraitPage.screenshot({path:'build/leo-portrait-bag.png'});
+    await closeBag(portraitPage);
+    await portrait.close();
+    if(errors.length)throw Error(errors.join('\n'));
+    completed=true;
+    console.log('BROWSER TESTS: silver inventory 100+100, 14 equipment slots, 3 extension modes, GM, camera input, desktop, landscape touch and portrait passed');
+  } finally {
+    if(!completed && currentPage && !currentPage.isClosed()){
+      try{
+        console.log('FAILURE_DIAGNOSTICS',JSON.stringify(await diagnostics(currentPage)));
+        await currentPage.screenshot({path:'build/browser-failure.png'});
+      }catch(e){console.log('Could not capture failure screenshot',e.message);}
+      console.log('FAILURE_ERRORS',JSON.stringify(errors));
+    }
+    if(browser)await browser.close();
+    server.kill();
+  }
 })().catch(e=>{console.error(e);process.exit(1)});

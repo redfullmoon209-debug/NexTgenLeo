@@ -54,6 +54,7 @@ var bag_page_size := 40
 var bag_page_count := 5
 var gm_authorized := false
 var active_panel := ""
+var silver_workspace: Control
 var bag_page := 0
 var bag_bulk_mode := false
 var bag_bulk_selection: Dictionary = {}
@@ -262,12 +263,31 @@ func _sync_bag_avatar_preview() -> void:
 			instance.queue_free()
 	# Retain the existing modular placeholder preview for characters without
 	# imported art (including Male until a supported source model is added).
-	bag_preview_model = avatar.duplicate() as Node3D
+	# Godot duplicate() is unsafe for a changing procedural avatar tree while
+	# queued previous previews are being freed. Copy visual nodes explicitly.
+	bag_preview_model = Node3D.new()
 	bag_preview_model.name = "DisplayedPlayerAvatar"
-	bag_preview_model.position = Vector3.ZERO
-	bag_preview_model.rotation = Vector3.ZERO
 	bag_preview_model.scale = Vector3.ONE * 0.94
 	bag_preview_stage.add_child(bag_preview_model)
+	_copy_preview_meshes(avatar, bag_preview_model)
+
+func _copy_preview_meshes(source: Node3D, parent: Node3D) -> void:
+	for source_child in source.get_children():
+		if not source_child is Node3D:
+			continue
+		var original := source_child as Node3D
+		var preview_node: Node3D
+		if original is MeshInstance3D:
+			var mesh_node := MeshInstance3D.new()
+			mesh_node.mesh = (original as MeshInstance3D).mesh
+			mesh_node.material_override = (original as MeshInstance3D).material_override
+			mesh_node.visible = (original as MeshInstance3D).visible
+			preview_node = mesh_node
+		else:
+			preview_node = Node3D.new()
+		preview_node.transform = original.transform
+		parent.add_child(preview_node)
+		_copy_preview_meshes(original, preview_node)
 
 func _build_bag_avatar_preview(parent: HBoxContainer) -> void:
 	# SubViewport renders the actual procedural player and its equipped items.
@@ -857,6 +877,10 @@ func _build_ui() -> void:
 	bag_dock_panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
+	# New reusable silver inventory is an overlay; original game actions stay available.
+	silver_workspace = load("res://scripts/silver_inventory_workspace.gd").new()
+	silver_workspace.game = self
+	world.hud.add_child(silver_workspace)
 
 func _style_hud_actions(faction_id: String) -> void:
 	var steel = load("res://scripts/celestial_steel.gd")
@@ -1440,6 +1464,22 @@ func _refresh_hud() -> void:
 			longest_menu_width = font.get_string_size(long_entry.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 			longest_menu_fits = longest_menu_width <= long_entry.size.x - 12.0
 		var diagnostic := {"sidebar_long_label_fits":longest_menu_fits,"sidebar_long_label_text_width":longest_menu_width,"sidebar_width":player_dropdown.size.x,"royal_theme":"sapphire-gold-v2","pet_gear_count":pet_gear_buttons.size() if active_panel == "Bag" else 0,"pet_shadow_visible":pet_has_silhouette,"pet_live_preview":pet_has_live_preview,"bag_grid_right":slot_grid_right,"bag_grid_bottom":slot_grid_bottom,"bag_page_next":[page_next_center.x,page_next_center.y],"bag_page_prev":[page_prev_center.x,page_prev_center.y],"bag_page":bag_page + 1,"bag_page_size":bag_page_size,"bag_page_count":bag_page_count,"bag_dock_open":bag_dock_panel.visible,"bag_dock_rect":[bag_dock_panel.position.x,bag_dock_panel.position.y,bag_dock_panel.size.x,bag_dock_panel.size.y],"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var silver_open: bool = is_instance_valid(silver_workspace) and silver_workspace.visible
+		var silver_data := {"open":silver_open,"extension":false,"mode":"","page":0,"pages":2,"slots":0,"equipment":0,"main_rect":[],"extension_rect":[],"scroll_rect":[]}
+		if silver_open:
+			var main_rect: Rect2 = silver_workspace.main_frame.get_global_rect()
+			var extension_rect: Rect2 = silver_workspace.extension_frame.get_global_rect()
+			var scroll_rect: Rect2 = silver_workspace.inventory_scroll.get_global_rect()
+			silver_data = {"open":true,"extension":silver_workspace.extension_frame.visible,"mode":silver_workspace.extension_mode,"page":silver_workspace.page + 1,"pages":2,"slots":silver_workspace.item_grid.get_child_count(),"equipment":silver_workspace.equipment_grid.get_child_count() - 2,"main_rect":[main_rect.position.x,main_rect.position.y,main_rect.size.x,main_rect.size.y],"extension_rect":[extension_rect.position.x,extension_rect.position.y,extension_rect.size.x,extension_rect.size.y],"scroll_rect":[scroll_rect.position.x,scroll_rect.position.y,scroll_rect.size.x,scroll_rect.size.y]}
+		if silver_open:
+			var silver_actions := {}
+			for key in ["SilverPrevPage", "SilverNextPage", "SilverNavStorage", "SilverNavTrade", "SilverNavQuest"]:
+				var widget: Control = silver_workspace.find_child(key, true, false)
+				if is_instance_valid(widget):
+					var r: Rect2 = widget.get_global_rect()
+					silver_actions[key] = [r.get_center().x, r.get_center().y]
+			silver_data["actions"] = silver_actions
+		diagnostic["silver"] = silver_data
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -1451,7 +1491,7 @@ func _save() -> void:
 
 func _input(event: InputEvent) -> void:
 	# Handle each action finger independently; emulated mouse handles only one finger.
-	if event is InputEventScreenTouch and event.pressed and not panel.visible and not player_dropdown.visible:
+	if event is InputEventScreenTouch and event.pressed and not panel.visible and not player_dropdown.visible and not (is_instance_valid(silver_workspace) and silver_workspace.visible):
 		for i in range(skill_buttons.size()):
 			if skill_buttons[i].get_global_rect().has_point(event.position):
 				if skill_buttons[i].disabled:
@@ -1540,6 +1580,8 @@ func _select_hunt_radius(radius: float) -> void:
 	_tell("บันทึกระยะล่าอัตโนมัติ %d เมตร" % int(hunt_radius))
 
 func _close_panel() -> void:
+	if is_instance_valid(silver_workspace):
+		silver_workspace.hide()
 	_close_player_dropdown()
 	panel.hide()
 	bag_dock_panel.hide()
@@ -1551,6 +1593,19 @@ func _thai_panel_name(name: String) -> String:
 	return str(names.get(name, name))
 
 func _show_panel(name: String) -> void:
+	if name == "Bag" and not network.active:
+		if is_instance_valid(silver_workspace):
+			if silver_workspace.visible:
+				_close_panel()
+			else:
+				active_panel = "Bag"
+				_close_player_dropdown()
+				panel.hide()
+				bag_dock_panel.hide()
+				silver_workspace.open_workspace()
+			return
+	if is_instance_valid(silver_workspace) and silver_workspace.visible:
+		silver_workspace.hide()
 	if name == "GM" and not _can_use_gm():
 		_tell("GM ออนไลน์ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
 		return
@@ -2347,6 +2402,7 @@ func pointer_over_ui(point: Vector2) -> bool:
 	# Popup windows can extend beyond their parent panel; reserve pointer input until dismissed.
 	for chooser in gm_choosers.values():
 		if is_instance_valid(chooser) and chooser.get_popup().visible: return true
+	if is_instance_valid(silver_workspace) and silver_workspace.visible: return true
 	if panel.visible and panel.get_global_rect().has_point(point): return true
 	if bag_dock_panel.visible and bag_dock_panel.get_global_rect().has_point(point): return true
 	if is_instance_valid(player_dropdown) and player_dropdown.visible: return true

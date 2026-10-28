@@ -11,17 +11,17 @@ const MENU_ATLAS_PATH := "res://assets/ui/silver/MenuIcons_Atlas.png"
 const MENU_SPECS := [
 	{"id":"Status", "title":"ตัวละครและอุปกรณ์", "icon":13},
 	{"id":"Bag", "title":"กระเป๋าไอเทม", "icon":3},
+	{"id":"Storage", "title":"คลังเก็บของ", "icon":5},
+	{"id":"Trade", "title":"เทรดซื้อขาย", "icon":11},
+	{"id":"Quest", "title":"เควสต์และภารกิจ", "icon":8},
 	{"id":"Shop", "title":"ร้านค้า NPC", "icon":9},
 	{"id":"Cash", "title":"ร้านค้าแคช", "icon":10},
-	{"id":"Quest", "title":"เควสต์และภารกิจ", "icon":8},
 	{"id":"World", "title":"แผนที่โลก", "icon":2},
 	{"id":"Pet", "title":"สัตว์เลี้ยง", "icon":0},
 	{"id":"Auto", "title":"ล่าอัตโนมัติ", "icon":1},
 	{"id":"Skills", "title":"ทักษะ", "icon":12},
 	{"id":"Settings", "title":"ตั้งค่า", "icon":6},
 	{"id":"Connect", "title":"เชื่อมต่อออนไลน์", "icon":7},
-	{"id":"Storage", "title":"คลังเก็บของ", "icon":5},
-	{"id":"Trade", "title":"เทรดซื้อขาย", "icon":11},
 	{"id":"Guild", "title":"กิลด์", "icon":4}
 ]
 const EQUIPMENT_KEYS := [

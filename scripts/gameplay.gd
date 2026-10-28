@@ -1782,7 +1782,9 @@ func _bag() -> void:
 	var first_page := _button("◀", func(): _change_bag_page(-1), page_actions)
 	first_page.custom_minimum_size = Vector2(35, 31)
 	first_page.disabled = bag_page == 0
-	for step in range(bag_page_count):
+	# Show only nearby numbered pages so buttons never overflow the grid.
+	var first_visible: int = clampi(bag_page - 1, 0, maxi(0, bag_page_count - 3))
+	for step in range(first_visible, mini(bag_page_count, first_visible + 3)):
 		var page_number: int = step
 		var page_button: Button = _button(str(step + 1), func(): _set_bag_page(page_number), page_actions)
 		page_button.custom_minimum_size = Vector2(30, 31)

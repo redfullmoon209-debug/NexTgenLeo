@@ -1,9 +1,8 @@
 extends CanvasLayer
 ## Isolated, four-component Settings Rich Menu. No image crops or gameplay changes.
-## Icon: vector glyph; Text: Label; Background: StyleBox fill; Frame: StyleBox border.
+## Actual independent layers: Icon SVG / editable Thai Label / Background SVG / Base Frame SVG.
 const TITLES := ["กราฟิกและหน้าจอ", "เสียง", "การควบคุม", "จัดตำแหน่ง HUD", "ตั้งค่า Auto Hunt", "ตั้งค่า Auto Potion", "การแจ้งเตือน", "ภาษา", "บัญชีและความปลอดภัย", "ออกจากเกม"]
 const ICON_FILES := ["graphics", "audio", "controls", "hud", "auto_hunt", "auto_potion", "notifications", "language", "security", "exit"]
-const ICON_COLORS := ["#149cf4", "#1198f2", "#168ff3", "#1a9dff", "#d8e7f4", "#f0444d", "#ffcd18", "#39bbd5", "#178ff1", "#248df5"]
 var panel: PanelContainer
 var toggle: Button
 var list: VBoxContainer
@@ -13,6 +12,9 @@ func _ready() -> void:
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ui_theme := Theme.new()
+	ui_theme.default_font = load("res://assets/fonts/NotoSansThai.ttf")
+	root.theme = ui_theme
 	add_child(root)
 	# One top header: gear lives INSIDE the gold frame; rows drop directly below.
 	toggle = Button.new()
@@ -23,9 +25,8 @@ func _ready() -> void:
 	toggle.anchor_top = 0.0
 	toggle.anchor_bottom = 0.0
 	toggle.pressed.connect(_toggle)
-	for state in ["normal", "hover", "pressed"]:
-		toggle.add_theme_stylebox_override(state, _gold_style())
 	root.add_child(toggle)
+	_decorate_button(toggle)
 	var header_content := HBoxContainer.new()
 	header_content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	header_content.offset_left = 17
@@ -84,17 +85,21 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_responsive)
 	_responsive()
 
-func _gold_style() -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color("#F5AD21")
-	s.border_color = Color("#17100A")
-	s.set_border_width_all(4)
-	s.set_corner_radius_all(28)
-	s.shadow_color = Color("#050301AA")
-	s.shadow_size = 3
-	s.content_margin_left = 12
-	s.content_margin_right = 12
-	return s
+func _decorate_button(button: Button) -> void:
+	# Each layer is a standalone Godot node. No cropping of a composite preview.
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	for asset in ["background", "base_frame"]:
+		var layer_rect := NinePatchRect.new()
+		layer_rect.name = "Layer_" + asset
+		layer_rect.texture = load("res://assets/ui/settings/layers/%s.svg" % asset)
+		layer_rect.patch_margin_left = 38
+		layer_rect.patch_margin_right = 38
+		layer_rect.patch_margin_top = 30
+		layer_rect.patch_margin_bottom = 30
+		layer_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(layer_rect)
+		layer_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 func _panel_style() -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
@@ -112,12 +117,9 @@ func _add_row(index: int) -> void:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, 59)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_stylebox_override("normal", _gold_style())
-	button.add_theme_stylebox_override("hover", _gold_style())
-	button.add_theme_stylebox_override("pressed", _gold_style())
-	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	button.pressed.connect(func(): print("Settings selected: ", TITLES[index]))
 	list.add_child(button)
+	_decorate_button(button)
 	var contents := HBoxContainer.new()
 	contents.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	contents.offset_left = 15

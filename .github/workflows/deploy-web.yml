@@ -46,7 +46,7 @@ jobs:
           node-version: '22'
       - name: Browser acceptance (Chromium desktop and touch emulation)
         run: |
-          npm install --no-save --no-package-lock playwright@1.62.1
+          npm install --no-save --no-package-lock playwright@1.62.1 pngjs@7.0.0
           npx playwright install --with-deps chromium
           node tests/browser_test.cjs
       - name: Publish verified UI previews with the playable Web export

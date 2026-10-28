@@ -94,6 +94,12 @@ async function closeBag(page) {
       throw Error('Rich main icons or legacy hamburger replacement missing: '+JSON.stringify(navStart));
     await page.waitForFunction(() => window.leoMainRichNav?.native_grid && window.leoMainRichNav.buttons.Bag[2] >= 70, null, {timeout:10000});
     const nativeCaptions = await page.evaluate(() => window.leoMainRichNav.caption_texts);
+    const navRectangles = await page.evaluate(() => window.leoMainRichNav.buttons);
+    const overlaps = (a,b) => a[0] < b[0]+b[2] && a[0]+a[2] > b[0] && a[1] < b[1]+b[3] && a[1]+a[3] > b[1];
+    for(const [name, rect] of Object.entries(navRectangles)) {
+      if(overlaps(rect,start.gm_button_rect) || overlaps(rect,settingsReady.header))
+        throw Error('Illustrated main icon overlaps protected GM/Settings: '+name+' '+JSON.stringify({rect,gm:start.gm_button_rect,settings:settingsReady.header}));
+    }
     for(const [id, expected] of Object.entries({Bag:'กระเป๋า',Menu:'เมนู',Guild:'กิลด์',Party:'ปาร์ตี้',Friends:'เพื่อน',Notice:'ประกาศ'}))
       if(nativeCaptions[id] !== expected) throw Error('Native Godot label missing: '+id+' '+JSON.stringify(nativeCaptions));
     // The artwork is per-icon PNG (including a blank nameplate), not six hardcoded title sprites.

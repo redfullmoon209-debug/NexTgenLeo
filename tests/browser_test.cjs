@@ -113,8 +113,12 @@ async function closeBag(page) {
       const social = await page.evaluate(() => window.leoMainRichNav);
       if(social.rows !== count)throw Error('Independent '+name+' main button not functional: '+JSON.stringify(social));
     }
-    await pressIcon('Notice'); // collapse, restoring unobstructed original game inputs.
-    if((await page.evaluate(() => window.leoMainRichNav)).open) throw Error('Rich navigation did not close');
+    { // Clicking the already-open Notice icon collapses to the EMPTY menu id.
+      const nav = await page.evaluate(() => window.leoMainRichNav);
+      const r = nav.buttons.Notice;
+      await clickGodot(page, [r[0] + r[2] / 2, r[1] + r[3] / 2]);
+      await page.waitForFunction(() => window.leoMainRichNav?.open === false, null, {timeout:15000});
+    }
     await page.locator('canvas').click({position:{x:600,y:400}});
     await openBag(page);
     let d = await diagnostics(page);

@@ -211,7 +211,19 @@ async function closeBag(page) {
     portraitPage.on('pageerror',e=>errors.push('Portrait: '+e.message));
     await portraitPage.goto(URL);
     await portraitPage.waitForFunction(()=>window.leoDiagnostics?.orientation==='portrait',null,{timeout:60000});
+    // Physical mobile targets must not shrink to unreadable 15px SVG icons.
+    const portraitNav = await portraitPage.evaluate(()=>window.leoMainRichNav);
+    const portraitDiag = await diagnostics(portraitPage);
+    const mobileIconWidth = portraitNav.buttons.Bag[2] * portraitDiag.screen_size[0] / portraitDiag.viewport_size[0];
+    if (mobileIconWidth < 35 || mobileIconWidth > 95)
+      throw Error('New main icon must be touch-sized on portrait phones: '+JSON.stringify({mobileIconWidth,portraitNav,portraitDiag}));
     await portraitPage.screenshot({path:'build/leo-portrait.png'});
+    const touchBag = portraitNav.buttons.Bag;
+    await clickGodot(portraitPage,[touchBag[0]+touchBag[2]/2,touchBag[1]+touchBag[3]/2]);
+    await portraitPage.waitForFunction(()=>window.leoMainRichNav?.menu==='Bag',null,{timeout:15000});
+    await portraitPage.screenshot({path:'build/leo-portrait-rich-bag.png'});
+    await clickGodot(portraitPage,[touchBag[0]+touchBag[2]/2,touchBag[1]+touchBag[3]/2]);
+    await portraitPage.waitForFunction(()=>window.leoMainRichNav?.open===false,null,{timeout:15000});
     await openBag(portraitPage);
     d=await diagnostics(portraitPage);
     if(d.silver.slots!==100 || d.silver.equipment!==14 || d.silver.extension)

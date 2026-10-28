@@ -3,10 +3,27 @@ extends Control
 ## All frames use reusable 9-slice PNGs; the item/equipment slots share one PNG.
 ## Data and equipment actions are provided by the existing GameState/gameplay.
 const ROOT := "res://assets/ui/silver/"
-const MAIN_WIDTH := 1060.0
+const MAIN_WIDTH := 1210.0
 const MAIN_HEIGHT := 720.0
 const EXT_WIDTH := 305.0
 const SLOT_SIDE := 60.0
+const MENU_ATLAS_PATH := "res://assets/ui/silver/MenuIcons_Atlas.png"
+const MENU_SPECS := [
+	{"id":"Status", "title":"ตัวละครและอุปกรณ์", "icon":13},
+	{"id":"Bag", "title":"กระเป๋าไอเทม", "icon":3},
+	{"id":"Shop", "title":"ร้านค้า NPC", "icon":9},
+	{"id":"Cash", "title":"ร้านค้าแคช", "icon":10},
+	{"id":"Quest", "title":"เควสต์และภารกิจ", "icon":8},
+	{"id":"World", "title":"แผนที่โลก", "icon":2},
+	{"id":"Pet", "title":"สัตว์เลี้ยง", "icon":0},
+	{"id":"Auto", "title":"ล่าอัตโนมัติ", "icon":1},
+	{"id":"Skills", "title":"ทักษะ", "icon":12},
+	{"id":"Settings", "title":"ตั้งค่า", "icon":6},
+	{"id":"Connect", "title":"เชื่อมต่อออนไลน์", "icon":7},
+	{"id":"Storage", "title":"คลังเก็บของ", "icon":5},
+	{"id":"Trade", "title":"เทรดซื้อขาย", "icon":11},
+	{"id":"Guild", "title":"กิลด์", "icon":4}
+]
 const EQUIPMENT_KEYS := [
 	{"name":"หมวก","warrior":"hat","fashion":"fashion_hat"},
 	{"name":"เสื้อ","warrior":"shirt","fashion":"fashion_shirt"},
@@ -20,7 +37,18 @@ var game: Node
 var main_frame: PanelContainer
 var extension_frame: PanelContainer
 var extension_content: VBoxContainer
-var equipment_grid: GridContainer
+var equipment_grid: HBoxContainer
+var warrior_stack: VBoxContainer
+var fashion_stack: VBoxContainer
+var accessory_stack: HBoxContainer
+var equipment_buttons: Dictionary = {}
+var accessory_buttons: Dictionary = {}
+var avatar_viewport: SubViewport
+var avatar_stage: Node3D
+var avatar_preview_frame: PanelContainer
+var nav_scroll: ScrollContainer
+var _menu_atlas: Texture2D
+var _menu_icons: Dictionary = {}
 var item_grid: GridContainer
 var inventory_scroll: ScrollContainer
 var inventory_summary: Label
@@ -41,7 +69,7 @@ func _ready() -> void:
 	_build()
 	get_viewport().size_changed.connect(_layout)
 	GameState.inventory_changed.connect(_on_inventory_changed)
-	GameState.appearance_changed.connect(_refresh_equipment)
+	GameState.appearance_changed.connect(_on_appearance_changed)
 	visible = false
 
 func _frame_style(filename: String, edge: float = 15.0) -> StyleBox:
@@ -77,6 +105,67 @@ func _frame_style(filename: String, edge: float = 15.0) -> StyleBox:
 
 func _slot_style() -> StyleBox:
 	return _frame_style("Equipment_Inventory_Slot.png", 10.0)
+
+func _menu_icon(index: int) -> Texture2D:
+	if _menu_icons.has(index):
+		return _menu_icons[index] as Texture2D
+	if _menu_atlas == null:
+		if not ResourceLoader.exists(MENU_ATLAS_PATH):
+			return null
+		_menu_atlas = load(MENU_ATLAS_PATH) as Texture2D
+	if _menu_atlas == null:
+		return null
+	# The 14 supplied PNG menu icons are retained in one packed 7x2 atlas:
+	# each 62x62 region contains a 56x56 icon with transparent padding.
+	var tile := AtlasTexture.new()
+	tile.atlas = _menu_atlas
+	tile.region = Rect2(float(index % 7) * 62.0, float(index / 7) * 62.0, 62.0, 62.0)
+	_menu_icons[index] = tile
+	return tile
+
+func _nav_button(menu_id: String, title: String, icon_index: int, parent: Node) -> Button:
+	var b := _button("", func(): _navigate(menu_id), parent, 39.0)
+	b.name = "SilverNav" + menu_id
+	b.custom_minimum_size.x = 226.0
+	b.tooltip_text = title
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 5)
+	margin.add_theme_constant_override("margin_right", 4)
+	b.add_child(margin)
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var contents := HBoxContainer.new()
+	contents.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	contents.add_theme_constant_override("separation", 7)
+	margin.add_child(contents)
+	var image := TextureRect.new()
+	image.name = "MenuIcon"
+	image.texture = _menu_icon(icon_index)
+	image.custom_minimum_size = Vector2(31, 31)
+	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	contents.add_child(image)
+	var caption := _label(title, 13)
+	caption.name = "MenuCaption"
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	contents.add_child(caption)
+	menu_buttons[menu_id] = b
+	return b
+
+func _navigate(menu_id: String) -> void:
+	if menu_id in ["Bag", "Status"]:
+		_set_extension("")
+		return
+	_set_extension(menu_id)
+
+func _on_appearance_changed() -> void:
+	if visible:
+		_refresh_equipment()
+		_refresh_character_preview()
+
 
 func _label(value: String, size: int = 15) -> Label:
 	var result := Label.new()
@@ -131,29 +220,28 @@ func _build() -> void:
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 7)
 	main_margin.add_child(columns)
-	# Left navigation.
-	var nav := _panel(columns, "Menu_Panel.png", 168.0)
+	# Left navigation: every original player menu plus Storage, Trade, Guild,
+	# Cash, with all 14 icons from the player's own icon ZIP (GM stays separate).
+	var nav := _panel(columns, "Menu_Panel.png", 241.0)
 	nav.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var nav_root := VBoxContainer.new()
+	nav_root.add_theme_constant_override("separation", 5)
+	nav.add_child(nav_root)
+	nav_root.add_child(_label("NEX TGEN LEO", 17))
+	nav_root.add_child(_label("เมนูรายการ", 13))
+	nav_scroll = ScrollContainer.new()
+	nav_scroll.name = "MenuListScroll"
+	nav_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	nav_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	nav_root.add_child(nav_scroll)
 	var nav_stack := VBoxContainer.new()
-	nav_stack.add_theme_constant_override("separation", 5)
-	nav.add_child(nav_stack)
-	nav_stack.add_child(_label("NEX TGEN LEO", 16))
-	nav_stack.add_child(_label("เมนูรายการ", 13))
-	for entry in [
-		{"title":"ตัวละครและอุปกรณ์","mode":""},
-		{"title":"กระเป๋า","mode":""},
-		{"title":"คลัง","mode":"Storage"},
-		{"title":"เทรดซื้อขาย","mode":"Trade"},
-		{"title":"ภารกิจ","mode":"Quest"}
-	]:
-		var mode: String = entry.mode
-		var nav_button := _button(entry.title, func(): _set_extension(mode), nav_stack, 39)
-		nav_button.name = "SilverNav" + (mode if mode != "" else "Bag")
-		menu_buttons[entry.title] = nav_button
-	var filler := Control.new()
-	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	nav_stack.add_child(filler)
-	_button("ปิดหน้าต่าง [Esc]", func(): close_workspace(), nav_stack, 37)
+	nav_stack.name = "FullMenuList"
+	nav_stack.add_theme_constant_override("separation", 3)
+	nav_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav_scroll.add_child(nav_stack)
+	for entry in MENU_SPECS:
+		_nav_button(str(entry["id"]), str(entry["title"]), int(entry["icon"]), nav_stack)
+	_button("ปิดหน้าต่าง [Esc]", func(): close_workspace(), nav_root, 38)
 	# Character + PvE/PvP stack in the middle.
 	var mid := VBoxContainer.new()
 	mid.custom_minimum_size.x = 338

@@ -54,6 +54,7 @@ var bag_page_size := 40
 var bag_page_count := 5
 var gm_authorized := false
 var active_panel := ""
+var silver_workspace: Control
 var bag_page := 0
 var bag_bulk_mode := false
 var bag_bulk_selection: Dictionary = {}
@@ -857,6 +858,10 @@ func _build_ui() -> void:
 	bag_dock_panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
+	# New reusable silver inventory is an overlay; original game actions stay available.
+	silver_workspace = load("res://scripts/silver_inventory_workspace.gd").new()
+	silver_workspace.game = self
+	world.hud.add_child(silver_workspace)
 
 func _style_hud_actions(faction_id: String) -> void:
 	var steel = load("res://scripts/celestial_steel.gd")
@@ -1540,6 +1545,8 @@ func _select_hunt_radius(radius: float) -> void:
 	_tell("บันทึกระยะล่าอัตโนมัติ %d เมตร" % int(hunt_radius))
 
 func _close_panel() -> void:
+	if is_instance_valid(silver_workspace):
+		silver_workspace.hide()
 	_close_player_dropdown()
 	panel.hide()
 	bag_dock_panel.hide()
@@ -1551,6 +1558,19 @@ func _thai_panel_name(name: String) -> String:
 	return str(names.get(name, name))
 
 func _show_panel(name: String) -> void:
+	if name == "Bag" and not network.active:
+		if is_instance_valid(silver_workspace):
+			if silver_workspace.visible:
+				_close_panel()
+			else:
+				active_panel = "Bag"
+				_close_player_dropdown()
+				panel.hide()
+				bag_dock_panel.hide()
+				silver_workspace.open_workspace()
+			return
+	if is_instance_valid(silver_workspace) and silver_workspace.visible:
+		silver_workspace.hide()
 	if name == "GM" and not _can_use_gm():
 		_tell("GM ออนไลน์ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
 		return

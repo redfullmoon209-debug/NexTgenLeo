@@ -48,6 +48,10 @@ var player_dropdown: PanelContainer
 var player_dropdown_column: VBoxContainer
 var dropdown_backdrop: ColorRect
 var dropdown_entries: Dictionary = {}
+var bag_dock_panel: PanelContainer
+var bag_dock_menu: VBoxContainer
+var bag_page_size := 40
+var bag_page_count := 5
 var gm_authorized := false
 var active_panel := ""
 var bag_page := 0
@@ -409,9 +413,10 @@ func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.text = text
 	button.custom_minimum_size = Vector2(74, 40)
-	button.add_theme_stylebox_override("normal", _style(Color("182b40e8"), Color("697d8f")))
-	button.add_theme_stylebox_override("hover", _style(Color("33506b"), Color("ddc58d")))
-	button.add_theme_stylebox_override("pressed", _style(Color("44617d"), Color("f1d89d")))
+	button.add_theme_stylebox_override("normal", _style(Color("101d36f3"), Color("b48a49")))
+	button.add_theme_stylebox_override("hover", _style(Color("163b70"), Color("e7c478")))
+	button.add_theme_stylebox_override("pressed", _style(Color("174b91"), Color("ffde8a")))
+	button.add_theme_color_override("font_color", Color("f8e8c5"))
 	button.pressed.connect(callback)
 	(parent if parent != null else world.hud).add_child(button)
 	return button
@@ -440,9 +445,9 @@ func _build_player_dropdown() -> void:
 	dropdown_backdrop.z_index = 80
 	dropdown_backdrop.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
-			_close_player_dropdown()
+			_close_panel()
 		elif event is InputEventScreenTouch and event.pressed:
-			_close_player_dropdown()
+			_close_panel()
 	)
 	world.hud.add_child(dropdown_backdrop)
 	dropdown_backdrop.hide()
@@ -451,7 +456,7 @@ func _build_player_dropdown() -> void:
 	player_dropdown.z_index = 91
 	player_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
 	player_dropdown.set_meta("leo_fantasy_skin", true)
-	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("0d213ceF")))
+	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("081a34f8")))
 	world.hud.add_child(player_dropdown)
 	var scroll := ScrollContainer.new()
 	scroll.name = "DropdownScroll"
@@ -462,7 +467,8 @@ func _build_player_dropdown() -> void:
 	player_dropdown_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_dropdown_column.add_theme_constant_override("separation", 3)
 	scroll.add_child(player_dropdown_column)
-	var title := _label("เมนูหลัก", 17)
+	var title := _label("NEX TGEN LEO\nเมนูหลัก", 17)
+	title.add_theme_color_override("font_color", Color("f6d991"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	player_dropdown_column.add_child(title)
 	var specs := [
@@ -482,14 +488,14 @@ func _build_player_dropdown() -> void:
 		var title_text: String = "  %s  %s  %s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), str(spec[2])]
 		var entry := _button(title_text, func(): _open_player_menu(menu_id), player_dropdown_column)
 		entry.name = "Menu_" + menu_id
-		entry.custom_minimum_size = Vector2(215, 38)
+		entry.custom_minimum_size = Vector2(135, 45)
 		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.set_meta("leo_fantasy_skin", true)
 		entry.add_theme_font_size_override("font_size", 14)
-		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("152e4adf")))
-		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("2c4f73ff")))
-		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("365e82ff")))
+		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("10223cef")))
+		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("19478aff")))
+		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("2561b6ff")))
 		dropdown_entries[menu_id] = entry
 	player_dropdown.hide()
 	menu_toggle_button = _button("", _toggle_player_dropdown)
@@ -527,17 +533,21 @@ func _build_player_dropdown() -> void:
 	_refresh_gm_button()
 
 func _toggle_player_dropdown() -> void:
+	var viewport_size: Vector2 = world.get_viewport().get_visible_rect().size
+	if viewport_size.y > viewport_size.x:
+		# Narrow phones use the menu as a modal list; desktop uses a pinned sidebar.
+		if player_dropdown.visible:
+			_close_player_dropdown()
+		else:
+			dropdown_backdrop.show()
+			player_dropdown.show()
+			player_dropdown.move_to_front()
+			menu_toggle_button.move_to_front()
+		return
 	if player_dropdown.visible:
-		_close_player_dropdown()
+		_close_panel()
 	else:
-		panel.hide()
-		active_panel = ""
-		dropdown_backdrop.show()
-		player_dropdown.show()
-		player_dropdown.move_to_front()
-		menu_toggle_button.move_to_front()
-		if owner_gm_button.visible:
-			owner_gm_button.move_to_front()
+		_show_panel("Bag")
 
 func _close_player_dropdown() -> void:
 	if is_instance_valid(player_dropdown):
@@ -545,9 +555,45 @@ func _close_player_dropdown() -> void:
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.hide()
 
+func _refresh_sidebar_selection() -> void:
+	for menu_id in dropdown_entries:
+		var entry: Button = dropdown_entries[menu_id]
+		if not is_instance_valid(entry):
+			continue
+		var selected: bool = str(menu_id) == active_panel
+		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("1251a5fa") if selected else Color("10223cef")))
+		entry.add_theme_color_override("font_color", Color("ffffff") if selected else Color("f4dfb5"))
+
 func _open_player_menu(name: String) -> void:
-	_close_player_dropdown()
+	if player_dropdown.visible and panel.visible and active_panel == name:
+		return
 	_show_panel(name)
+
+func _workspace_has_bag_dock() -> bool:
+	var view_size: Vector2 = world.get_viewport().get_visible_rect().size
+	return view_size.x >= 1180.0 and view_size.x > view_size.y and not network.active and not network.connecting and active_panel not in ["", "Bag", "GM", "Death", "OwnerLogin"]
+
+func _refresh_bag_dock() -> void:
+	if not _workspace_has_bag_dock():
+		bag_dock_panel.hide()
+		return
+	for child in bag_dock_menu.get_children():
+		bag_dock_menu.remove_child(child)
+		child.queue_free()
+	# Reuse the original inventory/equipment builder. Never create a smaller
+	# replacement equipment view: preserve all 19 slots and their ordering.
+	var detail_panel: PanelContainer = panel
+	var detail_menu: VBoxContainer = menu
+	var detail_name: String = active_panel
+	panel = bag_dock_panel
+	menu = bag_dock_menu
+	active_panel = "Bag"
+	menu.add_child(_label("กระเป๋า / ตัวละครและอุปกรณ์", 16))
+	_bag()
+	panel = detail_panel
+	menu = detail_menu
+	active_panel = detail_name
+	bag_dock_panel.show()
 
 func _player_entry_rects() -> Dictionary:
 	var rects: Dictionary = {}
@@ -730,7 +776,7 @@ func _build_ui() -> void:
 	panel.z_index = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.set_meta("leo_fantasy_skin", true)
-	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("102440f7")))
+	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -739,6 +785,20 @@ func _build_ui() -> void:
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(menu)
 	panel.hide()
+	bag_dock_panel = PanelContainer.new()
+	bag_dock_panel.name = "PersistentBagDock"
+	bag_dock_panel.z_index = 96
+	bag_dock_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	bag_dock_panel.set_meta("leo_fantasy_skin", true)
+	bag_dock_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
+	world.hud.add_child(bag_dock_panel)
+	var bag_scroll := ScrollContainer.new()
+	bag_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	bag_dock_panel.add_child(bag_scroll)
+	bag_dock_menu = VBoxContainer.new()
+	bag_dock_menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bag_scroll.add_child(bag_dock_menu)
+	bag_dock_panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
 
@@ -896,30 +956,42 @@ func _layout() -> void:
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
 	if is_instance_valid(player_dropdown):
-		player_dropdown.scale = Vector2.ONE * visual_scale
+		player_dropdown.scale = Vector2.ONE * visual_scale if portrait else Vector2.ONE
 		if portrait:
 			var max_local_width := bounds.size.x / visual_scale
 			var max_local_height := bounds.size.y / visual_scale
 			player_dropdown.size = Vector2(minf(240.0, max_local_width), minf(475.0, max_local_height - 225.0))
 			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x * visual_scale, menu_top + 58.0 * visual_scale)
 		else:
-			var dropdown_height := minf(475.0, maxf(180.0, size.y - 108.0))
-			player_dropdown.size = Vector2(minf(240.0, maxf(170.0, size.x - 16.0)), dropdown_height)
-			player_dropdown.position = Vector2(maxf(8.0, size.x - 425.0), 92.0 if size.y >= 560.0 else 65.0)
-	panel.position = bounds.position if portrait else Vector2(12, 12)
-	if active_panel == "Bag":
-		var bag_width: float = minf(620.0, maxf(300.0, size.x * 0.44))
-		if portrait:
-			bag_width = bounds.size.x
-		var bag_height: float = maxf(160.0, size.y - 24.0)
-		panel.size = Vector2(minf(bag_width, maxf(150.0, size.x - 24.0)), bag_height)
-	else:
-		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
+			player_dropdown.size = Vector2(154.0, maxf(160.0, size.y - 24.0))
+			player_dropdown.position = Vector2(12.0, 12.0)
+	bag_dock_panel.hide()
+	bag_dock_panel.scale = Vector2.ONE
+	panel.scale = Vector2.ONE
 	if portrait:
+		panel.position = bounds.position
 		panel.scale = Vector2.ONE * visual_scale
 		panel.size = bounds.size / visual_scale
+	elif active_panel in ["GM", "Death", "OwnerLogin"] or active_panel.is_empty():
+		panel.position = Vector2(12, 12)
+		panel.size = Vector2(minf(390.0, maxf(150.0, size.x - 24.0)), maxf(160.0, size.y - 24.0))
 	else:
-		panel.scale = Vector2.ONE
+		# Fixed desktop workspace: left navigation, unchanged 19-slot bag
+		# and optional selected-system pane, leaving game scenery at right.
+		var content_x: float = 174.0
+		var content_height: float = maxf(160.0, size.y - 24.0)
+		if active_panel == "Bag":
+			panel.position = Vector2(content_x, 12.0)
+			panel.size = Vector2(minf(600.0, maxf(260.0, size.x - content_x - 24.0)), content_height)
+		elif _workspace_has_bag_dock():
+			var dock_width: float = minf(590.0, maxf(550.0, size.x - content_x - 340.0))
+			bag_dock_panel.position = Vector2(content_x, 12.0)
+			bag_dock_panel.size = Vector2(dock_width, content_height)
+			panel.position = Vector2(content_x + dock_width + 8.0, 12.0)
+			panel.size = Vector2(minf(355.0, maxf(200.0, size.x - panel.position.x - 170.0)), content_height)
+		else:
+			panel.position = Vector2(content_x, 12.0)
+			panel.size = Vector2(minf(540.0, maxf(230.0, size.x - content_x - 24.0)), content_height)
 
 func _tell(text: String) -> void:
 	notice.text = text
@@ -1384,7 +1456,9 @@ func _select_hunt_radius(radius: float) -> void:
 func _close_panel() -> void:
 	_close_player_dropdown()
 	panel.hide()
+	bag_dock_panel.hide()
 	active_panel = ""
+	_refresh_sidebar_selection()
 
 func _thai_panel_name(name: String) -> String:
 	var names := {"BulkSellConfirm":"ยืนยันขายหลายชิ้น", "Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}
@@ -1394,15 +1468,23 @@ func _show_panel(name: String) -> void:
 	if name == "GM" and not _can_use_gm():
 		_tell("GM ออนไลน์ใช้ได้เฉพาะเจ้าของที่ผ่านการยืนยันสิทธิ์กับเซิร์ฟเวอร์")
 		return
-	_close_player_dropdown()
 	if panel.visible and active_panel == name:
 		_close_panel()
 		return
 	active_panel = name
+	var view_size: Vector2 = world.get_viewport().get_visible_rect().size
+	var landscape_menu: bool = view_size.x > view_size.y and name not in ["GM", "Death", "OwnerLogin"]
+	if landscape_menu:
+		dropdown_backdrop.show()
+		player_dropdown.show()
+	else:
+		_close_player_dropdown()
 	for child in menu.get_children():
 		menu.remove_child(child)
 		child.queue_free()
 	_layout()
+	_refresh_sidebar_selection()
+	_refresh_bag_dock()
 	panel.show()
 	panel.move_to_front() # last sibling receives clicks before HUD controls beneath it
 	var heading := _label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 21)
@@ -1493,12 +1575,12 @@ func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: floa
 func _silver_panel_style(radius: int = 10, surface: Color = Color("0b1c34f6")) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = surface
-	style.border_color = Color("b6c9df")
+	style.border_color = Color("d6b26c")
 	style.set_border_width_all(1)
-	style.border_width_top = 2
+	style.border_width_top = 3
 	style.set_corner_radius_all(radius)
-	style.shadow_color = Color("020714c8")
-	style.shadow_size = 6
+	style.shadow_color = Color("071d64d4")
+	style.shadow_size = 7
 	style.shadow_offset = Vector2(0, 3)
 	style.content_margin_left = 6
 	style.content_margin_right = 6
@@ -1582,7 +1664,7 @@ func _bag() -> void:
 	bag_character_panel = PanelContainer.new()
 	bag_character_panel.name = "CharacterAndEquipment"
 	bag_character_panel.set_meta("leo_fantasy_skin", true)
-	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("122944f8")))
+	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
 	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_character_panel.custom_minimum_size.x = 230
@@ -1673,7 +1755,7 @@ func _bag() -> void:
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
 	bag_inventory_panel.set_meta("leo_fantasy_skin", true)
-	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("122944f8")))
+	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
 	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_inventory_panel.custom_minimum_size.x = 275
@@ -2009,6 +2091,7 @@ func pointer_over_ui(point: Vector2) -> bool:
 	for chooser in gm_choosers.values():
 		if is_instance_valid(chooser) and chooser.get_popup().visible: return true
 	if panel.visible and panel.get_global_rect().has_point(point): return true
+	if bag_dock_panel.visible and bag_dock_panel.get_global_rect().has_point(point): return true
 	if is_instance_valid(player_dropdown) and player_dropdown.visible: return true
 	for button in buttons + skill_buttons + [world.jump_button, world.run_button]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(point): return true

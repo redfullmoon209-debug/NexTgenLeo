@@ -1,13 +1,13 @@
 extends Node
 ## Non-destructive fantasy UI skin. Applies to runtime-generated controls
 ## without changing their signals, actions, inventory, or saved game data.
-const NAVY := Color("#091a32")
-const PANEL := Color("#142942")
-const EDGE := Color("#b4c6db")
-const GOLD := Color("#e0e9f5")
-const TEXT := Color("#f1f6ff")
-const MUTED := Color("#9bb1ca")
-const BLUE := Color("#628ecb")
+const NAVY := Color("#07142E")
+const PANEL := Color("#0D2854")
+const EDGE := Color("#D5A65A")
+const GOLD := Color("#FFE4A1")
+const TEXT := Color("#F8F5F0")
+const MUTED := Color("#B2CBEC")
+const BLUE := Color("#55B3FF")
 var _tick := 0.0
 var _normal: StyleBoxFlat
 var _hover: StyleBoxFlat
@@ -19,17 +19,17 @@ var _input: StyleBoxFlat
 var _progress_bg: StyleBoxFlat
 
 func _ready() -> void:
-	_normal = _box(Color("#132941"), EDGE, 9, 1)
-	_hover = _box(Color("#29486b"), GOLD, 9, 2)
-	_pressed = _box(Color("#355879"), Color("#edf4fc"), 9, 2)
-	_disabled = _box(Color("#17273e"), Color("#586d87"), 9, 1)
+	_normal = _box(Color("#071B3B"), EDGE, 9, 2)
+	_hover = _box(Color("#123B83"), GOLD, 9, 2)
+	_pressed = _box(Color("#0D5DB8"), Color("#FFF0C0"), 9, 2)
+	_disabled = _box(Color("#11213D"), Color("#51688A"), 9, 1)
 	_focus = _box(Color.TRANSPARENT, GOLD, 9, 2)
-	_plate = _box(Color("#0c1d35f7"), Color("#bfcee1"), 12, 2)
+	_plate = _box(Color("#071B3CFB"), Color("#F1C475"), 12, 2)
 	_plate.border_width_top = 3
 	_plate.shadow_size = 9
 	_plate.shadow_offset = Vector2(0, 4)
-	_input = _box(PANEL, EDGE, 8, 1)
-	_progress_bg = _box(Color("#081629"), Color("#526e8b"), 6, 1)
+	_input = _box(PANEL, EDGE, 8, 2)
+	_progress_bg = _box(Color("#040F25"), Color("#6B9DD9"), 6, 1)
 	set_process(true)
 	call_deferred("_refresh")
 
@@ -40,11 +40,11 @@ func _box(bg: Color, border: Color, radius: int, thickness: int) -> StyleBoxFlat
 	s.set_border_width_all(thickness)
 	s.border_width_top = maxi(thickness, 2)
 	s.set_corner_radius_all(radius)
-	s.shadow_color = Color("#020712a8")
-	s.shadow_size = 3
+	s.shadow_color = Color("#1454AC9A")
+	s.shadow_size = 5
 	s.shadow_offset = Vector2(0, 2)
-	s.content_margin_left = 10
-	s.content_margin_right = 10
+	s.content_margin_left = 8
+	s.content_margin_right = 8
 	s.content_margin_top = 6
 	s.content_margin_bottom = 6
 	return s
@@ -84,7 +84,7 @@ func _skin(control: Control) -> void:
 		b.add_theme_color_override("font_hover_color", GOLD)
 		b.add_theme_color_override("font_pressed_color", GOLD)
 		b.add_theme_color_override("font_disabled_color", MUTED)
-		b.add_theme_font_size_override("font_size", 15)
+		b.add_theme_font_size_override("font_size", 16)
 		if b.text.begins_with("ATK") or b.text.begins_with("1\n") or b.text.begins_with("2\n") or b.text.begins_with("3\n"):
 			var attack := _box(Color("#263d5e"), GOLD, 13, 2)
 			b.add_theme_stylebox_override("normal", attack)

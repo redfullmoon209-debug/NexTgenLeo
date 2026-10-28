@@ -395,13 +395,48 @@ func _style(bg: Color, border: Color, radius := 10) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg
 	style.border_color = border
-	style.set_border_width_all(1)
+	style.set_border_width_all(2)
+	style.border_width_top = 3
 	style.set_corner_radius_all(radius)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.shadow_color = Color("#164B9970")
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(0, 2)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
 	return style
+
+func _royal_button_style(selected: bool, hover: bool = false) -> StyleBoxFlat:
+	var bg := Color("#0754C5") if selected else Color("#071D42")
+	if hover:
+		bg = Color("#116DDB") if selected else Color("#153E83")
+	var border := Color("#FFE3A0") if selected or hover else Color("#C89855")
+	var style := _style(bg, border, 9)
+	style.border_width_top = 3
+	style.shadow_color = Color("#167AFFA9") if selected else Color("#071B4170")
+	style.shadow_size = 9 if selected else 5
+	style.content_margin_left = 11
+	style.content_margin_right = 5
+	return style
+
+func _add_royal_trim(target: PanelContainer) -> void:
+	# Scalable ornamental corners stay sharp without requiring a bitmap UI.
+	var decoration := Control.new()
+	decoration.set_script(load("res://scripts/royal_ui_trim.gd"))
+	decoration.name = "SapphireGoldFrame"
+	decoration.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	target.add_child(decoration)
+	decoration.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+func _royal_heading(caption: String, font_size: int = 14) -> Label:
+	var heading := _label("✦  " + caption, font_size)
+	heading.add_theme_color_override("font_color", Color("#FFE3A1"))
+	heading.add_theme_color_override("font_shadow_color", Color("#06377F"))
+	heading.add_theme_constant_override("shadow_offset_x", 1)
+	heading.add_theme_constant_override("shadow_offset_y", 1)
+	heading.set_meta("leo_fantasy_skin", true)
+	return heading
 
 func _label(text: String, size := 16) -> Label:
 	var label := Label.new()
@@ -415,10 +450,16 @@ func _button(text: String, callback: Callable, parent: Node = null) -> Button:
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.text = text
 	button.custom_minimum_size = Vector2(74, 40)
-	button.add_theme_stylebox_override("normal", _style(Color("101d36f3"), Color("b48a49")))
-	button.add_theme_stylebox_override("hover", _style(Color("163b70"), Color("e7c478")))
-	button.add_theme_stylebox_override("pressed", _style(Color("174b91"), Color("ffde8a")))
-	button.add_theme_color_override("font_color", Color("f8e8c5"))
+	button.add_theme_stylebox_override("normal", _royal_button_style(false))
+	button.add_theme_stylebox_override("hover", _royal_button_style(false, true))
+	button.add_theme_stylebox_override("pressed", _royal_button_style(true))
+	button.add_theme_stylebox_override("disabled", _style(Color("#102039"), Color("#475D7D")))
+	button.add_theme_color_override("font_color", Color("#F8EDDA"))
+	button.add_theme_color_override("font_hover_color", Color("#FFFFFF"))
+	button.add_theme_color_override("font_pressed_color", Color("#FFFFFF"))
+	button.add_theme_color_override("font_disabled_color", Color("#899CB8"))
+	button.add_theme_font_size_override("font_size", 15)
+	button.set_meta("leo_fantasy_skin", true)
 	button.pressed.connect(callback)
 	(parent if parent != null else world.hud).add_child(button)
 	return button
@@ -458,7 +499,7 @@ func _build_player_dropdown() -> void:
 	player_dropdown.z_index = 91
 	player_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
 	player_dropdown.set_meta("leo_fantasy_skin", true)
-	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(11, Color("081a34f8")))
+	player_dropdown.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("#061632FD")))
 	world.hud.add_child(player_dropdown)
 	var scroll := ScrollContainer.new()
 	scroll.name = "DropdownScroll"
@@ -469,10 +510,20 @@ func _build_player_dropdown() -> void:
 	player_dropdown_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	player_dropdown_column.add_theme_constant_override("separation", 3)
 	scroll.add_child(player_dropdown_column)
-	var title := _label("NEX TGEN LEO\nเมนูหลัก", 17)
-	title.add_theme_color_override("font_color", Color("f6d991"))
+	var title := _label("NEXT GEN LEO\n✦ เมนูหลัก ✦", 19)
+	title.add_theme_color_override("font_color", Color("#FFE3A1"))
+	title.add_theme_color_override("font_shadow_color", Color("#2379D1"))
+	title.add_theme_constant_override("shadow_offset_x", 1)
+	title.add_theme_constant_override("shadow_offset_y", 1)
+	title.set_meta("leo_fantasy_skin", true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	player_dropdown_column.add_child(title)
+	var title_rule := ColorRect.new()
+	title_rule.name = "RoyalMenuHeadingDivider"
+	title_rule.color = Color("#DBB36C")
+	title_rule.custom_minimum_size = Vector2(0, 2)
+	title_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	player_dropdown_column.add_child(title_rule)
 	var specs := [
 		["Bag", "▣", "[B]"],
 		["Shop", "▤", "[P]"],
@@ -487,18 +538,23 @@ func _build_player_dropdown() -> void:
 	]
 	for spec in specs:
 		var menu_id: String = str(spec[0])
-		var title_text: String = "  %s  %s  %s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), str(spec[2])]
+		var title_text: String = "%s  %s%s" % [str(spec[1]), "ผู้เล่นและระบบ" if menu_id == "Connect" else _thai_panel_name(menu_id), ("  " + str(spec[2])) if menu_id != "Status" else ""]
+		# The longest title is shown in full. Keep the [C] shortcut as tooltip
+		# instead of truncating "ตัวละครและอุปกรณ์" on narrow screens.
 		var entry := _button(title_text, func(): _open_player_menu(menu_id), player_dropdown_column)
 		entry.name = "Menu_" + menu_id
-		entry.custom_minimum_size = Vector2(135, 45)
+		entry.custom_minimum_size = Vector2(230, 49)
 		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry.clip_text = false
 		entry.set_meta("leo_fantasy_skin", true)
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("10223cef")))
-		entry.add_theme_stylebox_override("hover", _silver_panel_style(7, Color("19478aff")))
-		entry.add_theme_stylebox_override("pressed", _silver_panel_style(7, Color("2561b6ff")))
+		entry.add_theme_font_size_override("font_size", 15)
+		entry.add_theme_stylebox_override("normal", _royal_button_style(false))
+		entry.add_theme_stylebox_override("hover", _royal_button_style(false, true))
+		entry.add_theme_stylebox_override("pressed", _royal_button_style(true))
+		entry.tooltip_text = _thai_panel_name(menu_id) + ("  " + str(spec[2]) if str(spec[2]) != "" else "")
 		dropdown_entries[menu_id] = entry
+	_add_royal_trim(player_dropdown)
 	player_dropdown.hide()
 	menu_toggle_button = _button("", _toggle_player_dropdown)
 	menu_toggle_button.name = "PlayerMainMenuButton"
@@ -563,8 +619,8 @@ func _refresh_sidebar_selection() -> void:
 		if not is_instance_valid(entry):
 			continue
 		var selected: bool = str(menu_id) == active_panel
-		entry.add_theme_stylebox_override("normal", _silver_panel_style(7, Color("1251a5fa") if selected else Color("10223cef")))
-		entry.add_theme_color_override("font_color", Color("ffffff") if selected else Color("f4dfb5"))
+		entry.add_theme_stylebox_override("normal", _royal_button_style(selected))
+		entry.add_theme_color_override("font_color", Color("#FFFFFF") if selected else Color("#FDE9C5"))
 
 func _open_player_menu(name: String) -> void:
 	if player_dropdown.visible and panel.visible and active_panel == name:
@@ -778,7 +834,7 @@ func _build_ui() -> void:
 	panel.z_index = 100
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.set_meta("leo_fantasy_skin", true)
-	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
+	panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("#061632FC")))
 	world.hud.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -786,13 +842,14 @@ func _build_ui() -> void:
 	menu = VBoxContainer.new()
 	menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(menu)
+	_add_royal_trim(panel)
 	panel.hide()
 	bag_dock_panel = PanelContainer.new()
 	bag_dock_panel.name = "PersistentBagDock"
 	bag_dock_panel.z_index = 96
 	bag_dock_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	bag_dock_panel.set_meta("leo_fantasy_skin", true)
-	bag_dock_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("09182dfb")))
+	bag_dock_panel.add_theme_stylebox_override("panel", _silver_panel_style(12, Color("#061632FC")))
 	world.hud.add_child(bag_dock_panel)
 	var bag_scroll := ScrollContainer.new()
 	bag_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -800,6 +857,7 @@ func _build_ui() -> void:
 	bag_dock_menu = VBoxContainer.new()
 	bag_dock_menu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_scroll.add_child(bag_dock_menu)
+	_add_royal_trim(bag_dock_panel)
 	bag_dock_panel.hide()
 	world.get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -957,15 +1015,16 @@ func _layout() -> void:
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size
+	var sidebar_width: float = minf(268.0, maxf(200.0, size.x * 0.235))
 	if is_instance_valid(player_dropdown):
 		player_dropdown.scale = Vector2.ONE * visual_scale if portrait else Vector2.ONE
 		if portrait:
 			var max_local_width := bounds.size.x / visual_scale
 			var max_local_height := bounds.size.y / visual_scale
-			player_dropdown.size = Vector2(minf(240.0, max_local_width), minf(475.0, max_local_height - 225.0))
+			player_dropdown.size = Vector2(minf(285.0, max_local_width), minf(570.0, max_local_height - 225.0))
 			player_dropdown.position = Vector2(bounds.end.x - player_dropdown.size.x * visual_scale, menu_top + 58.0 * visual_scale)
 		else:
-			player_dropdown.size = Vector2(154.0, maxf(160.0, size.y - 24.0))
+			player_dropdown.size = Vector2(sidebar_width, maxf(160.0, size.y - 24.0))
 			player_dropdown.position = Vector2(12.0, 12.0)
 	if not _workspace_has_bag_dock():
 		bag_dock_panel.hide()
@@ -981,17 +1040,17 @@ func _layout() -> void:
 	else:
 		# Fixed desktop workspace: left navigation, unchanged 19-slot bag
 		# and optional selected-system pane, leaving game scenery at right.
-		var content_x: float = 174.0
+		var content_x: float = 20.0 + sidebar_width
 		var content_height: float = maxf(160.0, size.y - 24.0)
 		if active_panel == "Bag":
 			panel.position = Vector2(content_x, 12.0)
 			panel.size = Vector2(minf(555.0, maxf(260.0, size.x - content_x - 24.0)), content_height)
 		elif _workspace_has_bag_dock():
-			var dock_width: float = minf(555.0, maxf(535.0, size.x - content_x - 350.0))
+			var dock_width: float = minf(535.0, maxf(515.0, size.x - content_x - 340.0))
 			bag_dock_panel.position = Vector2(content_x, 12.0)
 			bag_dock_panel.size = Vector2(dock_width, content_height)
 			panel.position = Vector2(content_x + dock_width + 8.0, 12.0)
-			panel.size = Vector2(minf(285.0, maxf(200.0, size.x - panel.position.x - 170.0)), content_height)
+			panel.size = Vector2(minf(285.0, maxf(200.0, size.x - panel.position.x - 165.0)), content_height)
 		else:
 			panel.position = Vector2(content_x, 12.0)
 			panel.size = Vector2(minf(540.0, maxf(230.0, size.x - content_x - 24.0)), content_height)
@@ -1376,7 +1435,15 @@ func _refresh_hud() -> void:
 						var slot_rect: Rect2 = (item_slot as Control).get_global_rect()
 						slot_grid_right = maxf(slot_grid_right, slot_rect.end.x)
 						slot_grid_bottom = maxf(slot_grid_bottom, slot_rect.end.y)
-		var diagnostic := {"pet_gear_count":pet_gear_buttons.size() if active_panel == "Bag" else 0,"pet_shadow_visible":pet_has_silhouette,"pet_live_preview":pet_has_live_preview,"bag_grid_right":slot_grid_right,"bag_grid_bottom":slot_grid_bottom,"bag_page_next":[page_next_center.x,page_next_center.y],"bag_page_prev":[page_prev_center.x,page_prev_center.y],"bag_page":bag_page + 1,"bag_page_size":bag_page_size,"bag_page_count":bag_page_count,"bag_dock_open":bag_dock_panel.visible,"bag_dock_rect":[bag_dock_panel.position.x,bag_dock_panel.position.y,bag_dock_panel.size.x,bag_dock_panel.size.y],"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
+		var longest_menu_fits := false
+		var longest_menu_width := 0.0
+		if dropdown_entries.has("Status") and is_instance_valid(dropdown_entries["Status"]):
+			var long_entry: Button = dropdown_entries["Status"]
+			var font: Font = long_entry.get_theme_font("font")
+			var font_size: int = long_entry.get_theme_font_size("font_size")
+			longest_menu_width = font.get_string_size(long_entry.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			longest_menu_fits = longest_menu_width <= long_entry.size.x - 12.0
+		var diagnostic := {"sidebar_long_label_fits":longest_menu_fits,"sidebar_long_label_text_width":longest_menu_width,"sidebar_width":player_dropdown.size.x,"royal_theme":"sapphire-gold-v2","pet_gear_count":pet_gear_buttons.size() if active_panel == "Bag" else 0,"pet_shadow_visible":pet_has_silhouette,"pet_live_preview":pet_has_live_preview,"bag_grid_right":slot_grid_right,"bag_grid_bottom":slot_grid_bottom,"bag_page_next":[page_next_center.x,page_next_center.y],"bag_page_prev":[page_prev_center.x,page_prev_center.y],"bag_page":bag_page + 1,"bag_page_size":bag_page_size,"bag_page_count":bag_page_count,"bag_dock_open":bag_dock_panel.visible,"bag_dock_rect":[bag_dock_panel.position.x,bag_dock_panel.position.y,bag_dock_panel.size.x,bag_dock_panel.size.y],"hud_status_rect":[stat_rect.position.x,stat_rect.position.y,stat_rect.size.x,stat_rect.size.y],"hud_quest_rect":[quest_rect.position.x,quest_rect.position.y,quest_rect.size.x,quest_rect.size.y],"hud_target_rect":[target_rect.position.x,target_rect.position.y,target_rect.size.x,target_rect.size.y],"hud_action_style":hud_action_style_key,"bag_bulk_mode":bag_bulk_mode,"bag_bulk_count":bag_bulk_selection.size(),"bag_bulk_toggle":[bulk_toggle_center.x,bulk_toggle_center.y],"bag_bulk_sale":[bulk_sell_center.x,bulk_sell_center.y],"bag_bulk_first_slot":[bulk_first_slot_center.x,bulk_first_slot_center.y],"bag_preview_rect":[preview_rect.position.x,preview_rect.position.y,preview_rect.size.x,preview_rect.size.y],"bag_preview_parts":preview_model_parts,"bag_equipment_count":bag_equipment_buttons.size(),"bag_equipment_visible":visible_equipment_slots,"bag_equipment_rects":equipment_rects,"bag_equipment_regions":bag_slot_regions,"bag_left_rect":[bag_left_rect.position.x,bag_left_rect.position.y,bag_left_rect.size.x,bag_left_rect.size.y],"bag_right_rect":[bag_right_rect.position.x,bag_right_rect.position.y,bag_right_rect.size.x,bag_right_rect.size.y],"bag_columns":bag_slot_grid.columns if active_panel == "Bag" and is_instance_valid(bag_slot_grid) else 0,"drawer_rect":[panel.position.x,panel.position.y,panel.size.x,panel.size.y],"drawer_close":[close_center.x,close_center.y],"drawer_z":panel.z_index,"gender_toggle_rect":[gender_toggle_rect.position.x,gender_toggle_rect.position.y,gender_toggle_rect.size.x,gender_toggle_rect.size.y],"avatar_model_meshes":model_mesh_count,"version":"female-glb-v1-20261028","orientation":"portrait" if world.get_viewport().get_visible_rect().size.y > world.get_viewport().get_visible_rect().size.x else "landscape","action_rects":action_rects,"minimap_rect":[mini_rect.position.x,mini_rect.position.y,mini_rect.size.x,mini_rect.size.y],"gm_controls":gm_rects,"gm_popups":gm_popups,"gender":GameState.gender,"job":GameState.selected_job,"faction":GameState.faction,"class_rank":GameState.class_rank,"screen_size":[DisplayServer.window_get_size().x,DisplayServer.window_get_size().y],"viewport_size":[world.get_viewport().get_visible_rect().size.x,world.get_viewport().get_visible_rect().size.y],"position":[world.player.position.x,world.player.position.y,world.player.position.z],"camera_zoom":world.camera.position.z,"player_screen":[world.camera.unproject_position(world.player.position).x,world.camera.unproject_position(world.player.position).y],"yaw":world.yaw,"target":target,"hp":GameState.hp,"panel":active_panel,"mobs":mobs.size(),"fps":Engine.get_frames_per_second(),"static_memory":Performance.get_monitor(Performance.MEMORY_STATIC),"online":network.active,"attacking":auto_attack,"joystick":[world.joystick_vector.x,world.joystick_vector.y],"menu_open":player_dropdown.visible,"menu_button_rect":[menu_toggle_button.position.x,menu_toggle_button.position.y,menu_toggle_button.size.x,menu_toggle_button.size.y],"gm_button_visible":owner_gm_button.visible,"gm_button_rect":[owner_gm_button.position.x,owner_gm_button.position.y,owner_gm_button.size.x,owner_gm_button.size.y],"menu_dropdown_rect":[player_dropdown.position.x,player_dropdown.position.y,player_dropdown.size.x,player_dropdown.size.y],"menu_entry_rects":_player_entry_rects()}
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()
 
@@ -1510,7 +1577,7 @@ func _show_panel(name: String) -> void:
 	_refresh_bag_dock()
 	panel.show()
 	panel.move_to_front() # last sibling receives clicks before HUD controls beneath it
-	var heading := _label(_thai_panel_name(name) + "   /   NEX TGEN LEO", 21)
+	var heading := _royal_heading(_thai_panel_name(name) + "   /   NEXT GEN LEO", 20)
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu.add_child(heading)
 	_button("ปิด [Esc]", _close_panel, menu)
@@ -1598,25 +1665,25 @@ func _bag_bar(parent: VBoxContainer, color: Color, current: float, maximum: floa
 func _silver_panel_style(radius: int = 10, surface: Color = Color("0b1c34f6")) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = surface
-	style.border_color = Color("d6b26c")
-	style.set_border_width_all(1)
+	style.border_color = Color("#EFC47B")
+	style.set_border_width_all(2)
 	style.border_width_top = 3
 	style.set_corner_radius_all(radius)
-	style.shadow_color = Color("071d64d4")
-	style.shadow_size = 7
+	style.shadow_color = Color("#1455BD99")
+	style.shadow_size = 10
 	style.shadow_offset = Vector2(0, 3)
-	style.content_margin_left = 6
-	style.content_margin_right = 6
-	style.content_margin_top = 5
-	style.content_margin_bottom = 5
+	style.content_margin_left = 7
+	style.content_margin_right = 7
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
 	return style
 
 func _equipment_slot_style(accent: Color, active: bool, hovered: bool = false) -> StyleBoxFlat:
-	var bg := Color("1e3c5f") if hovered else (Color("1a3456") if active else Color("10243e"))
+	var bg := Color("#144A91") if hovered else (Color("#0D326B") if active else Color("#071B3A"))
 	var style := _silver_panel_style(7, bg)
-	style.border_color = accent.lightened(0.18) if hovered else accent
-	style.shadow_color = Color("020714b5")
-	style.shadow_size = 3 if hovered else 2
+	style.border_color = Color("#FFE3A1") if hovered else accent.lerp(Color("#E8BC74"), 0.65)
+	style.shadow_color = Color("#1975D6A0") if hovered else Color("#0C3C9377")
+	style.shadow_size = 5 if hovered else 3
 	style.shadow_offset = Vector2(0, 2)
 	style.content_margin_left = 1
 	style.content_margin_right = 1
@@ -1637,8 +1704,8 @@ func _bag_equipment_slot(slot_id: String, title: String, region: String, parent:
 	button.custom_minimum_size = Vector2(34, slot_height)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_text = true
-	button.add_theme_font_size_override("font_size", 9)
-	button.add_theme_color_override("font_color", Color("ecf3ff"))
+	button.add_theme_font_size_override("font_size", 10)
+	button.add_theme_color_override("font_color", Color("#F3F7FF"))
 	button.add_theme_color_override("font_hover_color", Color.WHITE)
 	button.add_theme_stylebox_override("normal", _equipment_slot_style(accent, filled))
 	button.add_theme_stylebox_override("hover", _equipment_slot_style(accent, filled, true))
@@ -1688,7 +1755,7 @@ func _bag() -> void:
 	bag_character_panel = PanelContainer.new()
 	bag_character_panel.name = "CharacterAndEquipment"
 	bag_character_panel.set_meta("leo_fantasy_skin", true)
-	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
+	bag_character_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("#071E43FB")))
 	bag_character_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_character_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_character_panel.custom_minimum_size.x = 230
@@ -1697,6 +1764,7 @@ func _bag() -> void:
 	character_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	character_scroll.custom_minimum_size.y = 220.0 if not wide else maxf(160.0, panel.size.y - 135.0)
 	bag_character_panel.add_child(character_scroll)
+	_add_royal_trim(bag_character_panel)
 	var character := VBoxContainer.new()
 	character.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	character.add_theme_constant_override("separation", 3)
@@ -1710,7 +1778,7 @@ func _bag() -> void:
 	_bag_bar(character, Color("518fdb"), float(GameState.exp), float(GameState.exp_required()), "EXP")
 	# Exact positional mapping from the reference markup:
 	# left weapons / mount / loot pet, center player, right five armor items.
-	character.add_child(_label("ตัวละครและอุปกรณ์", 14))
+	character.add_child(_royal_heading("ตัวละครและอุปกรณ์", 14))
 	bag_equipment_frame = HBoxContainer.new()
 	bag_equipment_frame.name = "EquipmentAroundAvatar"
 	bag_equipment_frame.add_theme_constant_override("separation", 3)
@@ -1744,7 +1812,7 @@ func _bag() -> void:
 		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "armor", equipment_right, Color("bac9da"), 39.0)
 
 	# Silver jewelry row, left-to-right: ring / bracelet / necklace / bracelet / ring.
-	character.add_child(_label("เครื่องประดับ", 13))
+	character.add_child(_royal_heading("เครื่องประดับ", 13))
 	var jewelry_row := HBoxContainer.new()
 	jewelry_row.name = "JewelryRow"
 	jewelry_row.add_theme_constant_override("separation", 3)
@@ -1760,7 +1828,7 @@ func _bag() -> void:
 		_bag_equipment_slot(str(slot_def.id), str(slot_def.title), "jewelry", jewelry_row, Color("d4deea"), 38.0)
 
 	# Five isolated cosmetic slots. Cosmetics never replace functional armor.
-	character.add_child(_label("ชุดแฟชั่น", 13))
+	character.add_child(_royal_heading("ชุดแฟชั่น", 13))
 	var fashion_row := HBoxContainer.new()
 	fashion_row.name = "FashionRow"
 	fashion_row.add_theme_constant_override("separation", 3)
@@ -1781,7 +1849,7 @@ func _bag() -> void:
 	bag_inventory_panel = PanelContainer.new()
 	bag_inventory_panel.name = "InventoryRight"
 	bag_inventory_panel.set_meta("leo_fantasy_skin", true)
-	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("0b2246fa")))
+	bag_inventory_panel.add_theme_stylebox_override("panel", _silver_panel_style(10, Color("#071E43FB")))
 	bag_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bag_inventory_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if wide: bag_inventory_panel.custom_minimum_size.x = 275
@@ -1790,7 +1858,8 @@ func _bag() -> void:
 	inventory_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inventory_column.add_theme_constant_override("separation", 3)
 	bag_inventory_panel.add_child(inventory_column)
-	inventory_column.add_child(_label("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
+	_add_royal_trim(bag_inventory_panel)
+	inventory_column.add_child(_royal_heading("กระเป๋า • %d / 200" % GameState.inventory.size(), 16))
 	var inventory_summary: Label = _label("ทอง %d  แคช %d" % [GameState.gold, GameState.cash], 12)
 	inventory_column.add_child(inventory_summary)
 	# No vertical scrolling inside the item grid. Screen capacity determines
@@ -1799,7 +1868,10 @@ func _bag() -> void:
 	# sizing the right grid. The old estimate subtracted 300px and clipped cells.
 	var grid_width: float = maxf(180.0, (panel.size.x - 263.0) if wide else (panel.size.x - 28.0))
 	var grid_columns: int = clampi(int(grid_width / 52.0), 3, 5)
-	var slot_side: float = clampf(floorf((grid_width - float(grid_columns - 1) * 3.0) / float(grid_columns)), 40.0, 62.0)
+	# Keep five crisp cells inside the real 555px workspace after gold borders.
+	# Extra inset is needed only in horizontal two-pane mode.
+	var side_inset: float = 4.0 if wide else 0.0
+	var slot_side: float = clampf(floorf((grid_width - float(grid_columns - 1) * 3.0) / float(grid_columns)) - side_inset, 40.0, 62.0)
 	var usable_height: float = maxf(140.0, panel.size.y - (235.0 if panel == bag_dock_panel else 269.0))
 	var grid_rows: int = clampi(int(usable_height / (slot_side + 3.0)), 3, 12)
 	bag_page_size = clampi(grid_columns * grid_rows, grid_columns * 3, 100)
@@ -1873,7 +1945,7 @@ func _bag() -> void:
 		button.tooltip_text = item_tip
 		button.add_theme_font_size_override("font_size", 11)
 		button.set_meta("leo_fantasy_skin", true)
-		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("b89855"), index < GameState.inventory.size()))
+		button.add_theme_stylebox_override("normal", _equipment_slot_style(Color("#D6AB68"), index < GameState.inventory.size()))
 		button.add_theme_stylebox_override("hover", _equipment_slot_style(Color("e7c679"), true, true))
 		button.add_theme_stylebox_override("pressed", _equipment_slot_style(Color("ffe4ac"), true, true))
 	# On tall phones, show actual inventory items first. Equipment remains
@@ -1971,14 +2043,15 @@ func _build_bag_pet_section(parent: VBoxContainer) -> void:
 	var card := PanelContainer.new()
 	card.name = "PetEquipmentSection"
 	card.set_meta("leo_fantasy_skin", true)
-	card.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("102442f8")))
+	card.add_theme_stylebox_override("panel", _silver_panel_style(9, Color("#081D45FB")))
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(card)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 2)
 	card.add_child(stack)
+	_add_royal_trim(card)
 	var has_pet: bool = GameState.equipped.has("loot_pet")
-	stack.add_child(_label("สัตว์เลี้ยงของฉัน  •  Lv.%d" % GameState.pet_level, 13))
+	stack.add_child(_royal_heading("สัตว์เลี้ยงของฉัน  •  Lv.%d" % GameState.pet_level, 13))
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 3)
 	stack.add_child(body)
@@ -1992,7 +2065,7 @@ func _build_bag_pet_section(parent: VBoxContainer) -> void:
 	bag_pet_preview_frame.name = "EquippedPetPortrait"
 	bag_pet_preview_frame.custom_minimum_size = Vector2(130.0, 118.0)
 	bag_pet_preview_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bag_pet_preview_frame.add_theme_stylebox_override("panel", _silver_panel_style(8, Color("071930f7")))
+	bag_pet_preview_frame.add_theme_stylebox_override("panel", _silver_panel_style(8, Color("#061833FA")))
 	body.add_child(bag_pet_preview_frame)
 	_build_bag_pet_preview(bag_pet_preview_frame)
 	var status: Label = _label("สัตว์เลี้ยงเก็บของ" if has_pet else "ยังไม่ได้สวมใส่สัตว์เลี้ยง", 10)

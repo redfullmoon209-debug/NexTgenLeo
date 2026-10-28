@@ -48,11 +48,13 @@ async function openPlayerMenu(page,entryName){
  await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await openPlayerMenu(page,'Bag');
  const drawer=await page.evaluate(()=>window.leoDiagnostics);
- if(drawer.drawer_rect[0]<160||drawer.drawer_rect[0]>190||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<535||drawer.drawer_rect[2]>570||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Pinned sidebar and centered bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
+ if(drawer.drawer_rect[0]<275||drawer.drawer_rect[0]>305||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<535||drawer.drawer_rect[2]>570||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Full-label pinned sidebar and centered bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
+ if(drawer.sidebar_width<255||drawer.sidebar_width>285||!drawer.sidebar_long_label_fits)throw Error('Full Thai character-and-equipment text still clips in far-left sidebar: '+JSON.stringify({width:drawer.sidebar_width,textWidth:drawer.sidebar_long_label_text_width,fits:drawer.sidebar_long_label_fits}));
+ if(drawer.royal_theme!=='sapphire-gold-v2')throw Error('New royal UHD theme is not active');
  if(drawer.drawer_rect[1]+drawer.drawer_rect[3]>720||drawer.drawer_rect[1]+drawer.drawer_rect[3]<700)throw Error('Bag does not reach viewport bottom: '+JSON.stringify(drawer.drawer_rect));
  if(drawer.drawer_rect[0]+drawer.drawer_rect[2]>drawer.viewport_size[0]-200)throw Error('Game world must remain visible to right: '+JSON.stringify(drawer));
  if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must remain left of inventory: '+JSON.stringify(drawer));
- if(drawer.bag_right_rect[0]<380||drawer.bag_right_rect[0]>550||drawer.bag_columns<3||drawer.bag_columns>6)throw Error('Compact bag grid incorrect: '+JSON.stringify(drawer));
+ if(drawer.bag_right_rect[0]<480||drawer.bag_right_rect[0]>710||drawer.bag_columns<3||drawer.bag_columns>6)throw Error('Inventory must be right of character equipment after wider menu: '+JSON.stringify(drawer));
  if(!(drawer.bag_page_count>=3&&drawer.bag_page_size<100&&drawer.bag_page_size>=12))throw Error('Inventory must paginate all 200 slots: '+JSON.stringify(drawer));
  if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<90||drawer.bag_preview_rect[3]<180)throw Error('Center character 3D preview missing or too small: '+JSON.stringify(drawer));
  if(drawer.bag_equipment_count!==19||drawer.bag_equipment_visible!==19)throw Error('All 19 equipment slots must fit: '+JSON.stringify(drawer));
@@ -107,7 +109,7 @@ async function openPlayerMenu(page,entryName){
  await page.mouse.click(...nav.menu_entry_rects.Shop);
  await page.waitForFunction(()=>window.leoDiagnostics.panel==='Shop'&&window.leoDiagnostics.bag_dock_open,null,{timeout:15000});
  let split=await page.evaluate(()=>window.leoDiagnostics);
- if(split.bag_equipment_count!==19||split.bag_dock_rect[0]<160||split.bag_dock_rect[0]+split.bag_dock_rect[2]>split.drawer_rect[0])throw Error('Shop must open right of unchanged 19-slot bag: '+JSON.stringify(split));
+ if(split.bag_equipment_count!==19||split.bag_dock_rect[0]<275||split.bag_dock_rect[0]+split.bag_dock_rect[2]>split.drawer_rect[0])throw Error('Shop must open right of unchanged 19-slot bag and full-text menu: '+JSON.stringify(split));
  await page.mouse.click(...split.menu_entry_rects.Quest);
  await page.waitForFunction(()=>window.leoDiagnostics.panel==='Quest'&&window.leoDiagnostics.bag_dock_open,null,{timeout:15000});
  if((await page.evaluate(()=>window.leoDiagnostics)).bag_equipment_count!==19)throw Error('Quest must keep all 19 slots');
@@ -155,7 +157,7 @@ async function openPlayerMenu(page,entryName){
  if(wideBag.bag_right_rect[0]<=wideBag.bag_left_rect[0])throw Error('1920 wide bag is not split');
  // Godot may keep its 1280x720 virtual viewport when Chromium is resized.
  // Verify the dock against Godot's actual viewport, not the browser's CSS size.
- if(wideBag.drawer_rect[2]>570||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.viewport_size[0]-200)throw Error('Resized bag must leave world visible: '+JSON.stringify(wideBag));
+ if(wideBag.drawer_rect[2]>570||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.viewport_size[0]-140)throw Error('Resized royal bag must leave visible world space: '+JSON.stringify(wideBag));
  if(wideBag.drawer_rect[1]+wideBag.drawer_rect[3]>wideBag.viewport_size[1]-8)throw Error('Bag extends outside Godot viewport: '+JSON.stringify(wideBag));
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  console.log('MOUSE TESTS: native menu clicks, close, left/right world drag, 1920x1080 click passed');

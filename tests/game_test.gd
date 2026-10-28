@@ -168,6 +168,10 @@ func run() -> void:
 	print("TRACE_MENU after_open view=",scene.get_viewport().get_visible_rect().size," state=",game.active_panel," drop=",game.player_dropdown.visible," backdrop=",game.dropdown_backdrop.visible," panel=",game.panel.visible," dock=",game.bag_dock_panel.visible)
 	check(game.player_dropdown.visible and game.dropdown_backdrop.visible and game.active_panel == "Bag", "yellow hamburger opens pinned sidebar and bag workspace")
 	check(game.dropdown_entries.size() == 10, "all ten player menus remain in sidebar")
+	check(game.player_dropdown.size.x >= 255.0, "Royal left sidebar is wide enough to show full Thai menu labels")
+	check(game.dropdown_entries["Status"].text.contains("ตัวละครและอุปกรณ์"), "Complete character and equipment title is present")
+	check(game.dropdown_entries["Status"].size.x >= 225.0, "Long character title button does not use the old clipped 154px width")
+	check(game.player_dropdown.get_node_or_null("SapphireGoldFrame") != null, "Sidebar has high-DPI gold trim")
 	game._open_player_menu("Shop")
 	print("TRACE_MENU after_shop state=",game.active_panel," drop=",game.player_dropdown.visible," dock=",game.bag_dock_panel.visible," viewport=",scene.get_viewport().get_visible_rect().size)
 	check(game.player_dropdown.visible and game.active_panel == "Shop" and game.bag_dock_panel.visible, "shop opens to right of persistent bag")
@@ -180,7 +184,8 @@ func run() -> void:
 	game._close_panel()
 	game._show_panel("Bag")
 	await process_frame
-	check(game.panel.position.x >= 160 and game.panel.position.x <= 190 and game.panel.position.y <= 16, "character bag appears to the right of fixed sidebar")
+	check(game.panel.position.x >= 275 and game.panel.position.x <= 305 and game.panel.position.y <= 16, "character bag appears to the right of expanded full-text sidebar")
+	print("ROYAL_LAYOUT_TRACE panel=",game.panel.get_global_rect()," sidebar=",game.player_dropdown.get_global_rect()," char=",game.bag_character_panel.get_global_rect()," inv=",game.bag_inventory_panel.get_global_rect()," grid=",game.bag_slot_grid.get_global_rect()," slots=",game.bag_page_size)
 	check(game.panel.size.x >= 535 and game.panel.size.x <= 570, "compact character bag preserves equipment without hiding the entire world")
 	var viewport_height: float = scene.get_viewport().get_visible_rect().size.y
 	var viewport_width: float = scene.get_viewport().get_visible_rect().size.x
@@ -189,6 +194,8 @@ func run() -> void:
 	check(game.panel.position.x + game.panel.size.x < viewport_width - 200, "game scene remains visible to right of workspace")
 	check(game.panel.z_index >= 50 and game.panel.get_index() == game.panel.get_parent().get_child_count() - 1, "bag stays above other HUD elements")
 	check(game.bag_character_panel != null and game.bag_inventory_panel != null, "character and bag panes created")
+	check(game.bag_character_panel.get_node_or_null("SapphireGoldFrame") != null, "Character and equipment window has premium vector trim")
+	check(game.bag_inventory_panel.get_node_or_null("SapphireGoldFrame") != null, "Inventory window has premium vector trim")
 	check(game.bag_character_panel.find_child("PetEquipmentSection", true, false) != null, "character pane includes dedicated pet equipment section")
 	check(game.bag_character_panel.find_child("UnassignedPetSilhouette", true, false) != null, "empty pet previews a silhouette instead of the test animal")
 	check(state.add_item("loot_companion"), "pet to preview can be obtained")

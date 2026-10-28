@@ -142,6 +142,7 @@ func _build() -> void:
 	]:
 		var mode: String = entry.mode
 		var nav_button := _button(entry.title, func(): _set_extension(mode), nav_stack, 39)
+		nav_button.name = "SilverNav" + (mode if mode != "" else "Bag")
 		menu_buttons[entry.title] = nav_button
 	var filler := Control.new()
 	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -201,12 +202,14 @@ func _build() -> void:
 	var pagination := HBoxContainer.new()
 	bag_stack.add_child(pagination)
 	var prev := _button("◀", func(): _page_change(-1), pagination)
+	prev.name = "SilverPrevPage"
 	prev.custom_minimum_size.x = 45
 	page_label = _label("", 13)
 	page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	page_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pagination.add_child(page_label)
 	var next := _button("▶", func(): _page_change(1), pagination)
+	next.name = "SilverNextPage"
 	next.custom_minimum_size.x = 45
 	var actions := HBoxContainer.new()
 	bag_stack.add_child(actions)

@@ -1,4 +1,5 @@
 extends CanvasLayer
+const MainNavLocale = preload("res://scripts/main_nav_locale.gd")
 ## Isolated, four-component Settings Rich Menu. No image crops or gameplay changes.
 ## Independent layers: SVG icons / editable Thai Labels / gold background Panel / frame Panel.
 const TITLES := ["กราฟิกและหน้าจอ", "เสียง", "การควบคุม", "จัดตำแหน่ง HUD", "ตั้งค่า Auto Hunt", "ตั้งค่า Auto Potion", "การแจ้งเตือน", "ภาษา", "บัญชีและความปลอดภัย", "ออกจากเกม"]
@@ -8,6 +9,8 @@ var toggle: Button
 var header_title: Label
 var header_arrow: TextureRect
 var header_content: HBoxContainer
+var closed_gear: TextureRect
+var closed_caption: Label
 var list: VBoxContainer
 
 func _ready() -> void:
@@ -36,13 +39,14 @@ func _ready() -> void:
 	header_content.offset_right = -17
 	header_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toggle.add_child(header_content)
-	var gear := TextureRect.new()
-	gear.texture = load("res://assets/ui/settings/icons/gear.svg")
-	gear.custom_minimum_size = Vector2(48, 48)
-	gear.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	gear.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	gear.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header_content.add_child(gear)
+	closed_gear = TextureRect.new()
+	closed_gear.name = "PrimarySettingsIllustration"
+	closed_gear.texture = load("res://assets/ui/main_nav/illustrated/settings.png")
+	closed_gear.custom_minimum_size = Vector2(83, 102)
+	closed_gear.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	closed_gear.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	closed_gear.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_content.add_child(closed_gear)
 	header_title = Label.new()
 	header_title.text = "ตั้งค่าเกม"
 	header_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -60,6 +64,21 @@ func _ready() -> void:
 	header_arrow.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	header_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_content.add_child(header_arrow)
+	# The attached navy nameplate belongs to the PNG, but this text stays native.
+	closed_caption = Label.new()
+	closed_caption.name = "NativeSettingsCaption"
+	closed_caption.text = MainNavLocale.label_for("Settings", str(GameState.settings.get("language", "th")))
+	closed_caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	closed_caption.anchor_top = 0.77
+	closed_caption.anchor_bottom = 0.958
+	closed_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	closed_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	closed_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	closed_caption.add_theme_font_size_override("font_size", 13)
+	closed_caption.add_theme_color_override("font_color", Color.WHITE)
+	closed_caption.add_theme_color_override("font_outline_color", Color("#020711"))
+	closed_caption.add_theme_constant_override("outline_size", 3)
+	toggle.add_child(closed_caption)
 	panel = PanelContainer.new()
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
@@ -186,6 +205,12 @@ func _add_row(index: int) -> void:
 	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_child(arrow)
 
+func _process(_delta: float) -> void:
+	# A locale switch only replaces Label text, never re-generates the PNG asset.
+	var label_text: String = MainNavLocale.label_for("Settings", str(GameState.settings.get("language", "th")))
+	if closed_caption.text != label_text:
+		closed_caption.text = label_text
+
 func _input(event: InputEvent) -> void:
 	# Scoped click/touch hit area only. No fullscreen interception and no HUD changes.
 	var point := Vector2.INF
@@ -215,7 +240,7 @@ func _update_web_diagnostics() -> void:
 		return
 	var r := toggle.get_global_rect()
 	var p := panel.get_global_rect()
-	var data := {"open": panel.visible, "header": [r.position.x, r.position.y, r.size.x, r.size.y], "panel": [p.position.x, p.position.y, p.size.x, p.size.y], "rows": list.get_child_count()}
+	var data := {"open": panel.visible, "header": [r.position.x, r.position.y, r.size.x, r.size.y], "panel": [p.position.x, p.position.y, p.size.x, p.size.y], "rows": list.get_child_count(), "native_caption": closed_caption.text}
 	JavaScriptBridge.eval("window.leoSettingsRich = " + JSON.stringify(data), true)
 
 func _responsive() -> void:
@@ -238,16 +263,20 @@ func _responsive() -> void:
 	header_content.offset_left = 17.0 if panel.visible else 0.0
 	header_content.offset_right = -17.0 if panel.visible else 0.0
 	header_content.alignment = BoxContainer.ALIGNMENT_BEGIN if panel.visible else BoxContainer.ALIGNMENT_CENTER
+	# Only the COLLAPSED main-button art changes; the approved gold dropdown stays intact.
+	closed_caption.visible = not panel.visible
+	closed_gear.texture = load("res://assets/ui/settings/icons/gear.svg") if panel.visible else load("res://assets/ui/main_nav/illustrated/settings.png")
+	closed_gear.custom_minimum_size = Vector2(48, 48) if panel.visible else Vector2(83, 102)
 	if panel.visible:
 		toggle.offset_left = open_right - menu_width
 		toggle.offset_right = open_right
 		toggle.offset_top = menu_top
 		toggle.offset_bottom = menu_top + header_height
 	else:
-		toggle.offset_left = collapsed_right - 72.0
+		toggle.offset_left = collapsed_right - 86.0
 		toggle.offset_right = collapsed_right
 		toggle.offset_top = collapsed_top
-		toggle.offset_bottom = collapsed_top + header_height
+		toggle.offset_bottom = collapsed_top + 104.0
 	panel.offset_left = open_right - menu_width
 	panel.offset_right = open_right
 	panel.offset_top = menu_top + header_height + 4.0

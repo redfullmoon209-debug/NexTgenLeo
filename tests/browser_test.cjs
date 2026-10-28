@@ -63,6 +63,8 @@ async function closeBag(page) {
     const settingsReady = await page.evaluate(() => window.leoSettingsRich);
     if(!settingsReady || settingsReady.open || settingsReady.rows !== 10)
       throw Error('Settings component did not initialize: '+JSON.stringify(settingsReady));
+    if(settingsReady.native_caption !== 'ตั้งค่า')
+      throw Error('Closed Settings must have a native, localizable caption over blank illustrated plate: '+JSON.stringify(settingsReady));
     if(settingsReady.header[0] + settingsReady.header[2] >= start.gm_button_rect[0])
       throw Error('Closed Settings gear overlaps the original GM button');
     await clickGodot(page, [settingsReady.header[0] + settingsReady.header[2]/2,
@@ -85,11 +87,25 @@ async function closeBag(page) {
     await clickGodot(page,[openedSettings.header[0] + openedSettings.header[2]/2,
                            openedSettings.header[1] + openedSettings.header[3]/2]);
     await page.waitForFunction(() => window.leoSettingsRich?.open === false,null,{timeout:6000});
-    // Eight-button nav: six new independent SVG icons; GM and Settings remain original.
+    // Eight-button nav: illustrated transparent PNGs with native Godot GridContainer Label overlays.
     const navStart = await page.evaluate(() => window.leoMainRichNav);
     const requiredIcons = ['Bag','Menu','Guild','Party','Friends','Notice'];
     if(!navStart || requiredIcons.some(id => !navStart.buttons[id]) || !navStart.legacy_menu_hidden)
       throw Error('Rich main icons or legacy hamburger replacement missing: '+JSON.stringify(navStart));
+    await page.waitForFunction(() => window.leoMainRichNav?.native_grid && window.leoMainRichNav.buttons.Bag[2] >= 70, null, {timeout:10000});
+    const nativeCaptions = await page.evaluate(() => window.leoMainRichNav.caption_texts);
+    const navRectangles = await page.evaluate(() => window.leoMainRichNav.buttons);
+    const overlaps = (a,b) => a[0] < b[0]+b[2] && a[0]+a[2] > b[0] && a[1] < b[1]+b[3] && a[1]+a[3] > b[1];
+    for(const [name, rect] of Object.entries(navRectangles)) {
+      if(overlaps(rect,start.gm_button_rect) || overlaps(rect,settingsReady.header))
+        throw Error('Illustrated main icon overlaps protected GM/Settings: '+name+' '+JSON.stringify({rect,gm:start.gm_button_rect,settings:settingsReady.header}));
+    }
+    for(const [id, expected] of Object.entries({Bag:'กระเป๋า',Menu:'เมนู',Guild:'กิลด์',Party:'ปาร์ตี้',Friends:'เพื่อน',Notice:'ประกาศ'}))
+      if(nativeCaptions[id] !== expected) throw Error('Native Godot label missing: '+id+' '+JSON.stringify(nativeCaptions));
+    // The artwork is per-icon PNG (including a blank nameplate), not six hardcoded title sprites.
+    const fs = require('fs');
+    for(const asset of ['gm','settings','bag','menu','guild','party','friends','notice'])
+      if(!fs.existsSync('assets/ui/main_nav/illustrated/'+asset+'.png')) throw Error('Illustrated asset missing: '+asset);
     const pressIcon = async id => {
       const state = await page.evaluate(() => window.leoMainRichNav);
       const r = state.buttons[id];
@@ -211,7 +227,8 @@ async function closeBag(page) {
     portraitPage.on('pageerror',e=>errors.push('Portrait: '+e.message));
     await portraitPage.goto(URL);
     await portraitPage.waitForFunction(()=>window.leoDiagnostics?.orientation==='portrait',null,{timeout:60000});
-    // Physical mobile targets must not shrink to unreadable 15px SVG icons.
+    // Portrait GridContainer icons and editable Thai Label overlays remain touch-sized.
+    await portraitPage.waitForFunction(()=>window.leoMainRichNav?.native_grid && window.leoMainRichNav.buttons.Bag[2] > 0,null,{timeout:15000});
     const portraitNav = await portraitPage.evaluate(()=>window.leoMainRichNav);
     const portraitDiag = await diagnostics(portraitPage);
     const mobileIconWidth = portraitNav.buttons.Bag[2] * portraitDiag.screen_size[0] / portraitDiag.viewport_size[0];

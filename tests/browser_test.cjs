@@ -1,9 +1,31 @@
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
+const { PNG } = require('pngjs');
 
 const URL = 'http://127.0.0.1:8060';
 async function diagnostics(page) {
   return page.evaluate(() => window.leoDiagnostics);
+}
+// Require visible pixels, not merely MeshInstance3D nodes. Prior CI
+// accepted a completely blank PC portrait because the meshes existed.
+async function inspectAvatarPixels(page, bounds) {
+  const current = await diagnostics(page);
+  const screenshot = PNG.sync.read(await page.screenshot());
+  const sx = screenshot.width / current.viewport_size[0];
+  const sy = screenshot.height / current.viewport_size[1];
+  const x0 = Math.max(0, Math.floor((bounds[0] + 0.22*bounds[2])*sx));
+  const x1 = Math.min(screenshot.width, Math.ceil((bounds[0] + 0.78*bounds[2])*sx));
+  const y0 = Math.max(0, Math.floor((bounds[1] + 0.17*bounds[3])*sy));
+  const y1 = Math.min(screenshot.height, Math.ceil((bounds[1] + 0.86*bounds[3])*sy));
+  let skinPixels=0, colourPixels=0;
+  for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++) {
+    const i=(screenshot.width*y+x)*4;
+    const [red,green,blue,alpha]=screenshot.data.slice(i,i+4);
+    if(alpha<220)continue;
+    if(red>96 && green>64 && blue>38 && red>green*1.09 && green>blue*1.06)skinPixels++;
+    if((red>85 && green<red*.8 && blue>red*.7)||(blue>105 && blue>red*1.3 && blue>green*1.08))colourPixels++;
+  }
+  return {skinPixels,colourPixels,region:[x0,y0,x1,y1]};
 }
 async function clickGodot(page, point) {
   if (!point || point.length < 2) throw Error('Missing Godot control coordinates');
@@ -45,6 +67,12 @@ async function closeBag(page) {
       throw Error('Sidebar must have 14 original PNG icons and jewelry row needs five slots: '+JSON.stringify(d.silver));
     if (!d.silver.portrait_meshes || d.silver.portrait_meshes < 6)
       throw Error('Live character preview is missing its meshes');
+    // The portrait must actually be rendered before calling desktop QA green.
+    // This is the blank yellow-highlighted region the player reported.
+    await page.waitForTimeout(1000);
+    const portraitImage = await inspectAvatarPixels(page,d.silver.portrait_rect);
+    if(portraitImage.skinPixels<80)
+      throw Error('Character portrait is blank on PC despite mesh nodes: '+JSON.stringify(portraitImage));
     const portraitBounds=d.silver.portrait_rect;
     const warrior=d.silver.warrior_rects.hat;
     const fashion=d.silver.fashion_rects.fashion_hat;

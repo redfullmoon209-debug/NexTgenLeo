@@ -619,6 +619,75 @@
       "icon": "P",
       "rarity": "Uncommon"
     },
+    "pet_necklace_silver": {
+      "name": "สร้อยพลังสัตว์เลี้ยง",
+      "price": 120,
+      "sell": 30,
+      "stack": 1,
+      "kind": "pet_equipment",
+      "slot": "pet_necklace",
+      "icon": "◇",
+      "rarity": "Uncommon",
+      "pet_power": 6
+    },
+    "pet_ring_moon": {
+      "name": "แหวนจันทราสัตว์เลี้ยง",
+      "price": 130,
+      "sell": 33,
+      "stack": 1,
+      "kind": "pet_equipment",
+      "slot": "pet_ring",
+      "icon": "◉",
+      "rarity": "Uncommon",
+      "pet_defense": 5
+    },
+    "pet_collar_azure": {
+      "name": "ปลอกคอผู้พิทักษ์",
+      "price": 180,
+      "sell": 45,
+      "stack": 1,
+      "kind": "pet_equipment",
+      "slot": "pet_collar",
+      "icon": "♧",
+      "rarity": "Rare",
+      "pet_power": 4,
+      "pet_defense": 4
+    },
+    "pet_armor_guard": {
+      "name": "เกราะสัตว์เลี้ยง",
+      "price": 210,
+      "sell": 53,
+      "stack": 1,
+      "kind": "pet_equipment",
+      "slot": "pet_armor",
+      "icon": "▣",
+      "rarity": "Rare",
+      "pet_defense": 12
+    },
+    "pet_wings_wind": {
+      "name": "ปีกลมสัตว์เลี้ยง",
+      "price": 260,
+      "sell": 65,
+      "stack": 1,
+      "kind": "pet_equipment",
+      "slot": "pet_wings",
+      "icon": "✧",
+      "rarity": "Rare",
+      "pet_loot_radius": 1.0
+    },
+    "pet_charm_star": {
+      "name": "เครื่องรางดาวสัตว์เลี้ยง",
+      "price": 320,
+      "sell": 80,
+      "stack": 1,
+      "kind": "pet_equipment",
+      "slot": "pet_charm",
+      "icon": "★",
+      "rarity": "Epic",
+      "pet_power": 8,
+      "pet_defense": 6,
+      "pet_loot_radius": 1.0
+    },
     "silver_ring": {
       "name": "แหวนเงินมือซ้าย",
       "price": 38,

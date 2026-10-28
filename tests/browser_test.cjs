@@ -48,13 +48,14 @@ async function openPlayerMenu(page,entryName){
  await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  await openPlayerMenu(page,'Bag');
  const drawer=await page.evaluate(()=>window.leoDiagnostics);
- if(drawer.drawer_rect[0]>16||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<540||drawer.drawer_rect[2]>620||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Full-height narrow bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
+ if(drawer.drawer_rect[0]<160||drawer.drawer_rect[0]>190||drawer.drawer_rect[1]>16||drawer.drawer_rect[2]<535||drawer.drawer_rect[2]>570||drawer.drawer_rect[3]<680||drawer.drawer_rect[3]>710||drawer.drawer_z<50)throw Error('Pinned sidebar and centered bag geometry failed: '+JSON.stringify(drawer.drawer_rect));
  if(drawer.drawer_rect[1]+drawer.drawer_rect[3]>720||drawer.drawer_rect[1]+drawer.drawer_rect[3]<700)throw Error('Bag does not reach viewport bottom: '+JSON.stringify(drawer.drawer_rect));
- if(drawer.drawer_rect[0]+drawer.drawer_rect[2]>drawer.player_screen[0]-20)throw Error('Inventory panel obscures the 3D player: '+JSON.stringify(drawer));
- if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must stay left of inventory: '+JSON.stringify(drawer));
- if(drawer.bag_right_rect[0]<200||drawer.bag_right_rect[0]>355||drawer.bag_columns!==5)throw Error('Inventory must occupy compact right column: '+JSON.stringify(drawer));
- if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<90||drawer.bag_preview_rect[3]<180)throw Error('Center character 3D preview is missing or too small: '+JSON.stringify(drawer));
- if(drawer.bag_equipment_count!==19||drawer.bag_equipment_visible!==19)throw Error('All nineteen equipment slots must fit on screen: '+JSON.stringify(drawer));
+ if(drawer.drawer_rect[0]+drawer.drawer_rect[2]>drawer.viewport_size[0]-200)throw Error('Game world must remain visible to right: '+JSON.stringify(drawer));
+ if(!(drawer.bag_left_rect[0]+drawer.bag_left_rect[2]<=drawer.bag_right_rect[0]+1)&&drawer.bag_left_rect[2]>0)throw Error('Character pane must remain left of inventory: '+JSON.stringify(drawer));
+ if(drawer.bag_right_rect[0]<380||drawer.bag_right_rect[0]>550||drawer.bag_columns<3||drawer.bag_columns>6)throw Error('Compact bag grid incorrect: '+JSON.stringify(drawer));
+ if(!(drawer.bag_page_count>=3&&drawer.bag_page_size<100&&drawer.bag_page_size>=12))throw Error('Inventory must paginate all 200 slots: '+JSON.stringify(drawer));
+ if(drawer.bag_preview_parts<6||drawer.bag_preview_rect[2]<90||drawer.bag_preview_rect[3]<180)throw Error('Center character 3D preview missing or too small: '+JSON.stringify(drawer));
+ if(drawer.bag_equipment_count!==19||drawer.bag_equipment_visible!==19)throw Error('All 19 equipment slots must fit: '+JSON.stringify(drawer));
  const equip=drawer.bag_equipment_rects;
  const region=drawer.bag_equipment_regions;
  const order=['hat','shirt','gloves','pants','shoes'];
@@ -72,7 +73,14 @@ async function openPlayerMenu(page,entryName){
  }
  if(equip.fashion_hat[1]<=equip.ring[1])throw Error('Fashion row should be below jewelry row');
  if(drawer.bag_preview_rect[0]<drawer.bag_left_rect[0]||drawer.bag_preview_rect[0]+drawer.bag_preview_rect[2]>drawer.bag_left_rect[0]+drawer.bag_left_rect[2]+2)throw Error('Player preview spills outside stat pane');
- if(drawer.drawer_close[0]<12||drawer.drawer_close[0]>drawer.drawer_rect[0]+drawer.drawer_rect[2])throw Error('Close button is outside the bag window');
+ if(drawer.drawer_close[0]<drawer.drawer_rect[0]||drawer.drawer_close[0]>drawer.drawer_rect[0]+drawer.drawer_rect[2])throw Error('Close button is outside the bag window');
+ if(!drawer.menu_open||!drawer.bag_page_next||drawer.bag_page_next[0]<400)throw Error('Pinned menu or numbered bag controls missing');
+ await page.mouse.click(...drawer.bag_page_next);
+ await page.waitForFunction(()=>window.leoDiagnostics.bag_page===2,null,{timeout:15000});
+ const page2=await page.evaluate(()=>window.leoDiagnostics);
+ if(page2.bag_equipment_count!==19||page2.bag_page_count!==drawer.bag_page_count)throw Error('Page switch lost equipment or capacity');
+ await page.mouse.click(...page2.bag_page_prev);
+ await page.waitForFunction(()=>window.leoDiagnostics.bag_page===1,null,{timeout:15000});
  await page.screenshot({path:'build/leo-dual-bag-desktop.png'});
  if(!drawer.bag_bulk_toggle||drawer.bag_bulk_toggle[0]<=0)throw Error('Bulk inventory selection toggle missing');
  await page.mouse.click(...drawer.bag_bulk_toggle);
@@ -92,7 +100,16 @@ async function openPlayerMenu(page,entryName){
  await page.mouse.click(...bulk.bag_bulk_toggle);
  await page.waitForFunction(()=>window.leoDiagnostics.panel==='Bag'&&!window.leoDiagnostics.bag_bulk_mode,null,{timeout:15000});
  console.log('BULK BAG: select, preview sale, cancel, restore inventory passed');
- await page.mouse.click(...drawer.drawer_close);await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
+ let nav=await page.evaluate(()=>window.leoDiagnostics);
+ await page.mouse.click(...nav.menu_entry_rects.Shop);
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='Shop'&&window.leoDiagnostics.bag_dock_open,null,{timeout:15000});
+ let split=await page.evaluate(()=>window.leoDiagnostics);
+ if(split.bag_equipment_count!==19||split.bag_dock_rect[0]<160||split.bag_dock_rect[0]+split.bag_dock_rect[2]>split.drawer_rect[0])throw Error('Shop must open right of unchanged 19-slot bag: '+JSON.stringify(split));
+ await page.mouse.click(...split.menu_entry_rects.Quest);
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='Quest'&&window.leoDiagnostics.bag_dock_open,null,{timeout:15000});
+ if((await page.evaluate(()=>window.leoDiagnostics)).bag_equipment_count!==19)throw Error('Quest must keep all 19 slots');
+ await page.keyboard.press('Escape');
+ await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  for(const [button,x] of [['left',340],['right',780]]){
   const beforeYaw=(await page.evaluate(()=>window.leoDiagnostics)).yaw;
   await page.mouse.move(x,460);await page.mouse.down({button});await page.mouse.move(x+130,470,{steps:8});await page.mouse.up({button});
@@ -135,7 +152,7 @@ async function openPlayerMenu(page,entryName){
  if(wideBag.bag_right_rect[0]<=wideBag.bag_left_rect[0])throw Error('1920 wide bag is not split');
  // Godot may keep its 1280x720 virtual viewport when Chromium is resized.
  // Verify the dock against Godot's actual viewport, not the browser's CSS size.
- if(wideBag.drawer_rect[2]>620||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.player_screen[0]-20)throw Error('Resized-browser bag does not fill Godot viewport or hides avatar: '+JSON.stringify(wideBag));
+ if(wideBag.drawer_rect[2]>570||wideBag.drawer_rect[3]<wideBag.viewport_size[1]-30||wideBag.drawer_rect[0]+wideBag.drawer_rect[2]>wideBag.viewport_size[0]-200)throw Error('Resized bag must leave world visible: '+JSON.stringify(wideBag));
  if(wideBag.drawer_rect[1]+wideBag.drawer_rect[3]>wideBag.viewport_size[1]-8)throw Error('Bag extends outside Godot viewport: '+JSON.stringify(wideBag));
  await page.keyboard.press('Escape');await page.waitForFunction(()=>window.leoDiagnostics.panel==='',null,{timeout:15000});
  console.log('MOUSE TESTS: native menu clicks, close, left/right world drag, 1920x1080 click passed');
@@ -200,7 +217,7 @@ async function openPlayerMenu(page,entryName){
  await portraitPage.touchscreen.tap(mobileBagEntry[0]*xs,mobileBagEntry[1]*ys);
  await portraitPage.waitForFunction(()=>window.leoDiagnostics.panel==='Bag',null,{timeout:15000});
  const bagPortrait=await portraitPage.evaluate(()=>window.leoDiagnostics);
- if(bagPortrait.bag_columns<3||bagPortrait.bag_columns>5)throw Error('Portrait inventory grid columns invalid: '+bagPortrait.bag_columns);
+ if(bagPortrait.bag_columns<3||bagPortrait.bag_columns>5||bagPortrait.bag_page_count<2)throw Error('Portrait inventory grid/pages invalid: '+JSON.stringify(bagPortrait));
  if(bagPortrait.bag_right_rect[1]>bagPortrait.bag_left_rect[1])throw Error('Portrait bag must show item grid before equipment: '+JSON.stringify(bagPortrait));
  await portraitPage.screenshot({path:'build/leo-portrait-bag.png'});
  await portraitPage.keyboard.press('Escape');

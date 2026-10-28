@@ -1471,6 +1471,14 @@ func _refresh_hud() -> void:
 			var extension_rect: Rect2 = silver_workspace.extension_frame.get_global_rect()
 			var scroll_rect: Rect2 = silver_workspace.inventory_scroll.get_global_rect()
 			silver_data = {"open":true,"extension":silver_workspace.extension_frame.visible,"mode":silver_workspace.extension_mode,"page":silver_workspace.page + 1,"pages":2,"slots":silver_workspace.item_grid.get_child_count(),"equipment":silver_workspace.equipment_grid.get_child_count() - 2,"main_rect":[main_rect.position.x,main_rect.position.y,main_rect.size.x,main_rect.size.y],"extension_rect":[extension_rect.position.x,extension_rect.position.y,extension_rect.size.x,extension_rect.size.y],"scroll_rect":[scroll_rect.position.x,scroll_rect.position.y,scroll_rect.size.x,scroll_rect.size.y]}
+		if silver_open:
+			var silver_actions := {}
+			for key in ["SilverPrevPage", "SilverNextPage", "SilverNavStorage", "SilverNavTrade", "SilverNavQuest"]:
+				var widget: Control = silver_workspace.find_child(key, true, false)
+				if is_instance_valid(widget):
+					var r: Rect2 = widget.get_global_rect()
+					silver_actions[key] = [r.get_center().x, r.get_center().y]
+			silver_data["actions"] = silver_actions
 		diagnostic["silver"] = silver_data
 		JavaScriptBridge.eval("window.leoDiagnostics=" + JSON.stringify(diagnostic), true)
 	map_display.queue_redraw()

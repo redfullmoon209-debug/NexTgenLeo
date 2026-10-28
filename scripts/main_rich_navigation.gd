@@ -397,7 +397,7 @@ func _input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	if not is_instance_valid(gameplay):
 		return
-	var modal_open := (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
+	var modal_open: bool = (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
 	# Never cover Bag next-page buttons, item slots or modal confirmation controls.
 	# Six new icons return automatically when the modal closes; GM/Settings are untouched.
 	var visibility_changed := false

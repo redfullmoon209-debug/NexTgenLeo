@@ -303,6 +303,10 @@ func _open_menu(menu_id: String) -> void:
 	if current_menu == menu_id:
 		_close_menu()
 		return
+	# A newly opened navigation list must not be covered by the existing bag or modal UI.
+	if is_instance_valid(gameplay):
+		if (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible):
+			gameplay._close_panel()
 	current_menu = menu_id
 	for child in row_column.get_children():
 		row_column.remove_child(child)

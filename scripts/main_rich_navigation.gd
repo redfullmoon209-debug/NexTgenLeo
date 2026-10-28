@@ -134,8 +134,8 @@ func _create_main_icon(menu_id: String) -> void:
 	var caption := Label.new()
 	caption.name = "GridCaption"
 	caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	caption.anchor_top = 0.77
-	caption.anchor_bottom = 0.958
+	caption.anchor_top = 0.60
+	caption.anchor_bottom = 0.82
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -169,8 +169,8 @@ func _restyle_gm_icon() -> void:
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caption.anchor_left = 0.0
 	caption.anchor_right = 1.0
-	caption.anchor_top = 0.77
-	caption.anchor_bottom = 0.958
+	caption.anchor_top = 0.60
+	caption.anchor_bottom = 0.82
 	caption.add_theme_font_size_override("font_size", 13)
 	caption.add_theme_color_override("font_color", Color.WHITE)
 	caption.add_theme_color_override("font_outline_color", Color("#020711"))
@@ -557,8 +557,8 @@ func _responsive() -> void:
 		button.size = slot_rect.size
 		var caption: Label = nav_labels[menu_id]
 		var txt: String = caption.text
-		var factor: float = 0.19 if txt.length() > 6 else 0.24
-		caption.add_theme_font_size_override("font_size", roundi(clampf(icon_width * factor, 9.0 * touch_scale, 19.0 * touch_scale)))
+		var factor: float = 0.225 if txt.length() > 6 else 0.28
+		caption.add_theme_font_size_override("font_size", roundi(clampf(icon_width * factor, 10.0 * touch_scale, 23.0 * touch_scale)))
 		caption.add_theme_constant_override("outline_size", maxi(2, roundi(3.0 * touch_scale)))
 	nav_grid.queue_sort()
 	# The GM original click/permission code is unchanged.
@@ -570,7 +570,7 @@ func _responsive() -> void:
 		gm_button.size = slots[0].size
 		var gm_caption: Label = gm_button.get_node_or_null("GM_Caption")
 		if is_instance_valid(gm_caption):
-			gm_caption.add_theme_font_size_override("font_size", roundi(clampf(icon_width * 0.24, 10.0 * touch_scale, 19.0 * touch_scale)))
+			gm_caption.add_theme_font_size_override("font_size", roundi(clampf(icon_width * 0.28, 10.0 * touch_scale, 23.0 * touch_scale)))
 	if not current_menu.is_empty():
 		var menu_y: float = slots[2].end.y + 5.0 * touch_scale
 		var item_count: int = row_buttons.size()

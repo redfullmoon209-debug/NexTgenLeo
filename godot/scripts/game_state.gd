@@ -28,20 +28,20 @@ const WEAPON_PROFILES := {
     "Vine Whip":{"range":8.0,"power":1.04,"cooldown":2.4,"style":"sweeping reach"},
     "Wood Staff":{"range":11.5,"power":1.12,"cooldown":2.8,"style":"nature magic"}
 }
-const SKILL_NAMES := {"earth_fighter":["Stone Fist","Faultline","Boulder Rush","Mountain Splitter","Granite Wave","Seismic Palm","Earthen Spikes","Crag Crusher","Landslide","Obsidian Break","Titan's Blow","Worldquake","Colossus Rise","Gaia's Judgment"],"mountain_fist":["Boulder Punch","Iron Knuckle","Crushing Palm","Peakbreaker","Avalanche Fist","Monolith Slam","Mountain Roar","Granite Cyclone","Summit Strike","Quarry Crusher","Titan Knuckle","Rumble Wave","Stoneheart Rush","Mountain's End"],"water_mage":["Water Bolt","Ice Shard","Tidal Wave","Frost Lance","Aqua Sphere","Glacier Fall","Rushing Current","Deep Sea Burst","Frozen Nova","Rainstorm","Abyssal Surge","Crystal Tide","Leviathan's Call","Ocean's Wrath"],"ocean_lord":["Trident Thrust","Riptide","Tidebreaker","Coral Spear","Undertow","Maelstrom","Deep Current","Poseidon's Reach","Reef Splitter","Tempest Trident","Abyssal Spiral","Kraken's Wake","Oceanic Rupture","King Tide"],"wind_assassin":["Gale Cut","Silent Gust","Crosswind","Razor Draft","Phantom Step","Cyclone Edge","Whispering Blades","Skyfall Slash","Tempest Fang","Vortex Strike","Windshadow Rush","Storm Reaver","Hurricane Dance","Eye of the Gale"],"wind_fan":["Fan Blade","Petal Gust","Cyclone Fan","Silkwind Arc","Whirling Leaves","Jade Tempest","Breeze Cutter","Sky Ribbon","Cloudburst Fan","Monsoon Dance","Wind Garden","Emerald Spiral","Heavenly Zephyr","Empress's Storm"],"flame_swords":["Twin Ember","Flame Arc","Scorching Cross","Blazing Waltz","Cinder Rush","Phoenix Pair","Inferno Spiral","Ashen Divide","Solar Flurry","Magma Waltz","Dragonfire Cross","Crimson Tempest","Phoenix Rebirth","Sunfire Finale"],"inferno_blade":["Cinder Cleave","Inferno Cleave","Blazing Ground","Molten Divide","Dragon's Descent","Ashfall","Magma Breaker","Hellfire Arc","Solar Rupture","Pyre Cyclone","Volcanic Wrath","Phoenix Guillotine","World on Fire","Inferno's End"],"thunder_gunner":["Thunder Shot","Static Burst","Chain Lightning","Volt Piercer","Storm Round","Arc Cannon","Skybreaker Shot","Ion Burst","Thunderclap","Railstorm","Tempest Barrage","Lightning Spear","Supercell Blast","Judgment Bolt"],"lightning_dual":["Double Spark","Storm Volley","Flash Barrage","Twin Volt","Arc Cascade","Lightning Waltz","Rapid Thunder","Ion Crossfire","Flashpoint","Skyfire Salvo","Tempest Twins","Thunder Dance","Overcharge Storm","Final Discharge"],"vine_guardian":["Thorn Lash","Root Snare","Briar Sweep","Vine Spear","Bramble Cage","Thicket Crash","Green Reaper","Wildwood Surge","Thornstorm","Ancient Briars","Forest's Grasp","Verdant Rupture","Worldroot Strike","Nature's Wrath"],"forest_lord":["Forest Bolt","Ancient Roots","Leafstorm","Elderwood Spear","Wild Growth","Sylvan Burst","Canopy Crash","Verdant Nova","Thorned Tempest","Heartwood Pulse","Primal Bloom","Emerald Cataclysm","Elder Dragonwood","Forest's Judgment"]}
+const SKILL_NAMES := {"earth_fighter":["Stone Fist","Faultline","Boulder Rush","Stonebound Will","Granite Wave","Seismic Palm","Earthen Spikes","Granite Guard","Landslide","Obsidian Break","Titan's Blow","Ancient Resolve","Colossus Rise","Titan's Legacy"],"mountain_fist":["Boulder Punch","Iron Knuckle","Crushing Palm","Iron Discipline","Avalanche Fist","Monolith Slam","Mountain Roar","Stonewall Guard","Summit Strike","Quarry Crusher","Titan Knuckle","Mountain Focus","Stoneheart Rush","Unshakable Core"],"water_mage":["Water Bolt","Ice Shard","Tidal Wave","Flowing Wisdom","Aqua Sphere","Glacier Fall","Rushing Current","Mana Reservoir","Frozen Nova","Rainstorm","Abyssal Surge","Tidal Barrier","Leviathan's Call","Oceanborn"],"ocean_lord":["Trident Thrust","Riptide","Tidebreaker","Trident Mastery","Undertow","Maelstrom","Deep Current","Current Guard","Reef Splitter","Tempest Trident","Abyssal Spiral","Ocean's Patience","Oceanic Rupture","Poseidon's Legacy"],"wind_assassin":["Gale Cut","Silent Gust","Crosswind","Silent Footwork","Phantom Step","Cyclone Edge","Whispering Blades","Shadow Veil","Tempest Fang","Vortex Strike","Windshadow Rush","Assassin's Focus","Hurricane Dance","Gale Instinct"],"wind_fan":["Fan Blade","Petal Gust","Cyclone Fan","Wind Choreography","Whirling Leaves","Jade Tempest","Breeze Cutter","Breeze Step","Cloudburst Fan","Monsoon Dance","Wind Garden","Open Air Guard","Heavenly Zephyr","Zephyr's Grace"],"flame_swords":["Twin Ember","Flame Arc","Scorching Cross","Twinblade Technique","Cinder Rush","Phoenix Pair","Inferno Spiral","Cinder Guard","Solar Flurry","Magma Waltz","Dragonfire Cross","Dueling Rhythm","Phoenix Rebirth","Phoenix Spirit"],"inferno_blade":["Cinder Cleave","Inferno Cleave","Blazing Ground","Molten Core","Dragon's Descent","Ashfall","Magma Breaker","Inferno Guard","Solar Rupture","Pyre Cyclone","Volcanic Wrath","Pyre's Focus","World on Fire","Phoenix Heart"],"thunder_gunner":["Thunder Shot","Static Burst","Chain Lightning","Steady Aim","Storm Round","Arc Cannon","Skybreaker Shot","Static Guard","Thunderclap","Railstorm","Tempest Barrage","Ballistic Focus","Supercell Blast","Storm Sight"],"lightning_dual":["Double Spark","Storm Volley","Flash Barrage","Quickdraw","Arc Cascade","Lightning Waltz","Rapid Thunder","Arc Guard","Flashpoint","Skyfire Salvo","Tempest Twins","Rapid Focus","Overcharge Storm","Twin Storm"],"vine_guardian":["Thorn Lash","Root Snare","Briar Sweep","Thorned Hide","Bramble Cage","Thicket Crash","Green Reaper","Rooted Stance","Thornstorm","Ancient Briars","Forest's Grasp","Verdant Focus","Worldroot Strike","Wildwood Heart"],"forest_lord":["Forest Bolt","Ancient Roots","Leafstorm","Elder Wisdom","Wild Growth","Sylvan Burst","Canopy Crash","Canopy Guard","Thorned Tempest","Heartwood Pulse","Primal Bloom","Nature's Focus","Elder Dragonwood","Forest Heart"]}
 const JOBS := [
-    {"id":"earth_fighter","name":"Vanguard","weapon":"Gauntlets","color":Color(0.72,0.42,0.22),"str":8,"sta":8,"dex":4,"int":2},
-    {"id":"mountain_fist","name":"Brawler","weapon":"Fist","color":Color(0.55,0.38,0.25),"str":10,"sta":7,"dex":3,"int":2},
-    {"id":"water_mage","name":"Arcanist","weapon":"Staff","color":Color(0.25,0.65,0.92),"str":2,"sta":4,"dex":4,"int":12},
-    {"id":"ocean_lord","name":"Spearcaller","weapon":"Trident","color":Color(0.2,0.54,0.8),"str":7,"sta":7,"dex":4,"int":5},
-    {"id":"wind_assassin","name":"Shadowblade","weapon":"Kunai","color":Color(0.55,0.8,0.7),"str":5,"sta":4,"dex":12,"int":3},
-    {"id":"wind_fan","name":"Winddancer","weapon":"War Fan","color":Color(0.6,0.88,0.72),"str":3,"sta":5,"dex":8,"int":8},
-    {"id":"flame_swords","name":"Twinblade","weapon":"Twin Swords","color":Color(0.95,0.37,0.15),"str":9,"sta":5,"dex":7,"int":3},
-    {"id":"inferno_blade","name":"Greatsword","weapon":"Greatsword","color":Color(0.8,0.2,0.12),"str":12,"sta":7,"dex":3,"int":2},
-    {"id":"thunder_gunner","name":"Marksman","weapon":"Pistol","color":Color(0.9,0.78,0.25),"str":3,"sta":4,"dex":9,"int":7},
-    {"id":"lightning_dual","name":"Gunslinger","weapon":"Dual Pistols","color":Color(0.98,0.85,0.32),"str":4,"sta":4,"dex":10,"int":5},
-    {"id":"vine_guardian","name":"Thornwarden","weapon":"Vine Whip","color":Color(0.34,0.66,0.3),"str":6,"sta":10,"dex":4,"int":4},
-    {"id":"forest_lord","name":"Grove Sage","weapon":"Wood Staff","color":Color(0.35,0.6,0.28),"str":4,"sta":7,"dex":4,"int":9}
+    {"id":"earth_fighter","role":"tank","name":"Vanguard","weapon":"Gauntlets","color":Color(0.72,0.42,0.22),"str":8,"sta":8,"dex":4,"int":2},
+    {"id":"mountain_fist","role":"damage","name":"Brawler","weapon":"Fist","color":Color(0.55,0.38,0.25),"str":10,"sta":7,"dex":3,"int":2},
+    {"id":"water_mage","role":"support","name":"Arcanist","weapon":"Staff","color":Color(0.25,0.65,0.92),"str":2,"sta":4,"dex":4,"int":12},
+    {"id":"ocean_lord","role":"support","name":"Spearcaller","weapon":"Trident","color":Color(0.2,0.54,0.8),"str":7,"sta":7,"dex":4,"int":5},
+    {"id":"wind_assassin","role":"damage","name":"Shadowblade","weapon":"Kunai","color":Color(0.55,0.8,0.7),"str":5,"sta":4,"dex":12,"int":3},
+    {"id":"wind_fan","role":"support","name":"Winddancer","weapon":"War Fan","color":Color(0.6,0.88,0.72),"str":3,"sta":5,"dex":8,"int":8},
+    {"id":"flame_swords","role":"damage","name":"Twinblade","weapon":"Twin Swords","color":Color(0.95,0.37,0.15),"str":9,"sta":5,"dex":7,"int":3},
+    {"id":"inferno_blade","role":"damage","name":"Greatsword","weapon":"Greatsword","color":Color(0.8,0.2,0.12),"str":12,"sta":7,"dex":3,"int":2},
+    {"id":"thunder_gunner","role":"damage","name":"Marksman","weapon":"Pistol","color":Color(0.9,0.78,0.25),"str":3,"sta":4,"dex":9,"int":7},
+    {"id":"lightning_dual","role":"damage","name":"Gunslinger","weapon":"Dual Pistols","color":Color(0.98,0.85,0.32),"str":4,"sta":4,"dex":10,"int":5},
+    {"id":"vine_guardian","role":"support","name":"Thornwarden","weapon":"Vine Whip","color":Color(0.34,0.66,0.3),"str":6,"sta":10,"dex":4,"int":4},
+    {"id":"forest_lord","role":"support","name":"Grove Sage","weapon":"Wood Staff","color":Color(0.35,0.6,0.28),"str":4,"sta":7,"dex":4,"int":9}
 ]
 var character_name := "Novice"
 var gender := "Male"
@@ -134,6 +134,19 @@ func weapon_profile() -> Dictionary:
 func max_skill_rank() -> int:
     return clampi(1 + int((level - 1) / 10), 1, 10)
 
+func skill_effect_for(index: int, role: String) -> String:
+    if [3, 7, 11, 13].has(index):
+        if role == "support":
+            return {3:"passive_support", 7:"passive_attack", 11:"passive_speed", 13:"passive_team"}.get(index, "passive_attack")
+        if role == "tank":
+            return {3:"passive_attack", 7:"passive_guard", 11:"passive_speed", 13:"passive_team"}.get(index, "passive_attack")
+        return {3:"passive_attack", 7:"passive_speed", 11:"passive_guard", 13:"passive_attack"}.get(index, "passive_attack")
+    if role == "support":
+        return {0:"damage", 1:"area", 2:"party_attack", 4:"heal", 5:"party_speed", 6:"area", 8:"armor_break", 9:"party_attack", 10:"party_guard", 12:"ultimate"}.get(index, "damage")
+    if role == "tank":
+        return {0:"damage", 1:"area", 2:"buff_attack", 4:"damage", 5:"party_guard", 6:"area", 8:"armor_break", 9:"damage", 10:"buff_speed", 12:"party_attack"}.get(index, "damage")
+    return {0:"damage", 1:"area", 2:"buff_attack", 4:"damage", 5:"buff_speed", 6:"area", 8:"armor_break", 9:"damage", 10:"buff_attack", 12:"ultimate"}.get(index, "damage")
+
 func skills_for_job() -> Array[Dictionary]:
     var names: Array = NOVICE_SKILLS if job == "novice" else SKILL_NAMES.get(job, SKILL_NAMES["earth_fighter"])
     var result: Array[Dictionary] = []
@@ -142,10 +155,13 @@ func skills_for_job() -> Array[Dictionary]:
         var key := "%s:%d" % [job, i]
         var rank := clampi(int(skill_levels.get(key, 1)), 1, max_skill_rank())
         var profile := weapon_profile()
-        var kind := "area" if i % 4 == 1 else "single"
+        var effect := "damage" if job == "novice" else skill_effect_for(i, str(current_job_data()["role"]))
+        if effect.begins_with("passive_"):
+            rank = max_skill_rank()
+        var kind := "area" if ["area", "ultimate"].has(effect) else "single"
         var base_power := 1.15 + float(i % 4) * 0.2 + float(i / 4) * 0.12
         var level_bonus := float(maxi(0, level - unlock)) * 0.012
-        result.append({"id": i, "name": str(names[i]), "kind": kind, "style": profile["style"], "weapon": current_job_data()["weapon"], "power": (base_power + float(rank - 1) * 0.2 + level_bonus) * float(profile["power"]), "rank": rank, "rank_limit": max_skill_rank(), "unlock_level": unlock, "cost": 10 + i * 2 + rank * 2, "cooldown": maxf(1.3, float(profile["cooldown"]) - float(i % 4) * 0.2), "range": float(profile["range"])})
+        result.append({"id": i, "name": str(names[i]), "kind": kind, "effect": effect, "style": profile["style"], "weapon": current_job_data()["weapon"], "power": (base_power + float(rank - 1) * 0.2 + level_bonus) * float(profile["power"]), "rank": rank, "rank_limit": max_skill_rank(), "unlock_level": unlock, "cost": 10 + i * 2 + rank * 2, "cooldown": maxf(1.3, float(profile["cooldown"]) - float(i % 4) * 0.2), "range": float(profile["range"])})
     return result
 
 func skill_upgrade_gold_cost(skill_id: int) -> int:
@@ -154,7 +170,7 @@ func skill_upgrade_gold_cost(skill_id: int) -> int:
 
 func upgrade_skill(skill_id: int) -> bool:
     var skill := skill_by_id(skill_id)
-    if skill.is_empty() or int(skill["unlock_level"]) > level:
+    if skill.is_empty() or int(skill["unlock_level"]) > level or str(skill["effect"]).begins_with("passive_"):
         return false
     var key := "%s:%d" % [job, skill_id]
     var rank := int(skill_levels.get(key, 1))
@@ -171,7 +187,14 @@ func upgrade_skill(skill_id: int) -> bool:
 func unlocked_skills() -> Array[Dictionary]:
     var result: Array[Dictionary] = []
     for skill in skills_for_job():
-        if int(skill["unlock_level"]) <= level:
+        if int(skill["unlock_level"]) <= level and not str(skill["effect"]).begins_with("passive_"):
+            result.append(skill)
+    return result
+
+func passive_skills() -> Array[Dictionary]:
+    var result: Array[Dictionary] = []
+    for skill in skills_for_job():
+        if int(skill["unlock_level"]) <= level and str(skill["effect"]).begins_with("passive_"):
             result.append(skill)
     return result
 
@@ -284,10 +307,20 @@ func load_game() -> bool:
     var equipped: Variant = data.get("equipped_skills", equipped_skills)
     if equipped is Array and equipped.size() == 3:
         var unlocked := unlocked_skills()
-        var max_unlocked_id := int(unlocked[unlocked.size() - 1]["id"])
         equipped_skills = equipped.duplicate()
         for i in range(3):
-            equipped_skills[i] = clampi(int(equipped_skills[i]), 0, max_unlocked_id)
+            var candidate := int(equipped_skills[i])
+            var usable := false
+            for skill in unlocked:
+                if int(skill["id"]) == candidate:
+                    usable = true
+                    break
+            if not usable:
+                equipped_skills[i] = int(unlocked[mini(i, unlocked.size() - 1)]["id"])
+        if int(equipped_skills[0]) == int(equipped_skills[1]):
+            equipped_skills[1] = int(unlocked[mini(1, unlocked.size() - 1)]["id"])
+        if int(equipped_skills[2]) == int(equipped_skills[0]) or int(equipped_skills[2]) == int(equipped_skills[1]):
+            equipped_skills[2] = int(unlocked[mini(2, unlocked.size() - 1)]["id"])
     var stored: Variant = data.get("inventory", inventory)
     if stored is Dictionary:
         inventory = stored

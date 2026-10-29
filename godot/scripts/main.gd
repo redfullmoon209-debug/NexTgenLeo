@@ -24,6 +24,12 @@ var progression_button: Button
 var progression_panel: Panel
 var gear_root: Node3D
 var ground_attack_enabled := false
+var attack_buff_multiplier := 1.0
+var attack_buff_timer := 0.0
+var speed_buff_multiplier := 1.0
+var speed_buff_timer := 0.0
+var guard_buff_multiplier := 1.0
+var guard_buff_timer := 0.0
 
 func _ready() -> void:
     state.load_game()
@@ -87,6 +93,7 @@ func _make_player() -> void:
     collision.shape = capsule
     collision.position.y = 0.9
     player.add_child(collision)
+    player.add_to_group("party_members")
     var mesh := MeshInstance3D.new()
     var body := CapsuleMesh.new()
     body.radius = 0.35
@@ -229,13 +236,23 @@ func _make_hud() -> void:
 
 func _physics_process(delta: float) -> void:
     attack_timer = maxf(0.0, attack_timer - delta)
+    attack_buff_timer = maxf(0.0, attack_buff_timer - delta)
+    speed_buff_timer = maxf(0.0, speed_buff_timer - delta)
+    guard_buff_timer = maxf(0.0, guard_buff_timer - delta)
+    if attack_buff_timer <= 0.0:
+        attack_buff_multiplier = 1.0
+    if speed_buff_timer <= 0.0:
+        speed_buff_multiplier = 1.0
+    if guard_buff_timer <= 0.0:
+        guard_buff_multiplier = 1.0
     for i in range(skill_timers.size()):
         skill_timers[i] = maxf(0.0, skill_timers[i] - delta)
     var spec := state.current_job_data()
     var stats := state.stats()
     var selected_element := state.element if not state.element.is_empty() else "None"
     var selected_path := state.path_choices()[state.branch] if state.branch >= 0 else "None"
-    status.text = "%s Lv.%d HP %d/%d MP %d/%d SkillPts %d EXP %d/%d G %d Ore %d\nElement %s | Path %s | %s | W+%d A+%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.max_stamina(), state.skill_points, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), selected_element, selected_path, spec["weapon"], state.weapon_enhancement, state.armor_enhancement]
+    var passives := state.passive_skills()
+    status.text = "%s Lv.%d HP %d/%d MP %d/%d SkillPts %d EXP %d/%d G %d Ore %d\n%s | %s | %s | Passive %d | W+%d A+%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.max_stamina(), state.skill_points, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), selected_element, selected_path, spec["weapon"], passives.size(), state.weapon_enhancement, state.armor_enhancement]
     if state.element.is_empty():
         progression_button.text = "ELEMENT" if state.level >= 10 else "ELEMENT Lv10"
     elif state.branch < 0:
@@ -262,8 +279,8 @@ func _physics_process(delta: float) -> void:
     right.y = 0
     right = right.normalized()
     var direction := (right * axis.x + forward * axis.y).normalized()
-    player.velocity.x = direction.x * SPEED
-    player.velocity.z = direction.z * SPEED
+    player.velocity.x = direction.x * SPEED * speed_buff_multiplier * _passive_speed_multiplier()
+    player.velocity.z = direction.z * SPEED * speed_buff_multiplier * _passive_speed_multiplier()
     if Input.is_action_just_pressed("jump") and player.is_on_floor():
         player.velocity.y = 7.5
     if not player.is_on_floor():
@@ -331,11 +348,14 @@ func _spawn_mobs() -> void:
         mob.position = Vector3(cos(i * TAU / 10.0) * 12.0, 1.0, sin(i * TAU / 10.0) * 12.0)
         mob.target = player
         mob.defeated.connect(_mob_defeated)
+        mob.player_hit.connect(_player_hit)
         add_child(mob)
 
 func _mob_defeated(mob: LeoMob) -> void:
+    var defeated_position := mob.global_position
     state.gain_exp(30)
     state.gold += 10
+    _respawn_mob(defeated_position)
     if randi_range(1, 100) <= 35:
         state.add_item("Ore")
     if state.quest_accepted:
@@ -347,6 +367,33 @@ func _mob_defeated(mob: LeoMob) -> void:
             state.gain_exp(100)
             _notify("Hunt complete: +100 Gold +100 EXP")
     target = null
+    _save()
+
+func _respawn_mob(spawn_position: Vector3) -> void:
+    await get_tree().create_timer(5.0).timeout
+    var mob := LeoMob.new()
+    mob.position = spawn_position
+    mob.target = player
+    mob.defeated.connect(_mob_defeated)
+    mob.player_hit.connect(_player_hit)
+    add_child(mob)
+
+func _player_hit(damage: int) -> void:
+    var stats := state.stats()
+    var passive_guard := 0.0
+    for skill in state.passive_skills():
+        if str(skill["effect"]) == "passive_guard":
+            passive_guard += 0.02 * int(skill["rank"])
+    var reduction := clampf(float(stats["STA"]) * 0.005 + float(state.armor_enhancement) * 0.035 + (guard_buff_multiplier - 1.0) * 0.5 + passive_guard, 0.0, 0.8)
+    var actual := maxi(1, int(float(damage) * (1.0 - reduction)))
+    state.hp = maxi(0, state.hp - actual)
+    if state.hp == 0:
+        state.hp = state.max_hp()
+        state.gold = maxi(0, state.gold - 25)
+        player.global_position = Vector3(0, 2, 0)
+        _notify("You were defeated; revived at camp (-25 Gold)")
+    else:
+        _notify("Monster hit: -%d HP" % actual)
     _save()
 
 func _nearest_mob(max_range: float) -> LeoMob:
@@ -369,7 +416,7 @@ func _attack() -> void:
     target = _nearest_mob(float(profile["range"]))
     if is_instance_valid(target):
         var stats := state.stats()
-        var damage := maxi(1, int((20 + int(stats["STR"]) * 3 + state.weapon_enhancement * 8) * float(profile["power"]) * state.element_damage_multiplier()))
+        var damage := maxi(1, int((20 + int(stats["STR"]) * 3 + state.weapon_enhancement * 8) * float(profile["power"]) * state.element_damage_multiplier() * attack_buff_multiplier * _passive_damage_multiplier()))
         target.take_damage(damage)
         attack_timer = maxf(0.45, float(profile["cooldown"]) * 0.35)
         _notify("%s hit: %d" % [profile["style"], damage])
@@ -377,47 +424,137 @@ func _attack() -> void:
         _notify("No monster in range")
 
 func _cast_skill(slot: int) -> void:
-    if slot < 0 or slot > 2:
-        return
-    if skill_timers[slot] > 0.0:
+    if slot < 0 or slot > 2 or skill_timers[slot] > 0.0:
         return
     var skill: Dictionary = state.skill_by_id(int(state.equipped_skills[slot]))
-    if skill.is_empty() or int(skill["unlock_level"]) > state.level:
-        _notify("Skill locked: reach Lv.%d" % int(skill["unlock_level"]))
+    if skill.is_empty() or int(skill["unlock_level"]) > state.level or str(skill["effect"]).begins_with("passive_"):
+        _notify("Skill is not available")
         return
     var cost := int(skill["cost"])
     if state.stamina < cost:
         _notify("Not enough MP")
         return
+    var effect := str(skill["effect"])
+    var rank := int(skill["rank"])
     var stats := state.stats()
-    var damage := maxi(1, int((18 + int(stats["STR"]) * 2 + int(stats["INT"]) * 2 + float(skill["power"]) * 20 + state.weapon_enhancement * 8) * state.element_damage_multiplier()))
+    var damage := maxi(1, int((18 + int(stats["STR"]) * 2 + int(stats["INT"]) * 2 + float(skill["power"]) * 20 + state.weapon_enhancement * 8) * state.element_damage_multiplier() * attack_buff_multiplier * _passive_damage_multiplier()))
+    var range_value := float(skill["range"])
     var hit_count := 0
-    if str(skill["kind"]) == "area":
+    var result_text := ""
+    if effect == "heal":
+        var healing := 20 + state.level * 2 + rank * 8 + int(stats["INT"]) * 3
+        var old_hp := state.hp
+        state.hp = mini(state.max_hp(), state.hp + healing)
+        hit_count = 1
+        result_text = "Restored %d HP" % (state.hp - old_hp)
+    elif effect in ["buff_attack", "party_attack"]:
+        var bonus := 0.12 + float(rank) * 0.025 + _passive_party_bonus()
+        var duration := 7.0 + float(rank)
+        if effect == "party_attack":
+            _apply_party_combat_buff(bonus, 0.0, 0.0, duration)
+            result_text = "Party attack +%d%%" % int(bonus * 100.0)
+        else:
+            apply_combat_buff(bonus, 0.0, 0.0, duration)
+            result_text = "Attack +%d%%" % int(bonus * 100.0)
+        hit_count = 1
+    elif effect in ["buff_speed", "party_speed"]:
+        var bonus := 0.12 + float(rank) * 0.02 + _passive_party_bonus()
+        var duration := 7.0 + float(rank)
+        if effect == "party_speed":
+            _apply_party_combat_buff(0.0, bonus, 0.0, duration)
+            result_text = "Party speed +%d%%" % int(bonus * 100.0)
+        else:
+            apply_combat_buff(0.0, bonus, 0.0, duration)
+            result_text = "Move speed +%d%%" % int(bonus * 100.0)
+        hit_count = 1
+    elif effect == "party_guard":
+        var bonus := 0.15 + float(rank) * 0.025 + _passive_party_bonus()
+        _apply_party_combat_buff(0.0, 0.0, bonus, 9.0 + float(rank))
+        hit_count = 1
+        result_text = "Party defense +%d%%" % int(bonus * 100.0)
+    elif effect == "armor_break":
+        var target_mob := _nearest_mob(range_value)
+        if is_instance_valid(target_mob):
+            target_mob.apply_armor_break(0.2 + float(rank) * 0.035, 8.0 + float(rank))
+            hit_count = 1
+            result_text = "Enemy armor reduced"
+    elif effect in ["area", "ultimate"]:
         for node in get_tree().get_nodes_in_group("monsters"):
             var mob := node as LeoMob
-            if is_instance_valid(mob) and player.global_position.distance_to(mob.global_position) <= float(skill["range"]):
-                mob.take_damage(int(damage * 0.8))
+            if is_instance_valid(mob) and player.global_position.distance_to(mob.global_position) <= range_value:
+                mob.take_damage(int(damage * (0.75 if effect == "area" else 1.15)))
+                if effect == "ultimate":
+                    mob.apply_armor_break(0.15 + float(rank) * 0.025, 6.0 + float(rank))
                 hit_count += 1
+        result_text = "%d enemies hit" % hit_count
     else:
-        var mob := _nearest_mob(float(skill["range"]))
-        if is_instance_valid(mob):
-            mob.take_damage(damage)
+        var target_mob := _nearest_mob(range_value)
+        if is_instance_valid(target_mob):
+            target_mob.take_damage(damage)
             hit_count = 1
+            result_text = "%d damage" % damage
     if hit_count == 0:
-        _notify("No target in skill range")
+        _notify("No target in range")
         return
     state.stamina -= cost
     skill_timers[slot] = float(skill["cooldown"])
-    _notify("%s R%d: %d hit" % [skill["name"], skill["rank"], hit_count])
+    _notify("%s R%d: %s" % [skill["name"], rank, result_text])
+    _save()
+
+func apply_combat_buff(damage_bonus: float, speed_bonus: float, guard_bonus: float, duration: float) -> void:
+    if damage_bonus > 0.0:
+        attack_buff_multiplier = maxf(attack_buff_multiplier, 1.0 + damage_bonus)
+        attack_buff_timer = maxf(attack_buff_timer, duration)
+    if speed_bonus > 0.0:
+        speed_buff_multiplier = maxf(speed_buff_multiplier, 1.0 + speed_bonus)
+        speed_buff_timer = maxf(speed_buff_timer, duration)
+    if guard_bonus > 0.0:
+        guard_buff_multiplier = maxf(guard_buff_multiplier, 1.0 + guard_bonus)
+        guard_buff_timer = maxf(guard_buff_timer, duration)
+
+func _apply_party_combat_buff(damage_bonus: float, speed_bonus: float, guard_bonus: float, duration: float) -> void:
+    var members := get_tree().get_nodes_in_group("party_members")
+    if members.is_empty():
+        apply_combat_buff(damage_bonus, speed_bonus, guard_bonus, duration)
+        return
+    for member in members:
+        if member.has_method("apply_combat_buff"):
+            member.apply_combat_buff(damage_bonus, speed_bonus, guard_bonus, duration)
+
+func _passive_damage_multiplier() -> float:
+    var bonus := 0.0
+    for skill in state.passive_skills():
+        if str(skill["effect"]) == "passive_attack":
+            bonus += 0.025 * int(skill["rank"])
+    return 1.0 + bonus
+
+func _passive_speed_multiplier() -> float:
+    var bonus := 0.0
+    for skill in state.passive_skills():
+        if str(skill["effect"]) == "passive_speed":
+            bonus += 0.015 * int(skill["rank"])
+    return 1.0 + bonus
+
+func _passive_party_bonus() -> float:
+    var bonus := 0.0
+    for skill in state.passive_skills():
+        if str(skill["effect"]) in ["passive_support", "passive_team"]:
+            bonus += 0.02 * int(skill["rank"])
+    return bonus
 
 func _cycle_skill_slot(slot: int) -> void:
     var unlocked := state.unlocked_skills()
     if unlocked.size() <= 3:
-        _notify("More skills unlock as you level up")
+        _notify("More active skills unlock as you level up")
         return
     var current_id := int(state.equipped_skills[slot])
+    var current_position := 0
+    for i in range(unlocked.size()):
+        if int(unlocked[i]["id"]) == current_id:
+            current_position = i
+            break
     for offset in range(1, unlocked.size() + 1):
-        var candidate_id := int(unlocked[(current_id + offset) % unlocked.size()]["id"])
+        var candidate_id := int(unlocked[(current_position + offset) % unlocked.size()]["id"])
         var already_equipped := false
         for other_slot in range(3):
             if other_slot != slot and int(state.equipped_skills[other_slot]) == candidate_id:

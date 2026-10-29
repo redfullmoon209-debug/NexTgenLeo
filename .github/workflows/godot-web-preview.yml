@@ -10,11 +10,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: godot-pages
+  group: godot-build
   cancel-in-progress: true
 
 jobs:
@@ -34,26 +32,10 @@ jobs:
           mkdir -p web-build
           cd godot
           godot --headless --path . --export-release "Web" ../web-build/index.html
-      - name: Prepare Pages
-        run: |
-          touch web-build/.nojekyll
-          test -s web-build/index.html
-      - name: Upload preview artifact
+      - name: Verify web build
+        run: test -s web-build/index.html
+      - name: Upload private-access build artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexTgenLeo-godot-web
           path: web-build/
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: web-build/
-  deploy:
-    needs: export-web
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

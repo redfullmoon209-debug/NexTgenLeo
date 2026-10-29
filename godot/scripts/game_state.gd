@@ -2,26 +2,54 @@ extends RefCounted
 class_name LeoGameState
 
 const SAVE_PATH := "user://nexTgenLeo_save.json"
+const ELEMENTS := ["Earth", "Water", "Wind", "Fire", "Thunder", "Nature"]
+const ELEMENT_COLORS := {"Earth": Color(0.65, 0.42, 0.23), "Water": Color(0.22, 0.62, 0.92), "Wind": Color(0.52, 0.84, 0.72), "Fire": Color(0.95, 0.3, 0.12), "Thunder": Color(0.96, 0.79, 0.2), "Nature": Color(0.28, 0.65, 0.3)}
+const PATHS := [
+    {"name":"Warrior","jobs":["earth_fighter","mountain_fist"]},
+    {"name":"Spellcaster","jobs":["water_mage","ocean_lord"]},
+    {"name":"Scout","jobs":["wind_assassin","wind_fan"]},
+    {"name":"Blademaster","jobs":["flame_swords","inferno_blade"]},
+    {"name":"Gunner","jobs":["thunder_gunner","lightning_dual"]},
+    {"name":"Warden","jobs":["vine_guardian","forest_lord"]}
+]
+const NOVICE_SKILLS := ["Novice Strike", "Quickstep", "Guard Break"]
+const WEAPON_PROFILES := {
+    "Training Blade":{"range":5.0,"power":1.0,"cooldown":2.7,"style":"balanced"},
+    "Gauntlets":{"range":4.5,"power":1.14,"cooldown":2.1,"style":"rapid fists"},
+    "Fist":{"range":4.2,"power":1.25,"cooldown":2.5,"style":"heavy fists"},
+    "Staff":{"range":12.5,"power":1.1,"cooldown":3.1,"style":"ranged magic"},
+    "Trident":{"range":8.0,"power":1.12,"cooldown":2.8,"style":"reach and sweep"},
+    "Kunai":{"range":5.5,"power":1.02,"cooldown":1.8,"style":"fast combo"},
+    "War Fan":{"range":8.0,"power":1.0,"cooldown":2.3,"style":"wide arcs"},
+    "Twin Swords":{"range":5.0,"power":1.08,"cooldown":1.9,"style":"dual combo"},
+    "Greatsword":{"range":5.2,"power":1.35,"cooldown":3.3,"style":"heavy cleave"},
+    "Pistol":{"range":14.0,"power":1.0,"cooldown":2.4,"style":"precision shots"},
+    "Dual Pistols":{"range":12.0,"power":1.04,"cooldown":1.9,"style":"rapid volleys"},
+    "Vine Whip":{"range":8.0,"power":1.04,"cooldown":2.4,"style":"sweeping reach"},
+    "Wood Staff":{"range":11.5,"power":1.12,"cooldown":2.8,"style":"nature magic"}
+}
 const SKILL_NAMES := {"earth_fighter":["Stone Fist","Faultline","Boulder Rush","Mountain Splitter","Granite Wave","Seismic Palm","Earthen Spikes","Crag Crusher","Landslide","Obsidian Break","Titan's Blow","Worldquake","Colossus Rise","Gaia's Judgment"],"mountain_fist":["Boulder Punch","Iron Knuckle","Crushing Palm","Peakbreaker","Avalanche Fist","Monolith Slam","Mountain Roar","Granite Cyclone","Summit Strike","Quarry Crusher","Titan Knuckle","Rumble Wave","Stoneheart Rush","Mountain's End"],"water_mage":["Water Bolt","Ice Shard","Tidal Wave","Frost Lance","Aqua Sphere","Glacier Fall","Rushing Current","Deep Sea Burst","Frozen Nova","Rainstorm","Abyssal Surge","Crystal Tide","Leviathan's Call","Ocean's Wrath"],"ocean_lord":["Trident Thrust","Riptide","Tidebreaker","Coral Spear","Undertow","Maelstrom","Deep Current","Poseidon's Reach","Reef Splitter","Tempest Trident","Abyssal Spiral","Kraken's Wake","Oceanic Rupture","King Tide"],"wind_assassin":["Gale Cut","Silent Gust","Crosswind","Razor Draft","Phantom Step","Cyclone Edge","Whispering Blades","Skyfall Slash","Tempest Fang","Vortex Strike","Windshadow Rush","Storm Reaver","Hurricane Dance","Eye of the Gale"],"wind_fan":["Fan Blade","Petal Gust","Cyclone Fan","Silkwind Arc","Whirling Leaves","Jade Tempest","Breeze Cutter","Sky Ribbon","Cloudburst Fan","Monsoon Dance","Wind Garden","Emerald Spiral","Heavenly Zephyr","Empress's Storm"],"flame_swords":["Twin Ember","Flame Arc","Scorching Cross","Blazing Waltz","Cinder Rush","Phoenix Pair","Inferno Spiral","Ashen Divide","Solar Flurry","Magma Waltz","Dragonfire Cross","Crimson Tempest","Phoenix Rebirth","Sunfire Finale"],"inferno_blade":["Cinder Cleave","Inferno Cleave","Blazing Ground","Molten Divide","Dragon's Descent","Ashfall","Magma Breaker","Hellfire Arc","Solar Rupture","Pyre Cyclone","Volcanic Wrath","Phoenix Guillotine","World on Fire","Inferno's End"],"thunder_gunner":["Thunder Shot","Static Burst","Chain Lightning","Volt Piercer","Storm Round","Arc Cannon","Skybreaker Shot","Ion Burst","Thunderclap","Railstorm","Tempest Barrage","Lightning Spear","Supercell Blast","Judgment Bolt"],"lightning_dual":["Double Spark","Storm Volley","Flash Barrage","Twin Volt","Arc Cascade","Lightning Waltz","Rapid Thunder","Ion Crossfire","Flashpoint","Skyfire Salvo","Tempest Twins","Thunder Dance","Overcharge Storm","Final Discharge"],"vine_guardian":["Thorn Lash","Root Snare","Briar Sweep","Vine Spear","Bramble Cage","Thicket Crash","Green Reaper","Wildwood Surge","Thornstorm","Ancient Briars","Forest's Grasp","Verdant Rupture","Worldroot Strike","Nature's Wrath"],"forest_lord":["Forest Bolt","Ancient Roots","Leafstorm","Elderwood Spear","Wild Growth","Sylvan Burst","Canopy Crash","Verdant Nova","Thorned Tempest","Heartwood Pulse","Primal Bloom","Emerald Cataclysm","Elder Dragonwood","Forest's Judgment"]}
 const JOBS := [
-    {"id":"earth_fighter","name":"Earth Fighter","weapon":"Gauntlets","color":Color(0.72,0.42,0.22),"str":8,"sta":8,"dex":4,"int":2},
-    {"id":"mountain_fist","name":"Mountain Fist","weapon":"Fist","color":Color(0.55,0.38,0.25),"str":10,"sta":7,"dex":3,"int":2},
-    {"id":"water_mage","name":"Water Mage","weapon":"Staff","color":Color(0.25,0.65,0.92),"str":2,"sta":4,"dex":4,"int":12},
-    {"id":"ocean_lord","name":"Ocean Lord","weapon":"Trident","color":Color(0.2,0.54,0.8),"str":7,"sta":7,"dex":4,"int":5},
-    {"id":"wind_assassin","name":"Wind Assassin","weapon":"Kunai","color":Color(0.55,0.8,0.7),"str":5,"sta":4,"dex":12,"int":3},
-    {"id":"wind_fan","name":"Wind Fan","weapon":"War Fan","color":Color(0.6,0.88,0.72),"str":3,"sta":5,"dex":8,"int":8},
-    {"id":"flame_swords","name":"Flame Swords","weapon":"Twin Swords","color":Color(0.95,0.37,0.15),"str":9,"sta":5,"dex":7,"int":3},
-    {"id":"inferno_blade","name":"Inferno Blade","weapon":"Greatsword","color":Color(0.8,0.2,0.12),"str":12,"sta":7,"dex":3,"int":2},
-    {"id":"thunder_gunner","name":"Thunder Gunner","weapon":"Pistol","color":Color(0.9,0.78,0.25),"str":3,"sta":4,"dex":9,"int":7},
-    {"id":"lightning_dual","name":"Lightning Dual","weapon":"Dual Pistols","color":Color(0.98,0.85,0.32),"str":4,"sta":4,"dex":10,"int":5},
-    {"id":"vine_guardian","name":"Vine Guardian","weapon":"Vine Whip","color":Color(0.34,0.66,0.3),"str":6,"sta":10,"dex":4,"int":4},
-    {"id":"forest_lord","name":"Forest Lord","weapon":"Wood Staff","color":Color(0.35,0.6,0.28),"str":4,"sta":7,"dex":4,"int":9}
+    {"id":"earth_fighter","name":"Vanguard","weapon":"Gauntlets","color":Color(0.72,0.42,0.22),"str":8,"sta":8,"dex":4,"int":2},
+    {"id":"mountain_fist","name":"Brawler","weapon":"Fist","color":Color(0.55,0.38,0.25),"str":10,"sta":7,"dex":3,"int":2},
+    {"id":"water_mage","name":"Arcanist","weapon":"Staff","color":Color(0.25,0.65,0.92),"str":2,"sta":4,"dex":4,"int":12},
+    {"id":"ocean_lord","name":"Spearcaller","weapon":"Trident","color":Color(0.2,0.54,0.8),"str":7,"sta":7,"dex":4,"int":5},
+    {"id":"wind_assassin","name":"Shadowblade","weapon":"Kunai","color":Color(0.55,0.8,0.7),"str":5,"sta":4,"dex":12,"int":3},
+    {"id":"wind_fan","name":"Winddancer","weapon":"War Fan","color":Color(0.6,0.88,0.72),"str":3,"sta":5,"dex":8,"int":8},
+    {"id":"flame_swords","name":"Twinblade","weapon":"Twin Swords","color":Color(0.95,0.37,0.15),"str":9,"sta":5,"dex":7,"int":3},
+    {"id":"inferno_blade","name":"Greatsword","weapon":"Greatsword","color":Color(0.8,0.2,0.12),"str":12,"sta":7,"dex":3,"int":2},
+    {"id":"thunder_gunner","name":"Marksman","weapon":"Pistol","color":Color(0.9,0.78,0.25),"str":3,"sta":4,"dex":9,"int":7},
+    {"id":"lightning_dual","name":"Gunslinger","weapon":"Dual Pistols","color":Color(0.98,0.85,0.32),"str":4,"sta":4,"dex":10,"int":5},
+    {"id":"vine_guardian","name":"Thornwarden","weapon":"Vine Whip","color":Color(0.34,0.66,0.3),"str":6,"sta":10,"dex":4,"int":4},
+    {"id":"forest_lord","name":"Grove Sage","weapon":"Wood Staff","color":Color(0.35,0.6,0.28),"str":4,"sta":7,"dex":4,"int":9}
 ]
 var character_name := "Novice"
 var gender := "Male"
 var level := 1
 var character_class := 0
-var job := "earth_fighter"
+var element := ""
+var branch := -1
+var job := "novice"
 var faction := "None"
 var hp := 100
 var stamina := 100
@@ -39,25 +67,85 @@ var skill_levels: Dictionary = {}
 var player_position := Vector3(0, 2, 0)
 
 func current_job_data() -> Dictionary:
+    if job == "novice":
+        var novice := {"id":"novice", "name":"Novice", "weapon":"Training Blade", "color":Color(0.35, 0.55, 0.85), "str":5, "sta":5, "dex":5, "int":5}
+        if not element.is_empty():
+            novice["color"] = ELEMENT_COLORS.get(element, novice["color"])
+            novice["name"] = "%s Novice" % element
+        return novice
     for spec in JOBS:
         if str(spec["id"]) == job:
-            return spec
-    return JOBS[0]
+            var result: Dictionary = spec.duplicate()
+            if not element.is_empty():
+                result["color"] = ELEMENT_COLORS.get(element, result["color"])
+                result["name"] = "%s %s" % [element, str(spec["name"])]
+            return result
+    job = "novice"
+    return current_job_data()
+
+func element_choices() -> Array:
+    return ELEMENTS.duplicate()
+
+func path_choices() -> Array:
+    var result: Array = []
+    for path in PATHS:
+        result.append(str(path["name"]))
+    return result
+
+func specialization_choices() -> Array:
+    if branch < 0 or branch >= PATHS.size():
+        return []
+    var result: Array = []
+    for job_id in PATHS[branch]["jobs"]:
+        for spec in JOBS:
+            if str(spec["id"]) == str(job_id):
+                result.append(str(spec["name"]))
+    return result
+
+func choose_element(index: int) -> bool:
+    if level < 10 or not element.is_empty() or index < 0 or index >= ELEMENTS.size():
+        return false
+    element = ELEMENTS[index]
+    return true
+
+func choose_path(index: int) -> bool:
+    if level < 15 or element.is_empty() or branch >= 0 or index < 0 or index >= PATHS.size():
+        return false
+    branch = index
+    return true
+
+func choose_specialization(index: int) -> bool:
+    if level < 30 or branch < 0 or job != "novice":
+        return false
+    var choices: Array = PATHS[branch]["jobs"]
+    if index < 0 or index >= choices.size():
+        return false
+    job = str(choices[index])
+    equipped_skills = [0, 1, 2]
+    return true
+
+func element_damage_multiplier() -> float:
+    return 1.06 if not element.is_empty() else 1.0
+
+func weapon_profile() -> Dictionary:
+    var weapon := str(current_job_data()["weapon"])
+    return WEAPON_PROFILES.get(weapon, WEAPON_PROFILES["Training Blade"])
 
 func max_skill_rank() -> int:
     return clampi(1 + int((level - 1) / 10), 1, 10)
 
 func skills_for_job() -> Array[Dictionary]:
-    var names: Array = SKILL_NAMES.get(job, SKILL_NAMES["earth_fighter"])
+    var names: Array = NOVICE_SKILLS if job == "novice" else SKILL_NAMES.get(job, SKILL_NAMES["earth_fighter"])
     var result: Array[Dictionary] = []
     for i in range(names.size()):
-        var unlock := 1 if i < 3 else 1 + (i - 2) * 5
+        var unlock := 1 if job == "novice" or i < 3 else 30 + (i - 2) * 4
         var key := "%s:%d" % [job, i]
         var rank := clampi(int(skill_levels.get(key, 1)), 1, max_skill_rank())
+        var profile := weapon_profile()
         var kind := "area" if i % 4 == 1 else "single"
         var base_power := 1.15 + float(i % 4) * 0.2 + float(i / 4) * 0.12
         var level_bonus := float(maxi(0, level - unlock)) * 0.012
-        result.append({"id": i, "name": str(names[i]), "kind": kind, "power": base_power + float(rank - 1) * 0.2 + level_bonus, "rank": rank, "rank_limit": max_skill_rank(), "unlock_level": unlock, "cost": 10 + i * 2 + rank * 2, "cooldown": maxf(1.4, 3.7 - float(i % 4) * 0.35), "range": 11.0 if int(current_job_data()["int"]) >= 7 or int(current_job_data()["dex"]) >= 9 else 6.0})
+        result.append({"id": i, "name": str(names[i]), "kind": kind, "style": profile["style"], "weapon": current_job_data()["weapon"], "power": (base_power + float(rank - 1) * 0.2 + level_bonus) * float(profile["power"]), "rank": rank, "rank_limit": max_skill_rank(), "unlock_level": unlock, "cost": 10 + i * 2 + rank * 2, "cooldown": maxf(1.3, float(profile["cooldown"]) - float(i % 4) * 0.2), "range": float(profile["range"])})
     return result
 
 func skill_upgrade_gold_cost(skill_id: int) -> int:
@@ -151,7 +239,7 @@ func use_potion() -> bool:
     return true
 
 func save_game() -> bool:
-    var data := {"character_name": character_name, "gender": gender, "level": level, "character_class": character_class, "job": job, "faction": faction, "hp": hp, "stamina": stamina, "exp": exp, "gold": gold, "cash": cash, "quest_kills": quest_kills, "quest_accepted": quest_accepted, "inventory": inventory, "weapon_enhancement": weapon_enhancement, "armor_enhancement": armor_enhancement, "equipped_skills": equipped_skills, "skill_points": skill_points, "skill_levels": skill_levels, "position": [player_position.x, player_position.y, player_position.z]}
+    var data := {"character_name": character_name, "gender": gender, "level": level, "character_class": character_class, "element": element, "branch": branch, "job": job, "faction": faction, "hp": hp, "stamina": stamina, "exp": exp, "gold": gold, "cash": cash, "quest_kills": quest_kills, "quest_accepted": quest_accepted, "inventory": inventory, "weapon_enhancement": weapon_enhancement, "armor_enhancement": armor_enhancement, "equipped_skills": equipped_skills, "skill_points": skill_points, "skill_levels": skill_levels, "position": [player_position.x, player_position.y, player_position.z]}
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file == null:
         return false
@@ -171,8 +259,14 @@ func load_game() -> bool:
     character_name = str(data.get("character_name", character_name))
     gender = str(data.get("gender", gender))
     level = clampi(int(data.get("level", level)), 1, 100)
+    element = str(data.get("element", element))
+    if not ELEMENTS.has(element):
+        element = ""
+    branch = clampi(int(data.get("branch", branch)), -1, PATHS.size() - 1)
     job = str(data.get("job", job))
     current_job_data()
+    if job != "novice" and branch < 0:
+        job = "novice"
     faction = str(data.get("faction", faction))
     exp = maxi(0, int(data.get("exp", exp)))
     gold = maxi(0, int(data.get("gold", gold)))

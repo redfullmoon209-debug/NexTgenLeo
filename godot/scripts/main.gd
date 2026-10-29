@@ -19,6 +19,9 @@ var notice: Label
 var skill_buttons: Array[Button] = []
 var skill_change_buttons: Array[Button] = []
 var skill_upgrade_buttons: Array[Button] = []
+var hud_layer: CanvasLayer
+var progression_button: Button
+var progression_panel: Panel
 var gear_root: Node3D
 var ground_attack_enabled := false
 
@@ -192,13 +195,14 @@ func _load_thailand() -> void:
 
 func _make_hud() -> void:
     var layer := CanvasLayer.new()
+    hud_layer = layer
     add_child(layer)
     var label := Label.new()
     label.text = "NexTgenLeo | WASD / touch move | drag to look"
     label.position = Vector2(16, 12)
     layer.add_child(label)
     var note := Label.new()
-    note.text = "Tap JOB to change class; bosses and gear are temporary prototypes"
+    note.text = "Choose element, then path and specialization as you level"
     note.position = Vector2(16, 38)
     layer.add_child(note)
     status = Label.new()
@@ -210,7 +214,7 @@ func _make_hud() -> void:
     _button(layer, "ATK", Vector2(18, 132), _attack)
     _button(layer, "POTION", Vector2(90, 132), _potion)
     _button(layer, "QUEST", Vector2(184, 132), _quest)
-    _button(layer, "JOB", Vector2(276, 132), _cycle_job)
+    progression_button = _button(layer, "PROGRESS", Vector2(276, 132), _open_progression_menu)
     for i in range(3):
         var slot := i
         var cast_button := _button(layer, "SKILL", Vector2(12 + i * 112, 180), func(): _cast_skill(slot))
@@ -229,7 +233,17 @@ func _physics_process(delta: float) -> void:
         skill_timers[i] = maxf(0.0, skill_timers[i] - delta)
     var spec := state.current_job_data()
     var stats := state.stats()
-    status.text = "%s Lv.%d HP %d/%d MP %d/%d SkillPts %d EXP %d/%d G %d Ore %d\nSTR %d STA %d DEX %d INT %d | Weapon +%d Armor +%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.max_stamina(), state.skill_points, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), stats["STR"], stats["STA"], stats["DEX"], stats["INT"], state.weapon_enhancement, state.armor_enhancement]
+    var selected_element := state.element if not state.element.is_empty() else "None"
+    var selected_path := state.path_choices()[state.branch] if state.branch >= 0 else "None"
+    status.text = "%s Lv.%d HP %d/%d MP %d/%d SkillPts %d EXP %d/%d G %d Ore %d\nElement %s | Path %s | %s | W+%d A+%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.max_stamina(), state.skill_points, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), selected_element, selected_path, spec["weapon"], state.weapon_enhancement, state.armor_enhancement]
+    if state.element.is_empty():
+        progression_button.text = "ELEMENT" if state.level >= 10 else "ELEMENT Lv10"
+    elif state.branch < 0:
+        progression_button.text = "PATH" if state.level >= 15 else "PATH Lv15"
+    elif state.job == "novice":
+        progression_button.text = "SPECIALIZE" if state.level >= 30 else "SPEC Lv30"
+    else:
+        progression_button.text = "CLASS"
     for i in range(skill_buttons.size()):
         var skill: Dictionary = state.skill_by_id(int(state.equipped_skills[i]))
         skill_buttons[i].text = "%s R%d" % [skill["name"], skill["rank"]]
@@ -351,12 +365,14 @@ func _nearest_mob(max_range: float) -> LeoMob:
 func _attack() -> void:
     if attack_timer > 0.0:
         return
-    target = _nearest_mob(3.2)
+    var profile := state.weapon_profile()
+    target = _nearest_mob(float(profile["range"]))
     if is_instance_valid(target):
         var stats := state.stats()
-        target.take_damage(20 + int(stats["STR"]) * 3 + state.weapon_enhancement * 8)
-        attack_timer = 0.6
-        _notify("Hit %s" % state.current_job_data()["weapon"])
+        var damage := maxi(1, int((20 + int(stats["STR"]) * 3 + state.weapon_enhancement * 8) * float(profile["power"]) * state.element_damage_multiplier()))
+        target.take_damage(damage)
+        attack_timer = maxf(0.45, float(profile["cooldown"]) * 0.35)
+        _notify("%s hit: %d" % [profile["style"], damage])
     else:
         _notify("No monster in range")
 
@@ -374,7 +390,7 @@ func _cast_skill(slot: int) -> void:
         _notify("Not enough MP")
         return
     var stats := state.stats()
-    var damage := maxi(1, int(18 + int(stats["STR"]) * 2 + int(stats["INT"]) * 2 + float(skill["power"]) * 20 + state.weapon_enhancement * 8))
+    var damage := maxi(1, int((18 + int(stats["STR"]) * 2 + int(stats["INT"]) * 2 + float(skill["power"]) * 20 + state.weapon_enhancement * 8) * state.element_damage_multiplier()))
     var hit_count := 0
     if str(skill["kind"]) == "area":
         for node in get_tree().get_nodes_in_group("monsters"):
@@ -433,17 +449,100 @@ func _quest() -> void:
     state.quest_kills = 0
     _notify("Hunt accepted: defeat 5 monsters")
 
-func _cycle_job() -> void:
-    state.cycle_job()
+func _open_progression_menu() -> void:
+    if is_instance_valid(progression_panel):
+        progression_panel.queue_free()
+        progression_panel = null
+        return
+    var title := ""
+    var choices: Array = []
+    var stage := ""
+    if state.element.is_empty():
+        if state.level < 10:
+            _notify("Choose an element at level 10")
+            return
+        title = "Choose 1 of 6 Elements"
+        choices = state.element_choices()
+        stage = "element"
+    elif state.branch < 0:
+        if state.level < 15:
+            _notify("Choose 1 of 6 Paths at level 15")
+            return
+        title = "Choose 1 of 6 Paths"
+        choices = state.path_choices()
+        stage = "path"
+    elif state.job == "novice":
+        if state.level < 30:
+            _notify("Choose 1 of 2 Specializations at level 30")
+            return
+        title = "Choose 1 of 2 Specializations"
+        choices = state.specialization_choices()
+        stage = "specialization"
+    else:
+        _notify("Class progression complete")
+        return
+    progression_panel = Panel.new()
+    progression_panel.position = Vector2(12, 164)
+    progression_panel.size = Vector2(340, 250)
+    hud_layer.add_child(progression_panel)
+    var layout := VBoxContainer.new()
+    layout.position = Vector2(8, 8)
+    layout.size = Vector2(324, 234)
+    progression_panel.add_child(layout)
+    var heading := Label.new()
+    heading.text = title
+    layout.add_child(heading)
+    var grid := GridContainer.new()
+    grid.columns = 2
+    layout.add_child(grid)
+    for i in range(choices.size()):
+        var choice_index := i
+        var option := Button.new()
+        option.text = str(choices[i])
+        option.custom_minimum_size = Vector2(150, 44)
+        grid.add_child(option)
+        if stage == "element":
+            option.pressed.connect(func(): _select_element(choice_index))
+        elif stage == "path":
+            option.pressed.connect(func(): _select_path(choice_index))
+        else:
+            option.pressed.connect(func(): _select_specialization(choice_index))
+    var close_button := Button.new()
+    close_button.text = "CLOSE"
+    close_button.custom_minimum_size = Vector2(90, 36)
+    close_button.pressed.connect(_close_progression_menu)
+    layout.add_child(close_button)
+
+func _close_progression_menu() -> void:
+    if is_instance_valid(progression_panel):
+        progression_panel.queue_free()
+    progression_panel = null
+
+func _apply_player_color() -> void:
     var mesh := player.get_node_or_null("MeshInstance3D") as MeshInstance3D
     if mesh and mesh.material_override is StandardMaterial3D:
         (mesh.material_override as StandardMaterial3D).albedo_color = state.current_job_data()["color"]
     _refresh_player_gear()
-    state.equipped_skills = [0, 1, 2]
-    for timer_index in range(skill_timers.size()):
-        skill_timers[timer_index] = 0.0
-    _notify("Job changed: %s" % state.current_job_data()["name"])
-    _save()
+
+func _select_element(index: int) -> void:
+    if state.choose_element(index):
+        _close_progression_menu()
+        _apply_player_color()
+        _notify("Element chosen: %s" % state.element)
+        _save()
+
+func _select_path(index: int) -> void:
+    if state.choose_path(index):
+        _close_progression_menu()
+        _notify("Path chosen: %s; specialization opens at Lv30" % state.path_choices()[index])
+        _save()
+
+func _select_specialization(index: int) -> void:
+    if state.choose_specialization(index):
+        _close_progression_menu()
+        _apply_player_color()
+        _notify("Class chosen: %s" % state.current_job_data()["name"])
+        _save()
 
 func _upgrade_weapon() -> void:
     if state.upgrade_weapon():

@@ -17,6 +17,8 @@ var skill_timers := [0.0, 0.0, 0.0]
 var status: Label
 var notice: Label
 var skill_buttons: Array[Button] = []
+var skill_change_buttons: Array[Button] = []
+var skill_upgrade_buttons: Array[Button] = []
 var gear_root: Node3D
 var ground_attack_enabled := false
 
@@ -209,14 +211,17 @@ func _make_hud() -> void:
     _button(layer, "POTION", Vector2(90, 132), _potion)
     _button(layer, "QUEST", Vector2(184, 132), _quest)
     _button(layer, "JOB", Vector2(276, 132), _cycle_job)
-    var spec := state.current_job_data()
-    var skills: Array = spec["skills"]
     for i in range(3):
-        var skill_button := _button(layer, str(skills[i]["name"]), Vector2(18 + i * 112, 180), func(): _cast_skill(i))
-        skill_buttons.append(skill_button)
-    _button(layer, "WEAPON +", Vector2(18, 228), _upgrade_weapon)
-    _button(layer, "ARMOR +", Vector2(145, 228), _upgrade_armor)
-    _button(layer, "SAVE", Vector2(260, 228), _save)
+        var slot := i
+        var cast_button := _button(layer, "SKILL", Vector2(12 + i * 112, 180), func(): _cast_skill(slot))
+        skill_buttons.append(cast_button)
+        var change_button := _button(layer, "CHANGE", Vector2(12 + i * 112, 222), func(): _cycle_skill_slot(slot))
+        skill_change_buttons.append(change_button)
+        var upgrade_button := _button(layer, "UP SKILL", Vector2(12 + i * 112, 264), func(): _upgrade_equipped_skill(slot))
+        skill_upgrade_buttons.append(upgrade_button)
+    _button(layer, "WEAPON +", Vector2(18, 310), _upgrade_weapon)
+    _button(layer, "ARMOR +", Vector2(145, 310), _upgrade_armor)
+    _button(layer, "SAVE", Vector2(260, 310), _save)
 
 func _physics_process(delta: float) -> void:
     attack_timer = maxf(0.0, attack_timer - delta)
@@ -224,11 +229,14 @@ func _physics_process(delta: float) -> void:
         skill_timers[i] = maxf(0.0, skill_timers[i] - delta)
     var spec := state.current_job_data()
     var stats := state.stats()
-    status.text = "%s | Lv.%d HP %d/%d SP %d EXP %d/%d G %d Ore %d\nSTR %d STA %d DEX %d INT %d | Weapon +%d Armor +%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), stats["STR"], stats["STA"], stats["DEX"], stats["INT"], state.weapon_enhancement, state.armor_enhancement]
+    status.text = "%s Lv.%d HP %d/%d MP %d/%d SkillPts %d EXP %d/%d G %d Ore %d\nSTR %d STA %d DEX %d INT %d | Weapon +%d Armor +%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.max_stamina(), state.skill_points, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), stats["STR"], stats["STA"], stats["DEX"], stats["INT"], state.weapon_enhancement, state.armor_enhancement]
     for i in range(skill_buttons.size()):
-        var skills: Array = spec["skills"]
-        skill_buttons[i].text = "%s (%d SP)" % [skills[i]["name"], int(skills[i]["cost"])]
-        skill_buttons[i].disabled = skill_timers[i] > 0.0 or state.stamina < int(skills[i]["cost"])
+        var skill: Dictionary = state.skill_by_id(int(state.equipped_skills[i]))
+        skill_buttons[i].text = "%s R%d" % [skill["name"], skill["rank"]]
+        skill_buttons[i].disabled = skill_timers[i] > 0.0 or state.stamina < int(skill["cost"])
+        skill_change_buttons[i].text = "CHANGE %d" % (i + 1)
+        skill_upgrade_buttons[i].text = "UP %d (%dG)" % [i + 1, state.skill_upgrade_gold_cost(int(state.equipped_skills[i]))]
+        skill_upgrade_buttons[i].disabled = int(skill["rank"]) >= int(skill["rank_limit"]) or state.skill_points < 1 or state.gold < state.skill_upgrade_gold_cost(int(skill["id"]))
     camera_pivot.global_position = player.global_position + Vector3.UP * 1.4
     var axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     if touch_move.length() > 0.1:
@@ -357,23 +365,62 @@ func _cast_skill(slot: int) -> void:
         return
     if skill_timers[slot] > 0.0:
         return
-    var spec := state.current_job_data()
-    var skills: Array = spec["skills"]
-    var skill: Dictionary = skills[slot]
+    var skill: Dictionary = state.skill_by_id(int(state.equipped_skills[slot]))
+    if skill.is_empty() or int(skill["unlock_level"]) > state.level:
+        _notify("Skill locked: reach Lv.%d" % int(skill["unlock_level"]))
+        return
     var cost := int(skill["cost"])
     if state.stamina < cost:
-        _notify("Not enough SP")
-        return
-    var mob := _nearest_mob(float(skill["range"]))
-    if not is_instance_valid(mob):
-        _notify("No target in skill range")
+        _notify("Not enough MP")
         return
     var stats := state.stats()
-    state.stamina -= cost
     var damage := maxi(1, int(18 + int(stats["STR"]) * 2 + int(stats["INT"]) * 2 + float(skill["power"]) * 20 + state.weapon_enhancement * 8))
-    mob.take_damage(damage)
+    var hit_count := 0
+    if str(skill["kind"]) == "area":
+        for node in get_tree().get_nodes_in_group("monsters"):
+            var mob := node as LeoMob
+            if is_instance_valid(mob) and player.global_position.distance_to(mob.global_position) <= float(skill["range"]):
+                mob.take_damage(int(damage * 0.8))
+                hit_count += 1
+    else:
+        var mob := _nearest_mob(float(skill["range"]))
+        if is_instance_valid(mob):
+            mob.take_damage(damage)
+            hit_count = 1
+    if hit_count == 0:
+        _notify("No target in skill range")
+        return
+    state.stamina -= cost
     skill_timers[slot] = float(skill["cooldown"])
-    _notify("%s: %d damage" % [skill["name"], damage])
+    _notify("%s R%d: %d hit" % [skill["name"], skill["rank"], hit_count])
+
+func _cycle_skill_slot(slot: int) -> void:
+    var unlocked := state.unlocked_skills()
+    if unlocked.size() <= 3:
+        _notify("More skills unlock as you level up")
+        return
+    var current_id := int(state.equipped_skills[slot])
+    for offset in range(1, unlocked.size() + 1):
+        var candidate_id := int(unlocked[(current_id + offset) % unlocked.size()]["id"])
+        var already_equipped := false
+        for other_slot in range(3):
+            if other_slot != slot and int(state.equipped_skills[other_slot]) == candidate_id:
+                already_equipped = true
+                break
+        if not already_equipped:
+            state.equipped_skills[slot] = candidate_id
+            _notify("Equipped: %s" % state.skill_by_id(candidate_id)["name"])
+            _save()
+            return
+
+func _upgrade_equipped_skill(slot: int) -> void:
+    var skill_id := int(state.equipped_skills[slot])
+    var skill := state.skill_by_id(skill_id)
+    if state.upgrade_skill(skill_id):
+        _notify("%s upgraded" % skill["name"])
+        _save()
+    else:
+        _notify("Need 1 Skill Point and %d Gold; rank limit %d" % [state.skill_upgrade_gold_cost(skill_id), state.max_skill_rank()])
 
 func _potion() -> void:
     if state.use_potion():
@@ -392,9 +439,9 @@ func _cycle_job() -> void:
     if mesh and mesh.material_override is StandardMaterial3D:
         (mesh.material_override as StandardMaterial3D).albedo_color = state.current_job_data()["color"]
     _refresh_player_gear()
-    var skills: Array = state.current_job_data()["skills"]
-    for i in range(skill_buttons.size()):
-        skill_buttons[i].text = str(skills[i]["name"])
+    state.equipped_skills = [0, 1, 2]
+    for timer_index in range(skill_timers.size()):
+        skill_timers[timer_index] = 0.0
     _notify("Job changed: %s" % state.current_job_data()["name"])
     _save()
 

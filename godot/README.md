@@ -5,13 +5,14 @@ Open the `godot` folder with Godot 4.4+ and press F5.
 ## Playable prototype
 
 - Third-person 3D movement, follow camera, touch move/look and keyboard controls.
-- Ten temporary monsters, target selection, basic attacks, three active class skills, EXP, levels and Gold.
-- Twelve temporary jobs with separate stat profiles, weapon names, colors and three skill definitions per job.
-- Temporary procedural armor, weapon meshes and +0 to +10 upgrades. Monsters have a 35% chance to drop Ore used for upgrades.
-- Hunt quest, healing potion, mobile action buttons and local JSON save/load.
+- Ten temporary monsters, target selection, basic attacks, EXP, levels, Gold and local saving.
+- Twelve temporary jobs. Each job has 14 named skills; three can be equipped at once. The three starting skills are available at level 1, and more unlock as the character levels up.
+- Every character level grants one Skill Point. Upgrade an unlocked equipped skill by spending one Skill Point plus Gold. Skill rank is capped by character level, and damage scales with both character level and skill rank.
+- Temporary procedural armor and job-themed weapon meshes, weapon/armor upgrades to +10, and a 35% Ore drop chance from monsters.
+- Hunt quest, healing potion and mobile action buttons.
 - Optional Thailand GLB map at `res://assets/maps/thailand.glb`; a green prototype field remains until that file is supplied.
 
-The models are generated from basic Godot meshes as replaceable placeholders. These are local single-player mechanics; there is no server-authoritative multiplayer, account system, shared economy, or live 20-player tournament yet. Enemy AI currently follows the player but does not deal damage. The Godot build workflow uploads an HTML5 artifact for signed-in repository access; it does not publish a public Pages site.
+The models use basic Godot meshes as replaceable placeholders. This is a local single-player prototype: there is no server-authoritative multiplayer, account system, shared economy or live 20-player tournament yet. Enemy AI currently follows the player but does not deal damage. The workflow builds an HTML5 export and stores it as a GitHub Actions artifact; it does not publish a public Pages site.
 
 ## Bring the real Thailand map
 
@@ -19,7 +20,7 @@ In Blender select the desired map objects, then export as glTF Binary (.glb) wit
 
 ## Run and export
 
-Import `godot/project.godot` in Godot 4.4+, wait for import, then press F5. The repository workflow creates a web export artifact from the `godot-thailand-3d` branch.
+Import `godot/project.godot` in Godot 4.4+, wait for import, then press F5. The repository workflow exports a web build from the `godot-thailand-3d` branch.
 
 ## Safety
 

@@ -15,25 +15,52 @@ var offline_backup: Dictionary = {}
 var server_position := Vector3.ZERO
 var have_snapshot := false
 var connection_timer := 0.0
+var reconnect_enabled := false
+var reconnect_attempt := 0
+var reconnect_timer := 0.0
+const MAX_RECONNECT_ATTEMPTS := 5
 func connect_server(address: String) -> void:
+	if active or connecting:
+		game._tell("เซิร์ฟเวอร์กำลังเชื่อมต่อหรือเชื่อมต่ออยู่แล้ว")
+		return
 	if not address.begins_with("wss://") and not address.begins_with("ws://127.0.0.1") and not address.begins_with("ws://localhost"):
 		game._tell("Use wss:// for remote servers, or ws://localhost for local tests")
 		return
 	url = address
+	reconnect_enabled = true
+	reconnect_attempt = 0
+	reconnect_timer = 0.0
 	offline_backup.clear()
 	for key in GameState._save_keys():
 		var value = GameState.get(key)
 		offline_backup[key] = value.duplicate(true) if value is Dictionary or value is Array else value
-	var error := socket.connect_to_url(address)
+	_open_connection(false)
+
+func _open_connection(is_retry: bool) -> void:
+	if not reconnect_enabled or url.is_empty():
+		return
+	# Preserve any offline progress made while the reconnect timer was running.
+	if is_retry:
+		offline_backup.clear()
+		for key in GameState._save_keys():
+			var value = GameState.get(key)
+			offline_backup[key] = value.duplicate(true) if value is Dictionary or value is Array else value
+	socket = WebSocketPeer.new()
+	var error := socket.connect_to_url(url)
 	if error != OK:
-		game._tell("Connection failed: " + str(error))
+		connecting = false
+		_handle_connection_loss("Connection failed: " + str(error))
 		return
 	connecting = true
+	active = false
 	is_gm = false
 	game._set_gm_authorized(false)
-	connection_timer = 0
+	connection_timer = 0.0
 	have_snapshot = false
-	game._tell("Connecting to development server...")
+	if is_retry:
+		game._tell("กำลังเชื่อมต่อเซิร์ฟเวอร์อีกครั้ง...")
+	else:
+		game._tell("Connecting to development server...")
 func authenticate_owner(secret: String) -> void:
 	if not active:
 		game._tell("ต้องเชื่อมต่อเซิร์ฟเวอร์ก่อนยืนยันสิทธิ์เจ้าของ")
@@ -55,17 +82,21 @@ func command(op: String, fields: Dictionary = {}) -> void:
 	fields.request = id + ":" + str(Time.get_unix_time_from_system()) + ":" + str(request_sequence)
 	socket.send_text(JSON.stringify(fields))
 func _process(delta: float) -> void:
-	if not active and not connecting: return
+	if not active and not connecting:
+		if reconnect_enabled and reconnect_timer > 0.0:
+			reconnect_timer = maxf(0.0, reconnect_timer - delta)
+			if reconnect_timer <= 0.0:
+				_open_connection(true)
+		return
 	socket.poll()
 	var state := socket.get_ready_state()
 	if state == WebSocketPeer.STATE_CLOSED:
-		disconnect_server()
+		_handle_connection_loss("Server connection closed")
 		return
 	if connecting:
 		connection_timer += delta
-		if connection_timer > 15:
-			disconnect_server()
-			game._tell("Server connection timed out")
+		if connection_timer > 15.0:
+			_handle_connection_loss("Server connection timed out")
 			return
 	if state != WebSocketPeer.STATE_OPEN: return
 	if connecting:
@@ -80,6 +111,8 @@ func _process(delta: float) -> void:
 		match str(data.get("type","")):
 			"welcome":
 				id = data.id
+				reconnect_attempt = 0
+				reconnect_timer = 0.0
 				var file := FileAccess.open("user://session_" + url.sha256_text().substr(0,16) + ".txt", FileAccess.WRITE)
 				if file: file.store_string(data.token)
 				game._tell("Connected · SERVER AUTHORITY · guest " + id.substr(0,6))
@@ -98,6 +131,40 @@ func _process(delta: float) -> void:
 	if move_timer >= 0.1:
 		move_timer = 0
 		command("move", {"x":game.world.player.position.x,"z":game.world.player.position.z})
+
+func _handle_connection_loss(reason: String) -> void:
+	var had_online_state := active or have_snapshot
+	socket.close()
+	active = false
+	connecting = false
+	have_snapshot = false
+	is_gm = false
+	game._set_gm_authorized(false)
+	for node in peers.values():
+		node.queue_free()
+	peers.clear()
+	if had_online_state:
+		_restore_offline_state()
+	if not reconnect_enabled:
+		game._tell("Disconnected. Offline sandbox restored.")
+		return
+	if reconnect_attempt >= MAX_RECONNECT_ATTEMPTS:
+		reconnect_enabled = false
+		reconnect_timer = 0.0
+		game._tell("Connection lost. Automatic reconnect stopped after 5 attempts.")
+		return
+	var delay := minf(15.0, pow(2.0, float(reconnect_attempt)))
+	reconnect_attempt += 1
+	reconnect_timer = delay
+	game._tell("%s — reconnecting in %d s (%d/%d)" % [reason, roundi(delay), reconnect_attempt, MAX_RECONNECT_ATTEMPTS])
+
+func _restore_offline_state() -> void:
+	for key in offline_backup:
+		GameState.set(key, offline_backup[key])
+	GameState._recalculate_stats(false)
+	game._build_avatar()
+	game._build_zone()
+	game.world.player.position = Vector3(0,1,0)
 func _snapshot(data: Dictionary) -> void:
 	var state: Dictionary = data.self
 	for key in ["hp","stamina","level","class_rank","exp","gold","cash","quest_state","quest_kills","selected_element","selected_job","faction","pet_level","pet_exp","skill_loadout"]:
@@ -135,18 +202,19 @@ func _snapshot(data: Dictionary) -> void:
 			peers[key].queue_free()
 			peers.erase(key)
 func disconnect_server() -> void:
+	reconnect_enabled = false
+	reconnect_attempt = 0
+	reconnect_timer = 0.0
+	var had_online_state := active or have_snapshot
 	socket.close()
 	active = false
 	is_gm = false
 	game._set_gm_authorized(false)
 	connecting = false
 	have_snapshot = false
-	for node in peers.values():node.queue_free()
+	for node in peers.values():
+		node.queue_free()
 	peers.clear()
-	for key in offline_backup:
-		GameState.set(key,offline_backup[key])
-	GameState._recalculate_stats(false)
-	game._build_avatar()
-	game._build_zone()
-	game.world.player.position = Vector3(0,1,0)
+	if had_online_state:
+		_restore_offline_state()
 	game._tell("Disconnected. Offline sandbox restored.")

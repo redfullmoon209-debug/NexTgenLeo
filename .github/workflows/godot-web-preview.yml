@@ -34,7 +34,7 @@ jobs:
           godot --headless --path . --export-release "Web" ../web-build/index.html
       - name: Verify web build
         run: test -s web-build/index.html
-      - name: Upload private-access build artifact
+      - name: Upload web export artifact
         uses: actions/upload-artifact@v4
         with:
           name: nexTgenLeo-godot-web

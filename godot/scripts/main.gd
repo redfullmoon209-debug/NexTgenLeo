@@ -249,8 +249,8 @@ func _physics_process(delta: float) -> void:
         skill_timers[i] = maxf(0.0, skill_timers[i] - delta)
     var spec := state.current_job_data()
     var stats := state.stats()
-    var selected_element := state.element if not state.element.is_empty() else "None"
-    var selected_path := state.path_choices()[state.branch] if state.branch >= 0 else "None"
+    var selected_element: String = state.element if not state.element.is_empty() else "None"
+    var selected_path: String = str(state.path_choices()[state.branch]) if state.branch >= 0 else "None"
     var passives := state.passive_skills()
     status.text = "%s Lv.%d HP %d/%d MP %d/%d SkillPts %d EXP %d/%d G %d Ore %d\n%s | %s | %s | Passive %d | W+%d A+%d" % [spec["name"], state.level, state.hp, state.max_hp(), state.stamina, state.max_stamina(), state.skill_points, state.exp, state.exp_needed(), state.gold, int(state.inventory.get("Ore", 0)), selected_element, selected_path, spec["weapon"], passives.size(), state.weapon_enhancement, state.armor_enhancement]
     if state.element.is_empty():

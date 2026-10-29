@@ -32,6 +32,7 @@ var guard_buff_multiplier := 1.0
 var guard_buff_timer := 0.0
 
 func _ready() -> void:
+    add_to_group("party_members")
     state.load_game()
     _setup_input()
     _make_world()
@@ -93,7 +94,6 @@ func _make_player() -> void:
     collision.shape = capsule
     collision.position.y = 0.9
     player.add_child(collision)
-    player.add_to_group("party_members")
     var mesh := MeshInstance3D.new()
     var body := CapsuleMesh.new()
     body.radius = 0.35
@@ -224,11 +224,11 @@ func _make_hud() -> void:
     progression_button = _button(layer, "PROGRESS", Vector2(276, 132), _open_progression_menu)
     for i in range(3):
         var slot := i
-        var cast_button := _button(layer, "SKILL", Vector2(12 + i * 112, 180), func(): _cast_skill(slot))
+        var cast_button := _button(layer, "SKILL", Vector2(12 + i * 112, 180), Callable(self, "_cast_skill").bind(slot))
         skill_buttons.append(cast_button)
-        var change_button := _button(layer, "CHANGE", Vector2(12 + i * 112, 222), func(): _cycle_skill_slot(slot))
+        var change_button := _button(layer, "CHANGE", Vector2(12 + i * 112, 222), Callable(self, "_cycle_skill_slot").bind(slot))
         skill_change_buttons.append(change_button)
-        var upgrade_button := _button(layer, "UP SKILL", Vector2(12 + i * 112, 264), func(): _upgrade_equipped_skill(slot))
+        var upgrade_button := _button(layer, "UP SKILL", Vector2(12 + i * 112, 264), Callable(self, "_upgrade_equipped_skill").bind(slot))
         skill_upgrade_buttons.append(upgrade_button)
     _button(layer, "WEAPON +", Vector2(18, 310), _upgrade_weapon)
     _button(layer, "ARMOR +", Vector2(145, 310), _upgrade_armor)
@@ -448,34 +448,34 @@ func _cast_skill(slot: int) -> void:
         hit_count = 1
         result_text = "Restored %d HP" % (state.hp - old_hp)
     elif effect in ["buff_attack", "party_attack"]:
-        var bonus := 0.12 + float(rank) * 0.025 + _passive_party_bonus()
-        var duration := 7.0 + float(rank)
+        var attack_bonus := 0.12 + float(rank) * 0.025 + _passive_party_bonus()
+        var attack_duration := 7.0 + float(rank)
         if effect == "party_attack":
-            _apply_party_combat_buff(bonus, 0.0, 0.0, duration)
-            result_text = "Party attack +%d%%" % int(bonus * 100.0)
+            _apply_party_combat_buff(attack_bonus, 0.0, 0.0, attack_duration)
+            result_text = "Party attack +%d%%" % int(attack_bonus * 100.0)
         else:
-            apply_combat_buff(bonus, 0.0, 0.0, duration)
-            result_text = "Attack +%d%%" % int(bonus * 100.0)
+            apply_combat_buff(attack_bonus, 0.0, 0.0, attack_duration)
+            result_text = "Attack +%d%%" % int(attack_bonus * 100.0)
         hit_count = 1
     elif effect in ["buff_speed", "party_speed"]:
-        var bonus := 0.12 + float(rank) * 0.02 + _passive_party_bonus()
-        var duration := 7.0 + float(rank)
+        var speed_bonus := 0.12 + float(rank) * 0.02 + _passive_party_bonus()
+        var speed_duration := 7.0 + float(rank)
         if effect == "party_speed":
-            _apply_party_combat_buff(0.0, bonus, 0.0, duration)
-            result_text = "Party speed +%d%%" % int(bonus * 100.0)
+            _apply_party_combat_buff(0.0, speed_bonus, 0.0, speed_duration)
+            result_text = "Party speed +%d%%" % int(speed_bonus * 100.0)
         else:
-            apply_combat_buff(0.0, bonus, 0.0, duration)
-            result_text = "Move speed +%d%%" % int(bonus * 100.0)
+            apply_combat_buff(0.0, speed_bonus, 0.0, speed_duration)
+            result_text = "Move speed +%d%%" % int(speed_bonus * 100.0)
         hit_count = 1
     elif effect == "party_guard":
-        var bonus := 0.15 + float(rank) * 0.025 + _passive_party_bonus()
-        _apply_party_combat_buff(0.0, 0.0, bonus, 9.0 + float(rank))
+        var defense_bonus := 0.15 + float(rank) * 0.025 + _passive_party_bonus()
+        _apply_party_combat_buff(0.0, 0.0, defense_bonus, 9.0 + float(rank))
         hit_count = 1
-        result_text = "Party defense +%d%%" % int(bonus * 100.0)
+        result_text = "Party defense +%d%%" % int(defense_bonus * 100.0)
     elif effect == "armor_break":
-        var target_mob := _nearest_mob(range_value)
-        if is_instance_valid(target_mob):
-            target_mob.apply_armor_break(0.2 + float(rank) * 0.035, 8.0 + float(rank))
+        var armor_target := _nearest_mob(range_value)
+        if is_instance_valid(armor_target):
+            armor_target.apply_armor_break(0.2 + float(rank) * 0.035, 8.0 + float(rank))
             hit_count = 1
             result_text = "Enemy armor reduced"
     elif effect in ["area", "ultimate"]:
@@ -488,9 +488,9 @@ func _cast_skill(slot: int) -> void:
                 hit_count += 1
         result_text = "%d enemies hit" % hit_count
     else:
-        var target_mob := _nearest_mob(range_value)
-        if is_instance_valid(target_mob):
-            target_mob.take_damage(damage)
+        var damage_target := _nearest_mob(range_value)
+        if is_instance_valid(damage_target):
+            damage_target.take_damage(damage)
             hit_count = 1
             result_text = "%d damage" % damage
     if hit_count == 0:
@@ -639,11 +639,11 @@ func _open_progression_menu() -> void:
         option.custom_minimum_size = Vector2(150, 44)
         grid.add_child(option)
         if stage == "element":
-            option.pressed.connect(func(): _select_element(choice_index))
+            option.pressed.connect(Callable(self, "_select_element").bind(choice_index))
         elif stage == "path":
-            option.pressed.connect(func(): _select_path(choice_index))
+            option.pressed.connect(Callable(self, "_select_path").bind(choice_index))
         else:
-            option.pressed.connect(func(): _select_specialization(choice_index))
+            option.pressed.connect(Callable(self, "_select_specialization").bind(choice_index))
     var close_button := Button.new()
     close_button.text = "CLOSE"
     close_button.custom_minimum_size = Vector2(90, 36)

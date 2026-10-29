@@ -18,26 +18,30 @@ concurrency:
 jobs:
   export-web:
     runs-on: ubuntu-latest
-    container:
-      image: barichello/godot-ci:4.4.1
+    env:
+      GODOT_BIN: /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install matching Web export templates
+      - name: Install Godot and matching Web templates
         run: |
+          set -eux
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
-          curl -fL --retry 3 -o /tmp/godot-templates.tpz "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"
-          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          curl -fL --retry 3 -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x "$GODOT_BIN"
+          curl -fL --retry 3 -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
           cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
       - name: Import Godot assets
         run: |
           cd godot
-          godot --headless --editor --path . --import
+          "$GODOT_BIN" --headless --editor --path . --import
       - name: Export HTML5
         run: |
           mkdir -p web-build
           cd godot
-          godot --headless --path . --export-release "Web" ../web-build/index.html
+          "$GODOT_BIN" --headless --path . --export-release "Web" ../web-build/index.html
       - name: Verify web build
         run: test -s web-build/index.html
       - name: Upload web export artifact

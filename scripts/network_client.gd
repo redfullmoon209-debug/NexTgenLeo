@@ -39,6 +39,12 @@ func connect_server(address: String) -> void:
 func _open_connection(is_retry: bool) -> void:
 	if not reconnect_enabled or url.is_empty():
 		return
+	# Preserve any offline progress made while the reconnect timer was running.
+	if is_retry:
+		offline_backup.clear()
+		for key in GameState._save_keys():
+			var value = GameState.get(key)
+			offline_backup[key] = value.duplicate(true) if value is Dictionary or value is Array else value
 	socket = WebSocketPeer.new()
 	var error := socket.connect_to_url(url)
 	if error != OK:

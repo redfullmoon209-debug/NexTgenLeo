@@ -1,6 +1,7 @@
 extends Node
 ## Playable offline systems; procedural art is explicitly temporary.
 const ContentRegistry = preload("res://scripts/content_registry.gd")
+const MainNavLayout = preload("res://scripts/main_nav_layout.gd")
 var last_touch_action := -1000
 var world: Node3D
 var network: Node
@@ -1030,8 +1031,13 @@ func _layout() -> void:
 		menu_toggle_button.scale = Vector2.ONE * visual_scale
 		menu_toggle_button.position = Vector2(bounds.end.x - menu_toggle_button.size.x * visual_scale, menu_top) if portrait else Vector2(maxf(6.0, size.x - 243.0), 32.0)
 	if is_instance_valid(owner_gm_button):
-		owner_gm_button.scale = Vector2.ONE * visual_scale
-		owner_gm_button.position = Vector2(bounds.end.x - 2.0 * menu_toggle_button.size.x * visual_scale - 10.0 * visual_scale, menu_top) if portrait else Vector2(maxf(6.0, size.x - 305.0), 32.0)
+		# GM has its own original click/permission logic; visual geometry only.
+		# Slot 0 is shared with Settings slot 1 and the six independent icons.
+		var gm_slot: Rect2 = MainNavLayout.slot(world.get_viewport(), 0)
+		owner_gm_button.scale = Vector2.ONE
+		owner_gm_button.custom_minimum_size = gm_slot.size
+		owner_gm_button.size = gm_slot.size
+		owner_gm_button.position = gm_slot.position
 	if is_instance_valid(dropdown_backdrop):
 		dropdown_backdrop.position = Vector2.ZERO
 		dropdown_backdrop.size = size

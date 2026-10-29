@@ -65,8 +65,8 @@ async function closeBag(page) {
       throw Error('Settings component did not initialize: '+JSON.stringify(settingsReady));
     if(settingsReady.native_caption !== 'ตั้งค่า')
       throw Error('Closed Settings must have a native, localizable caption over blank illustrated plate: '+JSON.stringify(settingsReady));
-    if(settingsReady.header[0] + settingsReady.header[2] >= start.gm_button_rect[0])
-      throw Error('Closed Settings gear overlaps the original GM button');
+    if(start.gm_button_rect[0] + start.gm_button_rect[2] > settingsReady.header[0] + 2)
+      throw Error('GM must be left of Settings with no overlap: '+JSON.stringify({gm:start.gm_button_rect,settings:settingsReady.header}));
     await clickGodot(page, [settingsReady.header[0] + settingsReady.header[2]/2,
                              settingsReady.header[1] + settingsReady.header[3]/2]);
     await page.waitForFunction(() => window.leoSettingsRich?.open === true,null,{timeout:6000});
@@ -93,6 +93,18 @@ async function closeBag(page) {
     if(!navStart || requiredIcons.some(id => !navStart.buttons[id]) || !navStart.legacy_menu_hidden)
       throw Error('Rich main icons or legacy hamburger replacement missing: '+JSON.stringify(navStart));
     await page.waitForFunction(() => window.leoMainRichNav?.native_grid && window.leoMainRichNav.buttons.Bag[2] >= 70, null, {timeout:10000});
+    // Eight distinct original artworks and eight real clickable buttons: ONE identical Y.
+    const rowCheck = await page.evaluate(() => window.leoMainRichNav);
+    if(!rowCheck.standalone_art || !rowCheck.same_row || rowCheck.all_slots.length !== 8)
+      throw Error('Shared eight-icon row missing: '+JSON.stringify(rowCheck));
+    const inOrder=[start.gm_button_rect,settingsReady.header,...['Bag','Menu','Guild','Party','Friends','Notice'].map(k=>rowCheck.buttons[k])];
+    for(let i=0;i<inOrder.length;i++){
+      const r=inOrder[i];
+      if(Math.abs(r[1]-inOrder[0][1])>2 || Math.abs(r[3]-inOrder[0][3])>2)
+        throw Error('Eight main buttons must share the SAME vertical level/height: '+JSON.stringify(inOrder));
+      if(i>0 && r[0]<inOrder[i-1][0]+inOrder[i-1][2]-2)
+        throw Error('Main icons overlap or are not ordered GM,Settings,Bag,Menu,Guild,Party,Friends,Notice: '+JSON.stringify(inOrder));
+    }
     const nativeCaptions = await page.evaluate(() => window.leoMainRichNav.caption_texts);
     const navRectangles = await page.evaluate(() => window.leoMainRichNav.buttons);
     const overlaps = (a,b) => a[0] < b[0]+b[2] && a[0]+a[2] > b[0] && a[1] < b[1]+b[3] && a[1]+a[3] > b[1];
@@ -102,10 +114,20 @@ async function closeBag(page) {
     }
     for(const [id, expected] of Object.entries({Bag:'กระเป๋า',Menu:'เมนู',Guild:'กิลด์',Party:'ปาร์ตี้',Friends:'เพื่อน',Notice:'ประกาศ'}))
       if(nativeCaptions[id] !== expected) throw Error('Native Godot label missing: '+id+' '+JSON.stringify(nativeCaptions));
-    // The artwork is per-icon PNG (including a blank nameplate), not six hardcoded title sprites.
+    // Independent original PNG assets, all with transparent background and native text overlays.
     const fs = require('fs');
-    for(const asset of ['gm','settings','bag','menu','guild','party','friends','notice'])
-      if(!fs.existsSync('assets/ui/main_nav/illustrated/'+asset+'.png')) throw Error('Illustrated asset missing: '+asset);
+    const srcHashes = new Set();
+    for(const asset of ['gm','settings','bag','menu','guild','party','friends','notice']) {
+      const p='assets/ui/main_nav/standalone/'+asset+'.png';
+      if(!fs.existsSync(p))throw Error('Standalone icon missing: '+p);
+      const bytes=fs.readFileSync(p);
+      const png=PNG.sync.read(bytes);
+      if(png.data[3]>5 || png.width!==320 || png.height!==320)
+        throw Error('Each independent standalone icon must have 320x320 transparent PNG backing: '+p);
+      const hash=require('crypto').createHash('sha256').update(bytes).digest('hex');
+      if(srcHashes.has(hash))throw Error('Two buttons share a duplicated/cropped sprite: '+p);
+      srcHashes.add(hash);
+    }
     const pressIcon = async id => {
       const state = await page.evaluate(() => window.leoMainRichNav);
       const r = state.buttons[id];
@@ -231,6 +253,10 @@ async function closeBag(page) {
     await portraitPage.waitForFunction(()=>window.leoMainRichNav?.native_grid && window.leoMainRichNav.buttons.Bag[2] > 0,null,{timeout:15000});
     const portraitNav = await portraitPage.evaluate(()=>window.leoMainRichNav);
     const portraitDiag = await diagnostics(portraitPage);
+    const portraitSettings = await portraitPage.evaluate(()=>window.leoSettingsRich);
+    const sameY=[portraitDiag.gm_button_rect,portraitSettings.header,...['Bag','Menu','Guild','Party','Friends','Notice'].map(k=>portraitNav.buttons[k])];
+    if(sameY.some(r=>Math.abs(r[1]-sameY[0][1])>3))
+      throw Error('Portrait eight-button nav must stay on one horizontal level: '+JSON.stringify(sameY));
     const mobileIconWidth = portraitNav.buttons.Bag[2] * portraitDiag.screen_size[0] / portraitDiag.viewport_size[0];
     if (mobileIconWidth < 35 || mobileIconWidth > 95)
       throw Error('New main icon must be touch-sized on portrait phones: '+JSON.stringify({mobileIconWidth,portraitNav,portraitDiag}));

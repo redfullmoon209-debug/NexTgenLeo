@@ -1,10 +1,11 @@
 extends CanvasLayer
 ## Six new standalone icon buttons (3-8) + two rich lists, matching Settings.
 ## GM (1) and Settings (2) preserve their original actions and menus.
-## All source icons are independent SVG assets; labels stay editable Thai text.
+## All eight standalone icons are independent artworks, never cut from a sprite sheet.
 
 const ICON_PATH := "res://assets/ui/main_nav/icons/%s.svg"
-const PRIMARY_ICON_PATH := "res://assets/ui/main_nav/illustrated/%s.png"
+const PRIMARY_ICON_PATH := "res://assets/ui/main_nav/standalone/%s.png"
+const MainNavLayout = preload("res://scripts/main_nav_layout.gd")
 const PRIMARY_ASSET_NAMES := {"Bag":"bag","Menu":"menu","Guild":"guild","Party":"party","Friends":"friends","Notice":"notice"}
 const MainNavLocale = preload("res://scripts/main_nav_locale.gd")
 const NAV_IDS := ["Bag", "Menu", "Guild", "Party", "Friends", "Notice"]
@@ -133,8 +134,8 @@ func _create_main_icon(menu_id: String) -> void:
 	var caption := Label.new()
 	caption.name = "GridCaption"
 	caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	caption.anchor_top = 0.77
-	caption.anchor_bottom = 0.958
+	caption.anchor_top = 0.60
+	caption.anchor_bottom = 0.82
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -152,8 +153,8 @@ func _restyle_gm_icon() -> void:
 	var gm_button: Button = gameplay.owner_gm_button
 	# GM permission checks, authenticated routes and inner GM menu are unchanged.
 	_no_backing(gm_button)
-	gm_button.custom_minimum_size = Vector2(82, 102)
-	gm_button.size = Vector2(82, 102)
+	gm_button.custom_minimum_size = Vector2.ZERO
+	gm_button.size = MainNavLayout.slot(get_viewport(), 0).size
 	var art := TextureRect.new()
 	art.name = "GM_IllustrationAndBlankBase"
 	art.texture = load(PRIMARY_ICON_PATH % "gm")
@@ -168,8 +169,8 @@ func _restyle_gm_icon() -> void:
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caption.anchor_left = 0.0
 	caption.anchor_right = 1.0
-	caption.anchor_top = 0.77
-	caption.anchor_bottom = 0.958
+	caption.anchor_top = 0.60
+	caption.anchor_bottom = 0.82
 	caption.add_theme_font_size_override("font_size", 13)
 	caption.add_theme_color_override("font_color", Color.WHITE)
 	caption.add_theme_color_override("font_outline_color", Color("#020711"))
@@ -534,45 +535,51 @@ func _process(_delta: float) -> void:
 
 func _responsive() -> void:
 	var view: Vector2 = get_viewport().get_visible_rect().size
+	var slots: Array[Rect2] = MainNavLayout.slots(get_viewport())
 	var portrait: bool = view.y > view.x
-	var wide: bool = view.x >= 1160.0 and not portrait
 	var responsive = load("res://scripts/responsive_ui.gd")
 	var bounds: Rect2 = responsive.safe_bounds(get_viewport())
 	var touch_scale: float = responsive.input_scale(bounds, float(GameState.settings.get("ui_scale", 1.0))) if portrait else 1.0
-	var columns: int = 6 if wide else 3
-	# Preserve the high-detail icon AND its blank label plate's 256:314 aspect ratio.
-	# Mobile fonts are rendered at their native canvas size; no blurry container scaling.
-	var icon_width: float = (54.0 if portrait else (86.0 if wide else 74.0)) * touch_scale
-	var icon_height: float = icon_width * 314.0 / 256.0
-	var gap: float = (9.0 if wide else 8.0) * touch_scale
-	var right_edge: float = view.x - (180.0 if wide else (10.0 if portrait else 175.0)) * touch_scale
-	var first_y: float = (265.0 * touch_scale) if portrait else 149.0
-	var row_count: int = int(ceil(float(NAV_IDS.size()) / float(columns)))
-	var total_width: float = float(columns) * icon_width + float(columns - 1) * gap
-	var total_height: float = float(row_count) * icon_height + float(row_count - 1) * gap
-	var left_x: float = maxf(8.0 * touch_scale, right_edge - total_width)
-	nav_grid.columns = columns
+	var icon_width: float = slots[2].size.x
+	var gap: float = slots[3].position.x - slots[2].end.x
+	# One row of six new buttons occupies slots 2..7.
+	# The original GM and Settings nodes use the same geometry for slots 0..1.
+	nav_grid.columns = 6
 	nav_grid.add_theme_constant_override("h_separation", roundi(gap))
-	nav_grid.add_theme_constant_override("v_separation", roundi(gap))
-	nav_grid.position = Vector2(left_x, first_y)
-	nav_grid.size = Vector2(total_width, total_height)
-	for menu_id in NAV_IDS:
+	nav_grid.add_theme_constant_override("v_separation", 0)
+	nav_grid.position = slots[2].position
+	nav_grid.size = Vector2(slots[7].end.x - slots[2].position.x, slots[2].size.y)
+	for i in range(NAV_IDS.size()):
+		var menu_id: String = str(NAV_IDS[i])
+		var slot_rect: Rect2 = slots[i + 2]
 		var button: Button = nav_buttons[menu_id]
-		button.custom_minimum_size = Vector2(icon_width, icon_height)
-		button.size = Vector2(icon_width, icon_height)
+		button.custom_minimum_size = slot_rect.size
+		button.size = slot_rect.size
 		var caption: Label = nav_labels[menu_id]
-		caption.add_theme_font_size_override("font_size", roundi(14.0 * touch_scale))
+		var txt: String = caption.text
+		var factor: float = 0.225 if txt.length() > 6 else 0.28
+		caption.add_theme_font_size_override("font_size", roundi(clampf(icon_width * factor, 10.0 * touch_scale, 23.0 * touch_scale)))
 		caption.add_theme_constant_override("outline_size", maxi(2, roundi(3.0 * touch_scale)))
 	nav_grid.queue_sort()
+	# The GM original click/permission code is unchanged.
+	if is_instance_valid(gameplay) and is_instance_valid(gameplay.owner_gm_button):
+		var gm_button: Button = gameplay.owner_gm_button
+		gm_button.scale = Vector2.ONE
+		gm_button.custom_minimum_size = slots[0].size
+		gm_button.position = slots[0].position
+		gm_button.size = slots[0].size
+		var gm_caption: Label = gm_button.get_node_or_null("GM_Caption")
+		if is_instance_valid(gm_caption):
+			gm_caption.add_theme_font_size_override("font_size", roundi(clampf(icon_width * 0.28, 10.0 * touch_scale, 23.0 * touch_scale)))
 	if not current_menu.is_empty():
-		var menu_y: float = first_y + total_height + 5.0 * touch_scale
+		var menu_y: float = slots[2].end.y + 5.0 * touch_scale
 		var item_count: int = row_buttons.size()
 		var needed_height: float = 66.0 + 6.0 + 2.0 * 9.0 + float(item_count) * 55.0 + float(maxi(0, item_count - 1)) * 3.0 + (45.0 if current_menu not in ["Bag", "Menu"] else 0.0)
 		_scale_menu_contents(touch_scale)
 		var menu_width: float = minf(548.0 * touch_scale, view.x - 20.0 * touch_scale)
 		var max_height: float = maxf(140.0 * touch_scale, view.y - menu_y - 10.0 * touch_scale)
 		var min_left: float = 10.0 * touch_scale
-		var desired_left: float = right_edge - menu_width
+		var desired_left: float = slots[7].end.x - menu_width
 		var max_left: float = maxf(min_left, view.x - menu_width - min_left)
 		menu_panel.position = Vector2(clampf(desired_left, min_left, max_left), menu_y)
 		menu_panel.size = Vector2(menu_width, minf(needed_height * touch_scale, max_height))
@@ -591,7 +598,10 @@ func _update_web_diagnostics() -> void:
 	var area: Rect2 = menu_panel.get_global_rect()
 	var data := {
 		"buttons": rectangles,
+		"all_slots": MainNavLayout.slots(get_viewport()).map(func(r: Rect2): return [r.position.x, r.position.y, r.size.x, r.size.y]),
 		"caption_texts": caption_texts,
+		"standalone_art": true,
+		"same_row": true,
 		"locale": current_locale,
 		"native_grid": nav_grid is GridContainer,
 		"open": not current_menu.is_empty(),

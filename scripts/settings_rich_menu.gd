@@ -1,5 +1,6 @@
 extends CanvasLayer
 const MainNavLocale = preload("res://scripts/main_nav_locale.gd")
+const MainNavLayout = preload("res://scripts/main_nav_layout.gd")
 ## Isolated, four-component Settings Rich Menu. No image crops or gameplay changes.
 ## Independent layers: SVG icons / editable Thai Labels / gold background Panel / frame Panel.
 const TITLES := ["กราฟิกและหน้าจอ", "เสียง", "การควบคุม", "จัดตำแหน่ง HUD", "ตั้งค่า Auto Hunt", "ตั้งค่า Auto Potion", "การแจ้งเตือน", "ภาษา", "บัญชีและความปลอดภัย", "ออกจากเกม"]
@@ -41,7 +42,7 @@ func _ready() -> void:
 	toggle.add_child(header_content)
 	closed_gear = TextureRect.new()
 	closed_gear.name = "PrimarySettingsIllustration"
-	closed_gear.texture = load("res://assets/ui/main_nav/illustrated/settings.png")
+	closed_gear.texture = load("res://assets/ui/main_nav/standalone/settings.png")
 	closed_gear.custom_minimum_size = Vector2(83, 102)
 	closed_gear.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	closed_gear.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -69,8 +70,8 @@ func _ready() -> void:
 	closed_caption.name = "NativeSettingsCaption"
 	closed_caption.text = MainNavLocale.label_for("Settings", str(GameState.settings.get("language", "th")))
 	closed_caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	closed_caption.anchor_top = 0.77
-	closed_caption.anchor_bottom = 0.958
+	closed_caption.anchor_top = 0.60
+	closed_caption.anchor_bottom = 0.82
 	closed_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	closed_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	closed_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -250,8 +251,7 @@ func _responsive() -> void:
 	var menu_width := minf(560.0, viewport_size.x - 20.0)
 	# Collapsed gear occupies only its OWN small button, not the GM / menu buttons.
 	# 1280px: x=892..964, GM starts at x=975. All other HUD remains untouched.
-	var collapsed_right := -316.0 if is_wide else -12.0
-	var collapsed_top := 12.0 if is_wide else 180.0
+	var closed_slot: Rect2 = MainNavLayout.slot(get_viewport(), 1)
 	var open_right := -180.0 if is_wide else -10.0
 	var menu_top := 12.0 if is_wide else 10.0
 	# Closed: show ONLY the blue gear. Remove the yellow/gold background and borders.
@@ -265,18 +265,20 @@ func _responsive() -> void:
 	header_content.alignment = BoxContainer.ALIGNMENT_BEGIN if panel.visible else BoxContainer.ALIGNMENT_CENTER
 	# Only the COLLAPSED main-button art changes; the approved gold dropdown stays intact.
 	closed_caption.visible = not panel.visible
-	closed_gear.texture = load("res://assets/ui/settings/icons/gear.svg") if panel.visible else load("res://assets/ui/main_nav/illustrated/settings.png")
-	closed_gear.custom_minimum_size = Vector2(48, 48) if panel.visible else Vector2(83, 102)
+	closed_gear.texture = load("res://assets/ui/settings/icons/gear.svg") if panel.visible else load("res://assets/ui/main_nav/standalone/settings.png")
+	closed_gear.custom_minimum_size = Vector2(48, 48) if panel.visible else closed_slot.size
 	if panel.visible:
 		toggle.offset_left = open_right - menu_width
 		toggle.offset_right = open_right
 		toggle.offset_top = menu_top
 		toggle.offset_bottom = menu_top + header_height
 	else:
-		toggle.offset_left = collapsed_right - 86.0
-		toggle.offset_right = collapsed_right
-		toggle.offset_top = collapsed_top
-		toggle.offset_bottom = collapsed_top + 104.0
+		# Slot 1 has the same Y and size as GM and the six navigation icons.
+		toggle.offset_left = closed_slot.position.x - viewport_size.x
+		toggle.offset_right = closed_slot.end.x - viewport_size.x
+		toggle.offset_top = closed_slot.position.y
+		toggle.offset_bottom = closed_slot.end.y
+		closed_caption.add_theme_font_size_override("font_size", roundi(clampf(closed_slot.size.x * 0.28, 10.0, 23.0)))
 	panel.offset_left = open_right - menu_width
 	panel.offset_right = open_right
 	panel.offset_top = menu_top + header_height + 4.0

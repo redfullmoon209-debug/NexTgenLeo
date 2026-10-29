@@ -29,7 +29,8 @@ func run() -> void:
 	client.url = "wss://example.invalid"
 	client.reconnect_enabled = true
 	client.is_gm = true
-	client.active = true
+	# Exercise reconnect scheduling without invoking the gameplay scene restoration path.
+	client.active = false
 	var delays := [1.0, 2.0, 4.0, 8.0, 15.0]
 	for i in range(delays.size()):
 		client._handle_connection_loss("test")

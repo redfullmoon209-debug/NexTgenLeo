@@ -94,7 +94,7 @@ func run() -> void:
 	var inventory_before: int = state.inventory.size()
 	check(state.select_job("wind_assassin") and state.equipped.weapon.enhancement == 3, "repeat profession preserves equipment")
 	check(state.inventory.size() == inventory_before, "repeat profession never duplicates equipment")
-	check(not state.set_skill_slot(0,1), "Class 5 fixed loadout")
+	check(state.set_skill_slot(0,1), "Class 5 profession hotbar can select unlocked active skills")
 	check(not state.select_element("Water"), "element locked to profession")
 	check(not state.select_faction("Light"), "faction locked before Class 7")
 	state.class_rank = 7

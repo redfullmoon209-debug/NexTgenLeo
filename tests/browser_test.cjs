@@ -58,35 +58,25 @@ async function closeBag(page) {
     const start = await diagnostics(page);
     if (!start.hud_status_rect || !start.hud_quest_rect || !start.gm_button_visible)
       throw Error('Existing gameplay HUD or offline GM control missing');
-    // Settings-only acceptance: verify the header is separate from the GM button,
-    // opens 10 actual Godot rows, renders golden fill, and collapses again.
-    const settingsReady = await page.evaluate(() => window.leoSettingsRich);
-    if(!settingsReady || settingsReady.open || settingsReady.rows !== 10)
-      throw Error('Settings component did not initialize: '+JSON.stringify(settingsReady));
-    if(settingsReady.native_caption !== 'ตั้งค่า')
-      throw Error('Closed Settings must have a native, localizable caption over blank illustrated plate: '+JSON.stringify(settingsReady));
-    if(start.gm_button_rect[0] + start.gm_button_rect[2] > settingsReady.header[0] + 2)
-      throw Error('GM must be left of Settings with no overlap: '+JSON.stringify({gm:start.gm_button_rect,settings:settingsReady.header}));
-    await clickGodot(page, [settingsReady.header[0] + settingsReady.header[2]/2,
-                             settingsReady.header[1] + settingsReady.header[3]/2]);
-    await page.waitForFunction(() => window.leoSettingsRich?.open === true,null,{timeout:6000});
-    const openedSettings = await page.evaluate(() => window.leoSettingsRich);
-    if(openedSettings.panel[1] < openedSettings.header[1] + openedSettings.header[3] - 2)
-      throw Error('Settings rows do not drop underneath the gear header');
-    await page.waitForTimeout(300);
-    const settingsCapture = PNG.sync.read(await page.screenshot({path:'build/leo-settings-rich-desktop.png'}));
-    const sample = (x,y) => {
-      const pixel = (Math.round(y) * settingsCapture.width + Math.round(x)) * 4;
-      return [...settingsCapture.data.slice(pixel,pixel+3)];
-    };
-    const goldSamples = [[openedSettings.panel[0]+openedSettings.panel[2]-80,openedSettings.panel[1]+30],
-                         [openedSettings.panel[0]+openedSettings.panel[2]-80,openedSettings.panel[1]+88]];
-    const goldPixels = goldSamples.map(([x,y])=>sample(x,y));
-    if(!goldPixels.some(([r,g,b])=>r>155 && g>80 && b<140))
-      throw Error('Settings does not render a gold background layer: '+JSON.stringify({openedSettings,goldPixels}));
-    await clickGodot(page,[openedSettings.header[0] + openedSettings.header[2]/2,
-                           openedSettings.header[1] + openedSettings.header[3]/2]);
-    await page.waitForFunction(() => window.leoSettingsRich?.open === false,null,{timeout:6000});
+    // Toolbar slot 2 is now CHARACTER STATUS (not Settings).
+    // The independent PNG has a native Godot caption, and the Status click
+    // opens the existing 3D character / equipment / 200-slot Bag workspace.
+    const statusReady = await page.evaluate(() => window.leoSettingsRich);
+    if(!statusReady || statusReady.open || statusReady.native_caption !== 'ตัวละคร' || statusReady.icon_role !== 'Status')
+      throw Error('Status shortcut did not initialize: '+JSON.stringify(statusReady));
+    if(start.gm_button_rect[0] + start.gm_button_rect[2] > statusReady.header[0] + 2)
+      throw Error('GM and Character Status shortcut overlap: '+JSON.stringify({gm:start.gm_button_rect,status:statusReady.header}));
+    await clickGodot(page, [statusReady.header[0] + statusReady.header[2]/2,
+                             statusReady.header[1] + statusReady.header[3]/2]);
+    await page.waitForFunction(() => window.leoDiagnostics?.silver?.open === true, null, {timeout:15000});
+    await page.waitForFunction(() => window.leoSettingsRich?.icon_visible === false &&
+      window.leoMainRichNav?.gm_icon_visible === false &&
+      window.leoMainRichNav?.icons_visible === false, null, {timeout:10000});
+    await page.screenshot({path:'build/leo-status-quick-open.png'});
+    await closeBag(page);
+    await page.waitForFunction(() => window.leoSettingsRich?.icon_visible === true &&
+      window.leoMainRichNav?.gm_icon_visible === true &&
+      window.leoMainRichNav?.icons_visible === true, null, {timeout:10000});
     // Eight-button nav: illustrated transparent PNGs with native Godot GridContainer Label overlays.
     const navStart = await page.evaluate(() => window.leoMainRichNav);
     const requiredIcons = ['Bag','Menu','Guild','Party','Friends','Notice'];
@@ -97,27 +87,27 @@ async function closeBag(page) {
     const rowCheck = await page.evaluate(() => window.leoMainRichNav);
     if(!rowCheck.standalone_art || !rowCheck.same_row || rowCheck.all_slots.length !== 8)
       throw Error('Shared eight-icon row missing: '+JSON.stringify(rowCheck));
-    const inOrder=[start.gm_button_rect,settingsReady.header,...['Bag','Menu','Guild','Party','Friends','Notice'].map(k=>rowCheck.buttons[k])];
+    const inOrder=[start.gm_button_rect,statusReady.header,...['Bag','Menu','Guild','Party','Friends','Notice'].map(k=>rowCheck.buttons[k])];
     for(let i=0;i<inOrder.length;i++){
       const r=inOrder[i];
       if(Math.abs(r[1]-inOrder[0][1])>2 || Math.abs(r[3]-inOrder[0][3])>2)
         throw Error('Eight main buttons must share the SAME vertical level/height: '+JSON.stringify(inOrder));
       if(i>0 && r[0]<inOrder[i-1][0]+inOrder[i-1][2]-2)
-        throw Error('Main icons overlap or are not ordered GM,Settings,Bag,Menu,Guild,Party,Friends,Notice: '+JSON.stringify(inOrder));
+        throw Error('Main icons overlap or are not ordered GM,Character,Bag,Menu,Guild,Party,Friends,Notice: '+JSON.stringify(inOrder));
     }
     const nativeCaptions = await page.evaluate(() => window.leoMainRichNav.caption_texts);
     const navRectangles = await page.evaluate(() => window.leoMainRichNav.buttons);
     const overlaps = (a,b) => a[0] < b[0]+b[2] && a[0]+a[2] > b[0] && a[1] < b[1]+b[3] && a[1]+a[3] > b[1];
     for(const [name, rect] of Object.entries(navRectangles)) {
-      if(overlaps(rect,start.gm_button_rect) || overlaps(rect,settingsReady.header))
-        throw Error('Illustrated main icon overlaps protected GM/Settings: '+name+' '+JSON.stringify({rect,gm:start.gm_button_rect,settings:settingsReady.header}));
+      if(overlaps(rect,start.gm_button_rect) || overlaps(rect,statusReady.header))
+        throw Error('Illustrated main icon overlaps GM/Character: '+name+' '+JSON.stringify({rect,gm:start.gm_button_rect,status:statusReady.header}));
     }
     for(const [id, expected] of Object.entries({Bag:'กระเป๋า',Menu:'เมนู',Guild:'กิลด์',Party:'ปาร์ตี้',Friends:'เพื่อน',Notice:'ประกาศ'}))
       if(nativeCaptions[id] !== expected) throw Error('Native Godot label missing: '+id+' '+JSON.stringify(nativeCaptions));
     // Independent original PNG assets, all with transparent background and native text overlays.
     const fs = require('fs');
     const srcHashes = new Set();
-    for(const asset of ['gm','settings','bag','menu','guild','party','friends','notice']) {
+    for(const asset of ['gm','status','bag','menu','guild','party','friends','notice']) {
       const p='assets/ui/main_nav/standalone/'+asset+'.png';
       if(!fs.existsSync(p))throw Error('Standalone icon missing: '+p);
       const bytes=fs.readFileSync(p);
@@ -143,8 +133,33 @@ async function closeBag(page) {
     await page.screenshot({path:'build/leo-bag-rich-desktop.png'});
     await pressIcon('Menu');
     let mainNav = await page.evaluate(() => window.leoMainRichNav);
-    if(mainNav.rows !== 5 || JSON.stringify(mainNav.items) !== JSON.stringify(['World','Warp','Quest','Auto','Connect']))
-      throw Error('Main menu must preserve map, warp, quest, auto-hunt, connect: '+JSON.stringify(mainNav));
+    if(mainNav.rows !== 6 || JSON.stringify(mainNav.items) !== JSON.stringify(['World','Warp','Quest','Auto','Connect','Settings']))
+      throw Error('Main menu must preserve map, warp, quest, auto-hunt, connect, settings: '+JSON.stringify(mainNav));
+
+    // Opening a rich dropdown must move both high-layer icons behind it.
+    await page.waitForFunction(() => window.leoSettingsRich?.icon_visible === false &&
+      window.leoMainRichNav?.gm_icon_visible === false, null, {timeout:10000});
+    await page.waitForFunction(() => window.leoMainRichNav?.row_rects?.length === 6, null, {timeout:10000});
+    const settingsRow = (await page.evaluate(() => window.leoMainRichNav)).row_rects[5];
+    await clickGodot(page,[settingsRow[0]+settingsRow[2]/2,settingsRow[1]+settingsRow[3]/2]);
+    await page.waitForFunction(() => window.leoSettingsRich?.open === true,null,{timeout:10000});
+    const openedSettings = await page.evaluate(() => window.leoSettingsRich);
+    if (openedSettings.rows !== 10 || !openedSettings.settings_available)
+      throw Error('Existing rich Settings submenu was lost: '+JSON.stringify(openedSettings));
+    if(openedSettings.panel[1] < openedSettings.header[1] + openedSettings.header[3] - 2)
+      throw Error('Settings rows do not drop underneath the header');
+    const settingsCapture = PNG.sync.read(await page.screenshot({path:'build/leo-settings-rich-desktop.png'}));
+    const sample = (x,y) => {
+      const pixel = (Math.round(y) * settingsCapture.width + Math.round(x)) * 4;
+      return [...settingsCapture.data.slice(pixel,pixel+3)];
+    };
+    const goldSamples = [[openedSettings.panel[0]+openedSettings.panel[2]-80,openedSettings.panel[1]+30],
+                         [openedSettings.panel[0]+openedSettings.panel[2]-80,openedSettings.panel[1]+88]];
+    if(!goldSamples.map(([x,y])=>sample(x,y)).some(([r,g,b])=>r>155 && g>80 && b<140))
+      throw Error('Settings submenu lost its golden layers');
+    await clickGodot(page,[openedSettings.header[0] + openedSettings.header[2]/2,
+                           openedSettings.header[1] + openedSettings.header[3]/2]);
+    await page.waitForFunction(() => window.leoSettingsRich?.open === false,null,{timeout:10000});
     await page.screenshot({path:'build/leo-main-menu-rich-desktop.png'});
     for(const [name, count] of [['Guild',3],['Party',2],['Friends',2],['Notice',2]]) {
       await pressIcon(name);

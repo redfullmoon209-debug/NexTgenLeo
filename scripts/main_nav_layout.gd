@@ -1,6 +1,6 @@
 extends RefCounted
 ## Shared geometry for ALL eight independent top-level buttons.
-## 0 GM, 1 Settings, 2 Bag, 3 Menu, 4 Guild, 5 Party, 6 Friends, 7 Notice.
+## 0 GM, 1 Character Status, 2 Bag, 3 Menu, 4 Guild, 5 Party, 6 Friends, 7 Notice.
 ## Every slot is at exactly the same Y, including on portrait mobile.
 const Responsive = preload("res://scripts/responsive_ui.gd")
 const COUNT := 8

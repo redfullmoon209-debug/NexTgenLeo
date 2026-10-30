@@ -1,10 +1,11 @@
 extends CanvasLayer
 const MainNavLocale = preload("res://scripts/main_nav_locale.gd")
 const MainNavLayout = preload("res://scripts/main_nav_layout.gd")
-## Isolated, four-component Settings Rich Menu. No image crops or gameplay changes.
+## Character Status quick icon in slot 2; preserve the existing Settings panel through Main Menu.
 ## Independent layers: SVG icons / editable Thai Labels / gold background Panel / frame Panel.
 const TITLES := ["กราฟิกและหน้าจอ", "เสียง", "การควบคุม", "จัดตำแหน่ง HUD", "ตั้งค่า Auto Hunt", "ตั้งค่า Auto Potion", "การแจ้งเตือน", "ภาษา", "บัญชีและความปลอดภัย", "ออกจากเกม"]
 const ICON_FILES := ["graphics", "audio", "controls", "hud", "auto_hunt", "auto_potion", "notifications", "language", "security", "exit"]
+var gameplay: Node
 var panel: PanelContainer
 var toggle: Button
 var header_title: Label
@@ -15,6 +16,7 @@ var closed_caption: Label
 var list: VBoxContainer
 
 func _ready() -> void:
+	name = "CharacterStatusQuickAction"
 	layer = 30
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -26,7 +28,7 @@ func _ready() -> void:
 	# One top header: gear lives INSIDE the gold frame; rows drop directly below.
 	toggle = Button.new()
 	toggle.text = ""
-	toggle.tooltip_text = ""
+	toggle.tooltip_text = "ตัวละครและอุปกรณ์"
 	toggle.anchor_left = 1.0
 	toggle.anchor_right = 1.0
 	toggle.anchor_top = 0.0
@@ -41,8 +43,8 @@ func _ready() -> void:
 	header_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toggle.add_child(header_content)
 	closed_gear = TextureRect.new()
-	closed_gear.name = "PrimarySettingsIllustration"
-	closed_gear.texture = load("res://assets/ui/main_nav/standalone/settings.png")
+	closed_gear.name = "PrimaryCharacterStatusIllustration"
+	closed_gear.texture = load("res://assets/ui/main_nav/standalone/status.png")
 	closed_gear.custom_minimum_size = Vector2(83, 102)
 	closed_gear.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	closed_gear.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -67,8 +69,8 @@ func _ready() -> void:
 	header_content.add_child(header_arrow)
 	# The attached navy nameplate belongs to the PNG, but this text stays native.
 	closed_caption = Label.new()
-	closed_caption.name = "NativeSettingsCaption"
-	closed_caption.text = MainNavLocale.label_for("Settings", str(GameState.settings.get("language", "th")))
+	closed_caption.name = "NativeStatusCaption"
+	closed_caption.text = MainNavLocale.label_for("Status", str(GameState.settings.get("language", "th")))
 	closed_caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	closed_caption.anchor_top = 0.60
 	closed_caption.anchor_bottom = 0.82
@@ -206,28 +208,62 @@ func _add_row(index: int) -> void:
 	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	contents.add_child(arrow)
 
+func _game_modal_open() -> bool:
+	if not is_instance_valid(gameplay):
+		return false
+	return (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
+
+func _navigation_open() -> bool:
+	var nav: Node = get_parent().get_node_or_null("NexTgenLeoEightMainButtons")
+	return is_instance_valid(nav) and not str(nav.get("current_menu")).is_empty()
+
 func _process(_delta: float) -> void:
-	# A locale switch only replaces Label text, never re-generates the PNG asset.
-	var label_text: String = MainNavLocale.label_for("Settings", str(GameState.settings.get("language", "th")))
+	# Always keep the icon and its localized caption independent from the art.
+	var label_text: String = MainNavLocale.label_for("Status", str(GameState.settings.get("language", "th")))
 	if closed_caption.text != label_text:
 		closed_caption.text = label_text
+	var obstructed: bool = _game_modal_open() or _navigation_open()
+	# Slot two belongs BEHIND every game modal / main dropdown. Hiding it here
+	# prevents the upper CanvasLayer from leaking onto the live portrait.
+	if obstructed and panel.visible:
+		_toggle()
+	if toggle.visible == obstructed:
+		toggle.visible = not obstructed
+		_update_web_diagnostics()
 
 func _input(event: InputEvent) -> void:
-	# Scoped click/touch hit area only. No fullscreen interception and no HUD changes.
 	var point := Vector2.INF
 	if event is InputEventMouseButton:
 		if not event.pressed or event.button_index != MOUSE_BUTTON_LEFT:
 			return
 		point = event.position
 	elif event is InputEventScreenTouch:
-		if not event.pressed:
+		if not event.pressed or event.index >= 2:
 			return
 		point = event.position
 	else:
 		return
-	if toggle.get_global_rect().has_point(point):
+	if not toggle.is_visible_in_tree() or not toggle.get_global_rect().has_point(point):
+		return
+	if panel.visible:
 		_toggle()
-		get_viewport().set_input_as_handled()
+	else:
+		_open_character_status()
+	get_viewport().set_input_as_handled()
+
+func _open_character_status() -> void:
+	if is_instance_valid(gameplay):
+		# The combined Bag/Status workspace contains the live character,
+		# equipment paper-doll slots and the actual player status.
+		gameplay._show_panel("Bag")
+
+func open_settings_menu() -> void:
+	# Settings remains reachable from Menu > Settings after slot 2 becomes
+	# the faster Character Status entry. Keep the existing ten settings rows.
+	if _game_modal_open():
+		return
+	if not panel.visible:
+		_toggle()
 
 func _toggle() -> void:
 	panel.visible = not panel.visible
@@ -241,7 +277,7 @@ func _update_web_diagnostics() -> void:
 		return
 	var r := toggle.get_global_rect()
 	var p := panel.get_global_rect()
-	var data := {"open": panel.visible, "header": [r.position.x, r.position.y, r.size.x, r.size.y], "panel": [p.position.x, p.position.y, p.size.x, p.size.y], "rows": list.get_child_count(), "native_caption": closed_caption.text}
+	var data := {"open": panel.visible, "header": [r.position.x, r.position.y, r.size.x, r.size.y], "panel": [p.position.x, p.position.y, p.size.x, p.size.y], "rows": list.get_child_count(), "native_caption": closed_caption.text, "icon_role":"Status", "icon_visible":toggle.visible, "settings_available":true}
 	JavaScriptBridge.eval("window.leoSettingsRich = " + JSON.stringify(data), true)
 
 func _responsive() -> void:
@@ -265,7 +301,7 @@ func _responsive() -> void:
 	header_content.alignment = BoxContainer.ALIGNMENT_BEGIN if panel.visible else BoxContainer.ALIGNMENT_CENTER
 	# Only the COLLAPSED main-button art changes; the approved gold dropdown stays intact.
 	closed_caption.visible = not panel.visible
-	closed_gear.texture = load("res://assets/ui/settings/icons/gear.svg") if panel.visible else load("res://assets/ui/main_nav/standalone/settings.png")
+	closed_gear.texture = load("res://assets/ui/settings/icons/gear.svg") if panel.visible else load("res://assets/ui/main_nav/standalone/status.png")
 	closed_gear.custom_minimum_size = Vector2(48, 48) if panel.visible else closed_slot.size
 	if panel.visible:
 		toggle.offset_left = open_right - menu_width

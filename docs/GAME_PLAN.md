@@ -1,5 +1,13 @@
 # NexTgenLeo — active design
 
+## Delivery strategy — improve the existing game, do not restart
+
+**Owner decision (2026-10-30):** Continue fixing and extending the **existing Godot NexTgenLeo repository**. Do **not** create a replacement game or rebuild it from scratch; that would repeat gameplay, UI and integration work already completed. Preserve working save/load, combat, inventory, equipment, GM/testing tools, 3D scene setup, and deployment.
+
+**Working method:** Keep the current playable build as a baseline. Work on short feature branches with end-to-end fixes, test Godot import/export plus desktop/mobile UI controls, and merge only green changes. Replace UI visuals in place with independently authored transparent PNGs, editable source layers, and Godot-native dynamic labels. Reuse the live UI node trees and data bindings wherever possible; do not rewrite functioning mechanics merely for cosmetic work.
+
+**Priorities:** (1) stabilize current playtest and fix concrete broken functions, (2) systematically polish the UHD HUD, inventory, skill window, equipment and menus, (3) complete the first three career paths without player-facing elements, (4) add more gameplay content, paths and eventually an element system only after separate approval. Do not delete legacy six-element prototype data while refactoring or break existing saves.
+
 ## Current decision — no elements in the first release (2026-10-30)
 
 **This section supersedes the older 3-element/6-element delivery plan and the element-gated class rules listed in the historical prototype section below.**

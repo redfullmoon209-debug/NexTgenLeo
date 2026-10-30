@@ -1,26 +1,41 @@
 # NexTgenLeo — active design
 
+## Current decision — no elements in the first release (2026-10-30)
 
-## Approved delivery scope — 3 branches first, 6 branches later (2026-10-30)
+**This section supersedes the older 3-element/6-element delivery plan and the element-gated class rules listed in the historical prototype section below.**
 
-**User direction:** Finish 3 elemental branches to playable, art-ready quality **before** developing the remaining 3. Preserve the 6-element / 12-profession long-term plan; this is phased delivery, not removal of the six-element design.
+### Phase 1 — complete 3 career paths, no element system
 
-**Phase 1 — priority build (3 elements, 6 professions):**
-- Select the first 3 elements from Earth, Water, Wind, Fire, Lightning, Wood. **Which 3 are not yet confirmed; do not assume or silently select.**
-- Keep 2 profession choices per selected element at Class 5. Deliver each selected profession's 14 skills (active/passive/support as applicable); only 3 active hotbar slots at a time. Class 3 still selects one element and Class 7 still unlocks faction choice.
-- Complete the selected paths vertically: progression, class/job selection, skill upgrades using skill points and Gold, skills and combat effects, 3 hotbar actions, character/equipment visuals, UHD skill UI, save/load, input on desktop and mobile.
-- Production UI workflow: original separate transparent PNG assets (not cropped from a composite), editable source layers, reusable 9-slice frames, and Godot-generated text/levels/costs for localization. Validate the Godot integration, not just screenshots.
-- Release gate: Godot import/export, automated checks, desktop/touch browser checks, and verified deployed build. Prototype definitions alone do not count as a completed path.
+- Build and polish **3 playable class/career paths** first, not 3 elements and not 6 professions derived from elements.
+- **No player-facing element choice, element requirement, element-based damage/counters, or elemental skill-tree classification** in the Phase 1 release. Skills are organized under careers/weapons rather than elements.
+- The exact names, weapons and identities of the 3 initial paths **have not been selected by the owner**. Do not silently choose from the six prototype elements or auto-map old professions.
+- Retain a starting character/Novice experience, advancement, EXP/levels, equipment, progression, quests, combat, saved progress and test controls. Revisit the current Class 3 elemental-choice gate and Class 5 job selection during implementation: remove the elemental dependency without inventing a new advancement rule.
+- Aim for 14 career-specific skills per chosen path (active, passive and contextual buffs/debuffs as designed), with **3 equipped active skill slots** and an independent basic attack. Upgrade using earned skill points plus in-game Gold. Existing 14-skill templates are placeholders, not finished career skill designs.
+- **UHD UI first**: design all UI consistently; author separate transparent original PNG elements and editable layered source files. Never cut assets from a full-screen composite. Render dynamic text, prices, skill levels and localized labels in Godot. Integrate and test each UI module in-game rather than judging by concept art alone.
+- Release acceptance: verified Godot build/import/export, save compatibility, controls/combat/skills, desktop and touch browser tests, and a live verified URL.
 
-**Phase 2 — expansion (remaining 3 elements, total 6 elements / 12 professions):**
-- Add the other 3 elemental branches only after the Phase 1 set is working and reviewed.
-- Reuse the same 14-skill, skill upgrade, equipment, HUD, UI asset, and persistence systems for 6 more professions.
-- Keep old player saves/data compatible and do not delete existing six-element prototype data. Gate availability with configuration or progression rules instead of destructive data removal.
+### Phase 2 — expand from 3 to 6 career paths
 
-**Current repo caveat:** The balance.json file already has prototype catalogs for all 6 elements and 12 professions, including 14 data entries per profession. They are not 12 completed classes with final bespoke art, animation, effects, balance, or verified gameplay. Defer production completion of the remaining 3 branches.
+- Add **3 more career paths** to reach 6, reusing the same progression, skills, equipment, 3-slot hotbar, UI, data and save-game architecture.
+- Do **not** introduce elemental choice automatically in Phase 2. Six career paths and six elemental attributes are separate concepts.
+- Preserve existing player progress and prepare non-destructive content migration.
 
-**Unresolved owner decision:** identify the first 3 elements for Phase 1. Until then, record the scope without hardcoding the active subset.
+### Phase 3 — optional elements (later, only after owner approval)
 
+- Add elements as a **separate future gameplay layer**, after the basic career system is working and accepted.
+- The older Earth/Water/Wind/Fire/Lightning/Wood design and 12 prototype professions are **reference material only**, not a requirement to expose all six elements or twelve professions at launch.
+- Do not fix elemental affinity to a profession, set match-up advantages, introduce elemental quests/skill trees or choose an unlock Class until the owner confirms how the new elemental system should work.
+
+### Safe transition from the current repository
+
+- **Planning update only.** The current Godot source still includes a prototype six-element choice at Class 3, element-dependent professions at Class 5 and related data. This document update does not mean the running game has already been converted.
+- Keep the prototype definitions and save-game fields in the repository while refactoring. Do not delete or overwrite the existing player saves, item economy or skill progression.
+- Implement an element-free career path selection in a separate tested code change; do not remove the legacy system from the live build until tests cover save migration and the three accepted paths.
+- Phase 1's 3 career identities and their distinct weapons must be confirmed before final artwork and content authoring.
+
+## Historical reference — superseded element-based prototype rules
+
+The following rules describe the old prototype and should **not** be interpreted as the approved Phase 1 player experience. They remain for migration and possible later elemental expansion.
 
 Godot 4.4.1, GL Compatibility, single-threaded browser export. PC + mobile browser first.
 

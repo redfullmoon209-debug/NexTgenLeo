@@ -2358,6 +2358,7 @@ func _skills_panel() -> void:
 					return
 				if GameState.upgrade_skill(source):
 					_save()
+					_close_panel()
 					_show_panel("Skills")
 					_tell("อัปสกิลสำเร็จ")
 				else:
@@ -2372,6 +2373,7 @@ func _skills_panel() -> void:
 				var equip_button := _button("ใส่ช่อง %d" % (slot + 1), func():
 					if GameState.set_skill_slot(target_slot, source):
 						_save()
+						_close_panel()
 						_show_panel("Skills")
 						_tell("ตั้งช่องสกิลแล้ว")
 					else:

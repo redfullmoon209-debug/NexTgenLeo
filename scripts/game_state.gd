@@ -5,6 +5,7 @@ signal inventory_changed
 signal appearance_changed
 const MAX_CLASS := 10
 const MAX_LEVEL := 100
+const SKILL_MAX_LEVEL := 10
 const ELEMENTS := ["Earth", "Water", "Wind", "Fire", "Lightning", "Wood"]
 const RARITIES := ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
 const SAVE_PATH := "user://character_v1.json"
@@ -43,6 +44,9 @@ var buffs: Dictionary = {}
 var settings := {"quality":"Medium", "ui_scale":1.0, "button_offsets":{}}
 var skill_mode := "Target"
 var skill_loadout := [0, 1, 2]
+var job_skill_loadout := [0, 1, 2]
+var skill_points := 0
+var skill_levels: Dictionary = {}
 
 func _ready() -> void:
 	if not load_game():
@@ -62,6 +66,7 @@ func add_exp(amount: int) -> void:
 	while level < MAX_LEVEL and exp >= exp_required():
 		exp -= exp_required()
 		level += 1
+		skill_points += 1
 		_recalculate_stats()
 	if level == MAX_LEVEL:
 		exp = 0
@@ -114,6 +119,7 @@ func select_job(job: String) -> bool:
 		if inventory.size() >= 200: return false
 		inventory.append(equipped.weapon)
 	selected_job = job
+	job_skill_loadout = [0, 1, 2]
 	equipped["weapon"] = {"id":definition.weapon,"count":1,"enhancement":0}
 	appearance_changed.emit()
 	progression_changed.emit()
@@ -139,14 +145,14 @@ func attack_power() -> int:
 		if str(slot_id) in COMBAT_EQUIPMENT_SLOTS:
 			var item: Dictionary = equipped[slot_id]
 			enhancement += int(item.get("enhancement", 0))
-	return int((int(balance.attack_base) + level * int(balance.attack_per_level) + class_rank * int(balance.attack_per_class) + enhancement * 2) * (1.2 if buff_active("attack") else 1.0))
+	return int((int(balance.attack_base) + level * int(balance.attack_per_level) + class_rank * int(balance.attack_per_class) + enhancement * 2) * (1.2 if buff_active("attack") else 1.0) * (1.0 + passive_bonus("attack")))
 
 func defense() -> int:
 	var armor_count := 0
 	for slot_id in equipped:
 		if str(slot_id) in COMBAT_EQUIPMENT_SLOTS:
 			armor_count += 1
-	return int((int(balance.defense_base) + level + armor_count * 2) * (1.2 if buff_active("defense") else 1.0))
+	return int((int(balance.defense_base) + level + armor_count * 2) * (1.2 if buff_active("defense") else 1.0) * (1.0 + passive_bonus("defense")))
 
 func add_item(id: String, count: int = 1) -> bool:
 	if id not in balance.items or count <= 0:
@@ -367,8 +373,8 @@ func interact_quest() -> String:
 	return "Starter Hunt: %d / 5" % quest_kills
 
 func _recalculate_stats(heal: bool = true) -> void:
-	max_hp = int((int(balance.hp_base) + (level - 1) * int(balance.hp_per_level) + class_rank * int(balance.hp_per_class)) * (1.2 if buff_active("hp") else 1.0))
-	max_stamina = int(balance.stamina_base) + (level - 1) * int(balance.stamina_per_level) + class_rank * int(balance.stamina_per_class)
+	max_hp = int((int(balance.hp_base) + (level - 1) * int(balance.hp_per_level) + class_rank * int(balance.hp_per_class)) * (1.2 if buff_active("hp") else 1.0) * (1.0 + passive_bonus("hp")))
+	max_stamina = int((int(balance.stamina_base) + (level - 1) * int(balance.stamina_per_level) + class_rank * int(balance.stamina_per_class)) * (1.0 + passive_bonus("stamina")))
 	hp = max_hp if heal else clampi(hp, 0, max_hp)
 	stamina = max_stamina if heal else clampf(stamina, 0, max_stamina)
 
@@ -384,7 +390,7 @@ func save_game() -> bool:
 	return DirAccess.rename_absolute(SAVE_PATH + ".tmp", SAVE_PATH) == OK
 
 func _save_keys() -> Array:
-	return ["class_rank","level","exp","gold","cash","selected_element","selected_path","selected_job","faction","gender","hp","stamina","inventory","equipped","pet_equipped","pet_level","pet_exp","pet_stage","pet_enabled","quest_state","quest_kills","advancement_ready","map_index","location","settings","buffs","skill_mode","skill_loadout"]
+	return ["class_rank","level","exp","gold","cash","selected_element","selected_path","selected_job","faction","gender","hp","stamina","inventory","equipped","pet_equipped","pet_level","pet_exp","pet_stage","pet_enabled","quest_state","quest_kills","advancement_ready","map_index","location","settings","buffs","skill_mode","skill_loadout","job_skill_loadout","skill_points","skill_levels"]
 
 func load_game() -> bool:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -416,6 +422,21 @@ func load_game() -> bool:
 	class_rank = clampi(class_rank, 0, 10)
 	level = clampi(level, 1, 100)
 	map_index = clampi(map_index, 0, 4)
+	# Pre-skill-system saves receive earned points for past levels/classes.
+	if not data.has("skill_points"):
+		skill_points = maxi(0, class_rank * (MAX_LEVEL - 1) + level - 1)
+	skill_points = clampi(int(skill_points), 0, 1100)
+	if not skill_levels is Dictionary:
+		skill_levels = {}
+	var safe_levels: Dictionary = {}
+	for key in skill_levels:
+		if str(key).length() <= 90 and typeof(skill_levels[key]) in [TYPE_INT, TYPE_FLOAT]:
+			safe_levels[str(key)] = clampi(int(skill_levels[key]), 0, SKILL_MAX_LEVEL)
+	skill_levels = safe_levels
+	if not job_skill_loadout is Array or job_skill_loadout.size() != 3:
+		job_skill_loadout = [0, 1, 2]
+	for i in range(3):
+		job_skill_loadout[i] = clampi(int(job_skill_loadout[i]), 0, 9)
 	return true
 
 func job_definition(id: String = selected_job) -> Dictionary:
@@ -424,14 +445,104 @@ func job_definition(id: String = selected_job) -> Dictionary:
 			return job
 	return {}
 
-func set_skill_slot(slot: int, source: int) -> bool:
-	if class_rank < 3 or class_rank >= 5 or selected_element.is_empty() or slot < 0 or slot > 2 or source < 0 or source > 2:
+# Each class owns its own skills; the 3 hotbar slots reference this catalog.
+# Profession catalogs have 10 active + 4 passive skills (14 total).
+func skill_catalog() -> Array:
+	if class_rank >= 5 and not selected_job.is_empty() and balance.profession_skills.has(selected_job):
+		return balance.profession_skills[selected_job]
+	if class_rank >= 3 and not selected_element.is_empty() and balance.element_skills.has(selected_element):
+		return balance.element_skills[selected_element]
+	return balance.skills.slice(1, 4)
+
+func skill_source(slot: int) -> int:
+	if slot < 0 or slot >= 3:
+		return -1
+	if class_rank >= 5 and not selected_job.is_empty():
+		return int(job_skill_loadout[slot])
+	if class_rank >= 3 and not selected_element.is_empty():
+		return int(skill_loadout[slot])
+	return slot
+
+func skill_key(source: int) -> String:
+	if class_rank >= 5 and not selected_job.is_empty() and source >= 3:
+		return "job:%s:%d" % [selected_job, source]
+	if class_rank >= 3 and not selected_element.is_empty():
+		return "element:%s:%d" % [selected_element, source]
+	return "novice:%d" % source
+
+func skill_level(source: int) -> int:
+	var catalog := skill_catalog()
+	if source < 0 or source >= catalog.size():
+		return 0
+	var base: int = 0 if str(catalog[source].get("role", "")).begins_with("passive_") else 1
+	return clampi(int(skill_levels.get(skill_key(source), base)), base, SKILL_MAX_LEVEL)
+
+func skill_gold_cost(source: int) -> int:
+	if source < 0 or source >= skill_catalog().size():
+		return -1
+	var current := skill_level(source)
+	if current >= SKILL_MAX_LEVEL:
+		return -1
+	# Test values: 1 skill point + gold for every upgrade.
+	return 40 + 25 * current + 10 * current * current
+
+func can_upgrade_skill(source: int) -> bool:
+	var cost := skill_gold_cost(source)
+	return cost > 0 and skill_points >= 1 and gold >= cost
+
+func upgrade_skill(source: int) -> bool:
+	if not can_upgrade_skill(source):
 		return false
-	skill_loadout[slot] = source
+	var cost := skill_gold_cost(source)
+	gold -= cost
+	skill_points -= 1
+	skill_levels[skill_key(source)] = skill_level(source) + 1
+	_recalculate_stats(false)
+	progression_changed.emit()
+	inventory_changed.emit()
+	return true
+
+func passive_bonus(stat: String) -> float:
+	if selected_job.is_empty() or class_rank < 5:
+		return 0.0
+	var catalog := skill_catalog()
+	var bonus := 0.0
+	for i in range(catalog.size()):
+		if str(catalog[i].get("role", "")) == "passive_" + stat:
+			bonus += float(skill_level(i)) * (0.04 if stat == "hp" else 0.03)
+	return bonus
+
+func can_equip_skill(slot: int, source: int) -> bool:
+	var catalog := skill_catalog()
+	if slot < 0 or slot > 2 or source < 0 or source >= catalog.size():
+		return false
+	if str(catalog[source].get("role", "")).begins_with("passive_"):
+		return false
+	if class_rank >= 5:
+		return not selected_job.is_empty()
+	return class_rank >= 3 and not selected_element.is_empty()
+
+func set_skill_slot(slot: int, source: int) -> bool:
+	if not can_equip_skill(slot, source):
+		return false
+	var slots: Array = job_skill_loadout if class_rank >= 5 else skill_loadout
+	var other: int = slots.find(source)
+	if other >= 0 and other != slot:
+		slots[other] = slots[slot] # Swap instead of creating duplicate hotbar skills.
+	slots[slot] = source
+	progression_changed.emit()
 	return true
 
 func skill_definition(index: int) -> Dictionary:
-	if index == 0 or selected_element.is_empty() or class_rank < 3:
+	if index == 0 or index < 0 or index > 3:
+		return balance.skills[0]
+	var catalog := skill_catalog()
+	var source := skill_source(index - 1)
+	if source < 0 or source >= catalog.size():
 		return balance.skills[index]
-	var source: int = index - 1 if class_rank >= 5 else int(skill_loadout[index - 1])
-	return balance.element_skills[selected_element][source]
+	var definition: Dictionary = catalog[source].duplicate(true)
+	var level_value := skill_level(source)
+	definition["level"] = level_value
+	if not str(definition.get("role", "")).begins_with("passive_"):
+		definition["power"] = float(definition.get("power", 1.0)) * (1.0 + 0.12 * float(maxi(0, level_value - 1)))
+	return definition

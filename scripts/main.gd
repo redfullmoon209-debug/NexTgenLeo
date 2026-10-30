@@ -43,6 +43,7 @@ func _ready() -> void:
 	add_child(fantasy_skin)
 	# Isolated Settings Rich Menu; other HUD and gameplay systems remain unchanged.
 	var settings_menu: Node = load("res://scripts/settings_rich_menu.gd").new()
+	settings_menu.set("gameplay", gameplay)
 	add_child(settings_menu)
 	# Buttons 3-8: reusable isolated gold menus; GM and Settings retain their original systems.
 	var primary_navigation: Node = load("res://scripts/main_rich_navigation.gd").new()

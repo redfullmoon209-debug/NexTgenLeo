@@ -265,6 +265,13 @@ func open_settings_menu() -> void:
 	if not panel.visible:
 		_toggle()
 
+func _toggle() -> void:
+	panel.visible = not panel.visible
+	header_title.visible = panel.visible
+	header_arrow.visible = panel.visible
+	header_arrow.texture = load("res://assets/ui/settings/icons/chevron_up.svg") if panel.visible else load("res://assets/ui/settings/icons/chevron_down.svg")
+	_responsive()
+
 func _update_web_diagnostics() -> void:
 	if not OS.has_feature("web"):
 		return

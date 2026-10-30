@@ -6,6 +6,7 @@ extends RefCounted
 const LABELS := {
 	"GM": {"th": "GM", "en": "GM"},
 	"Settings": {"th": "ตั้งค่า", "en": "Settings"},
+	"Status": {"th": "ตัวละคร", "en": "Character"},
 	"Bag": {"th": "กระเป๋า", "en": "Bag"},
 	"Menu": {"th": "เมนู", "en": "Menu"},
 	"Guild": {"th": "กิลด์", "en": "Guild"},

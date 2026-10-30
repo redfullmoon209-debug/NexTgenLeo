@@ -475,6 +475,41 @@ func _set_extension(mode: String) -> void:
 	var menu_title: String = {
 		"Shop":"ร้านค้า NPC", "Cash":"ร้านค้าแคช", "Quest":"เควสต์และภารกิจ",
 		"World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ",
+		"Skills":"ทักษะ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อออนไลน์",
+		"Storage":"คลังเก็บของ", "Trade":"เทรดซื้อขาย", "Guild":"กิลด์"
+	}.get(mode, mode)
+	extension_content.add_child(_label(menu_title, 18))
+	_button("ปิดกรอบเสริม", func(): _set_extension(""), extension_content, 33)
+	match mode:
+		"Shop", "Cash":
+			_extension_shop(mode == "Cash")
+		"Quest":
+			_extension_quest()
+		"World":
+			for i in range(GameState.balance.maps.size()):
+				var map_index: int = i
+				var map_name: String = str(GameState.balance.maps[i].get("name", "Map"))
+				_button("ไปยัง " + map_name, func(): game.call("_warp", map_index), extension_content, 36)
+		"Pet":
+			extension_content.add_child(_label("สัตว์เลี้ยง Lv.%d · EXP %d\nวิวัฒนาการ %d / 5" % [GameState.pet_level, GameState.pet_exp, GameState.pet_stage], 13))
+			_button("เรียกสัตว์เลี้ยง" if not GameState.pet_enabled else "เก็บสัตว์เลี้ยง", func():
+				GameState.pet_enabled = not GameState.pet_enabled
+				game.call("_save")
+				call_deferred("_set_extension", "Pet")
+			, extension_content, 40)
+		"Auto":
+			extension_content.add_child(_label("เลือกสกิลที่ใช้ระหว่างล่าอัตโนมัติ", 12))
+			for i in range(3):
+				var slot_index: int = i
+				var check := CheckButton.new()
+				check.text = str(GameState.skill_definition(i + 1).get("name", "Skill"))
+				check.button_pressed = bool(game.hunt_skills[i])
+				check.toggled.connect(func(on: bool): game.call("_select_hunt_skill", slot_index, on))
+				extension_content.add_child(check)
+			for radius in [12.0, 20.0, 36.0]:
+				var hunting_radius: float = float(radius)
+				_button("ระยะล่า %d เมตร" % int(radius), func(): game.call("_select_hunt_radius", hunting_radius), extension_content, 34)
+			_button("เปิด / ปิดล่าอัตโนมัติ", func(): game.call("_action", 7); close_workspace(), extension_content, 41)
 		"Skills":
 			_extension_skills()
 		"Settings":

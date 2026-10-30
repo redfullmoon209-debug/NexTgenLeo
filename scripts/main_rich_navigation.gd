@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## Six new standalone icon buttons (3-8) + two rich lists, matching Settings.
-## GM (1) and Settings (2) preserve their original actions and menus.
+## GM (1) keeps its permissions; Character Status (2) opens the paper-doll window.
 ## All eight standalone icons are independent artworks, never cut from a sprite sheet.
 
 const ICON_PATH := "res://assets/ui/main_nav/icons/%s.svg"
@@ -36,7 +36,8 @@ const MAIN_ITEMS := [
 	["Warp", "วาร์ป", "warp"],
 	["Quest", "ภารกิจ", "quest"],
 	["Auto", "ล่าอัตโนมัติ", "auto"],
-	["Connect", "เชื่อมต่อเซิร์ฟเวอร์", "connect"]
+	["Connect", "เชื่อมต่อเซิร์ฟเวอร์", "connect"],
+	["Settings", "ตั้งค่า", "status"]
 ]
 const GUILD_ITEMS := [
 	["GuildInfo", "ข้อมูลกิลด์", "guild"],
@@ -465,6 +466,13 @@ func _activate(target_id: String) -> void:
 	if target_id in ["GuildInfo", "GuildMembers", "GuildDonate", "PartyInfo", "PartyInvites", "FriendList", "FriendAdd", "ServerNews", "ServerEvents"]:
 		gameplay._tell("เมนูนี้รอเชื่อมต่อระบบเซิร์ฟเวอร์ออนไลน์")
 		return
+	if target_id == "Settings":
+		var rich_settings: Node = get_parent().get_node_or_null("CharacterStatusQuickAction")
+		if is_instance_valid(rich_settings):
+			rich_settings.call("open_settings_menu")
+		else:
+			gameplay._show_panel("Settings")
+		return
 	var route := "World" if target_id == "Warp" else target_id
 	gameplay._show_panel(route)
 	# The old sidebar is replaced by these rich gold menus, not shown twice.
@@ -488,7 +496,11 @@ func _input(event: InputEvent) -> void:
 		point = event.position
 	else:
 		return
-	# Scoped hitboxes, identical in principle to the proven Settings toggle.
+	# Never let the high-layer navigation intercept inputs meant for a modal.
+	var status_ui: Node = get_parent().get_node_or_null("CharacterStatusQuickAction")
+	if (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible) or (is_instance_valid(status_ui) and status_ui.panel.visible):
+		return
+	# Scoped hitboxes for primary independent PNG icons.
 	for menu_id in NAV_IDS:
 		var button: Button = nav_buttons[menu_id]
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(point):
@@ -509,7 +521,7 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 				return
 		return
-	# Dismiss, but do not swallow a GM, Settings or gameplay click.
+	# Dismiss, but do not swallow a GM, Character Status or gameplay click.
 	_close_menu()
 
 func _process(_delta: float) -> void:
@@ -519,16 +531,25 @@ func _process(_delta: float) -> void:
 	if requested_locale != current_locale:
 		current_locale = requested_locale
 		_refresh_primary_captions()
-	var modal_open: bool = (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
-	# Never cover Bag next-page buttons, item slots or modal confirmation controls.
-	# Six new icons return automatically when the modal closes; GM/Settings are untouched.
+	var status_ui: Node = get_parent().get_node_or_null("CharacterStatusQuickAction")
+	var settings_open: bool = is_instance_valid(status_ui) and is_instance_valid(status_ui.panel) and status_ui.panel.visible
+	var game_modal: bool = (is_instance_valid(gameplay.panel) and gameplay.panel.visible) or (is_instance_valid(gameplay.silver_workspace) and gameplay.silver_workspace.visible)
+	var modal_open: bool = game_modal or settings_open
+	# Main popups, Settings, inventory and status must cover ALL old icons,
+	# including GM and slot 2 which otherwise live on higher CanvasLayers.
+	var first_two_behind: bool = modal_open or not current_menu.is_empty()
 	var visibility_changed := false
 	for menu_id in NAV_IDS:
 		var icon_button: Button = nav_buttons[menu_id]
 		if icon_button.visible == modal_open:
 			icon_button.visible = not modal_open
 			visibility_changed = true
-	if modal_open and not current_menu.is_empty():
+	if is_instance_valid(gameplay.owner_gm_button):
+		var gm_visible: bool = bool(gameplay.call("_can_use_gm")) and not first_two_behind
+		if gameplay.owner_gm_button.visible != gm_visible:
+			gameplay.owner_gm_button.visible = gm_visible
+			visibility_changed = true
+	if game_modal and not current_menu.is_empty():
 		_close_menu()
 	elif visibility_changed:
 		_update_web_diagnostics()
@@ -543,7 +564,7 @@ func _responsive() -> void:
 	var icon_width: float = slots[2].size.x
 	var gap: float = slots[3].position.x - slots[2].end.x
 	# One row of six new buttons occupies slots 2..7.
-	# The original GM and Settings nodes use the same geometry for slots 0..1.
+	# GM and the Character Status shortcut use geometry for slots 0..1.
 	nav_grid.columns = 6
 	nav_grid.add_theme_constant_override("h_separation", roundi(gap))
 	nav_grid.add_theme_constant_override("v_separation", 0)
@@ -610,6 +631,8 @@ func _update_web_diagnostics() -> void:
 		"items": row_targets,
 		"panel": [area.position.x, area.position.y, area.size.x, area.size.y],
 		"legacy_menu_hidden": is_instance_valid(gameplay) and not gameplay.menu_toggle_button.visible,
-		"icons_visible": (nav_buttons["Bag"] as Button).visible
+		"icons_visible": (nav_buttons["Bag"] as Button).visible,
+		"gm_icon_visible": is_instance_valid(gameplay.owner_gm_button) and gameplay.owner_gm_button.visible,
+		"status_icon_visible": is_instance_valid(get_parent().get_node_or_null("CharacterStatusQuickAction")) and get_parent().get_node("CharacterStatusQuickAction").toggle.visible
 	}
 	JavaScriptBridge.eval("window.leoMainRichNav = " + JSON.stringify(data), true)

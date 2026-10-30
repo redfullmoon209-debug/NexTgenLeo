@@ -71,10 +71,25 @@ func run() -> void:
 	state.class_rank = 3
 	check(state.select_element("Wind"), "Class 3 element")
 	check(state.set_skill_slot(0,2), "Class 3 free loadout")
+	state.skill_points = 3
+	state.gold = 1000
+	var skill_gold_before: int = state.gold
+	check(state.upgrade_skill(2), "skill upgrade spends gold and points")
+	check(state.skill_points == 2 and state.gold < skill_gold_before and state.skill_level(2) == 2, "skill upgrade persists correct resources and level")
+	check(state.skill_definition(1).power > 1.8, "loadout skill upgrades increase combat power")
+	check(not state.upgrade_skill(-1), "invalid skill index rejected")
 	check(not state.select_job("wind_assassin"), "profession locked before Class 5")
 	state.class_rank = 5
 	check(not state.select_job("water_mage"), "profession must match element")
 	check(state.select_job("wind_assassin"), "Class 5 profession")
+	check(state.skill_catalog().size() == 14, "profession has 14 skill definitions")
+	check(state.set_skill_slot(0, 4), "class 5 can equip a profession active skill")
+	check(state.skill_definition(1).get("role") == "aoe", "profession hotbar loads chosen skill")
+	check(not state.set_skill_slot(0, 10), "passive skill cannot occupy active hotbar")
+	state.job_skill_loadout = [0, 1, 2]
+	var passive_attack_before: int = state.attack_power()
+	check(state.upgrade_skill(10), "profession passive can be upgraded")
+	check(state.attack_power() > passive_attack_before, "passive upgrade affects attack")
 	state.equipped.weapon.enhancement = 3
 	var inventory_before: int = state.inventory.size()
 	check(state.select_job("wind_assassin") and state.equipped.weapon.enhancement == 3, "repeat profession preserves equipment")

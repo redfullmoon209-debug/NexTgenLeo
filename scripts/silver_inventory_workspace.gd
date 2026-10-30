@@ -475,56 +475,8 @@ func _set_extension(mode: String) -> void:
 	var menu_title: String = {
 		"Shop":"ร้านค้า NPC", "Cash":"ร้านค้าแคช", "Quest":"เควสต์และภารกิจ",
 		"World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ",
-		"Skills":"ทักษะ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อออนไลน์",
-		"Storage":"คลังเก็บของ", "Trade":"เทรดซื้อขาย", "Guild":"กิลด์"
-	}.get(mode, mode)
-	extension_content.add_child(_label(menu_title, 18))
-	_button("ปิดกรอบเสริม", func(): _set_extension(""), extension_content, 33)
-	match mode:
-		"Shop", "Cash":
-			_extension_shop(mode == "Cash")
-		"Quest":
-			_extension_quest()
-		"World":
-			for i in range(GameState.balance.maps.size()):
-				var map_index: int = i
-				var map_name: String = str(GameState.balance.maps[i].get("name", "Map"))
-				_button("ไปยัง " + map_name, func(): game.call("_warp", map_index), extension_content, 36)
-		"Pet":
-			extension_content.add_child(_label("สัตว์เลี้ยง Lv.%d · EXP %d\nวิวัฒนาการ %d / 5" % [GameState.pet_level, GameState.pet_exp, GameState.pet_stage], 13))
-			_button("เรียกสัตว์เลี้ยง" if not GameState.pet_enabled else "เก็บสัตว์เลี้ยง", func():
-				GameState.pet_enabled = not GameState.pet_enabled
-				game.call("_save")
-				call_deferred("_set_extension", "Pet")
-			, extension_content, 40)
-		"Auto":
-			extension_content.add_child(_label("เลือกสกิลที่ใช้ระหว่างล่าอัตโนมัติ", 12))
-			for i in range(3):
-				var slot_index: int = i
-				var check := CheckButton.new()
-				check.text = str(GameState.skill_definition(i + 1).get("name", "Skill"))
-				check.button_pressed = bool(game.hunt_skills[i])
-				check.toggled.connect(func(on: bool): game.call("_select_hunt_skill", slot_index, on))
-				extension_content.add_child(check)
-			for radius in [12.0, 20.0, 36.0]:
-				var hunting_radius: float = float(radius)
-				_button("ระยะล่า %d เมตร" % int(radius), func(): game.call("_select_hunt_radius", hunting_radius), extension_content, 34)
-			_button("เปิด / ปิดล่าอัตโนมัติ", func(): game.call("_action", 7); close_workspace(), extension_content, 41)
 		"Skills":
-			extension_content.add_child(_label("สกิลขั้นแรก / จอมจ้าว", 13))
-			for skill_no in range(1, 4):
-				var info: Dictionary = GameState.skill_definition(skill_no)
-				extension_content.add_child(_label("%d. %s\nStamina %.0f · คูลดาวน์ %.1f วิ" % [skill_no, str(info.get("name", "Skill")), float(info.get("cost", 0.0)), float(info.get("cooldown", 0.0))], 12))
-			if GameState.class_rank >= 3 and GameState.class_rank < 5 and GameState.selected_element in GameState.balance.element_skills:
-				for slot_no in range(3):
-					for source_no in range(3):
-						var target_slot: int = slot_no
-						var source_slot: int = source_no
-						var definition: Dictionary = GameState.balance.element_skills[GameState.selected_element][source_no]
-						_button("ช่อง %d: %s" % [slot_no + 1, str(definition.get("name", "Skill"))], func():
-							GameState.set_skill_slot(target_slot, source_slot)
-							game.call("_tell", "อัปเดตสกิลแล้ว")
-						, extension_content, 33)
+			_extension_skills()
 		"Settings":
 			_button("บันทึกเกม", func(): game.call("_save"); game.call("_tell", "บันทึกเกมแล้ว"), extension_content)
 			_button("ปรับตำแหน่งปุ่ม HUD", func(): game.layout_edit = not game.layout_edit; close_workspace(), extension_content)
@@ -603,6 +555,62 @@ func _extension_quest() -> void:
 	_button("เลื่อนคลาส (Lv.100 + เควสต์)", func():
 		game.call("_tell", "เลื่อนคลาสสำเร็จ" if GameState.advance_class() else "ยังไม่ผ่านเงื่อนไข")
 	, extension_content, 40)
+
+func _extension_skills() -> void:
+	extension_content.add_child(_label("แต้มสกิล %d  •  ทอง %d" % [GameState.skill_points, GameState.gold], 15))
+	extension_content.add_child(_label("เลเวลเพิ่ม = +1 แต้ม\nอัปสกิลใช้ 1 แต้ม + เงินทอง", 11))
+	if is_instance_valid(game) and (game.network.active or game.network.connecting):
+		extension_content.add_child(_label("โหมดออนไลน์: การอัปสกิลรอระบบเซิร์ฟเวอร์", 12))
+		return
+	var catalog: Array = GameState.skill_catalog()
+	var layout := GridContainer.new()
+	layout.columns = 3
+	layout.name = "SkillHotbarSlots"
+	extension_content.add_child(layout)
+	for slot in range(3):
+		var source := GameState.skill_source(slot)
+		var title := "ว่าง"
+		if source >= 0 and source < catalog.size():
+			title = str(catalog[source].get("name", "สกิล"))
+		var box := _button("ช่อง %d\n%s" % [slot + 1, title], func(): pass, layout, 55.0)
+		box.name = "SkillHotbarSlot%d" % (slot + 1)
+		box.disabled = true
+	for source in range(catalog.size()):
+		var index: int = source
+		var skill: Dictionary = catalog[index]
+		var role := str(skill.get("role", ""))
+		var passive := role.begins_with("passive_")
+		var level_value := GameState.skill_level(index)
+		extension_content.add_child(_label("%02d. %s\n%s · Lv.%d/10 · พลังงาน %d" % [index + 1, str(skill.get("name", "สกิล")), "ติดตัว" if passive else "กดใช้", level_value, int(skill.get("cost", 0))], 12))
+		var upgrade_cost: int = GameState.skill_gold_cost(index)
+		if upgrade_cost >= 0:
+			var upgrade := _button("＋ อัปสกิล 1 แต้ม / %d ทอง" % upgrade_cost, func():
+				if GameState.upgrade_skill(index):
+					game.call("_save")
+					game.call("_tell", "อัปเกรดสกิลสำเร็จ")
+					call_deferred("_set_extension", "Skills")
+				else:
+					game.call("_tell", "แต้มสกิลหรือเงินทองไม่เพียงพอ")
+			, extension_content, 36.0)
+			upgrade.name = "UpgradeSkill%d" % index
+			upgrade.disabled = not GameState.can_upgrade_skill(index)
+		else:
+			extension_content.add_child(_label("อัปเลเวลสูงสุดแล้ว", 11))
+		if not passive:
+			var equip_row := HBoxContainer.new()
+			extension_content.add_child(equip_row)
+			for slot in range(3):
+				var target_slot: int = slot
+				var equip := _button("ช่อง %d" % (target_slot + 1), func():
+					if GameState.set_skill_slot(target_slot, index):
+						game.call("_save")
+						game.call("_tell", "เปลี่ยนช่องสกิลแล้ว")
+						call_deferred("_set_extension", "Skills")
+					else:
+						game.call("_tell", "ไม่สามารถจัดช่องสกิลได้")
+				, equip_row, 34.0)
+				equip.disabled = not GameState.can_equip_skill(target_slot, index)
+
 
 func _layout() -> void:
 	if not is_instance_valid(main_frame):

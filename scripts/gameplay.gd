@@ -1631,6 +1631,13 @@ func _close_panel() -> void:
 	bag_dock_panel.hide()
 	active_panel = ""
 	_refresh_sidebar_selection()
+	# Restore GM immediately when a modal closes, not one render frame later.
+	if is_instance_valid(owner_gm_button):
+		var nav: Node = get_parent().get_node_or_null("NexTgenLeoEightMainButtons")
+		var status_shortcut: Node = get_parent().get_node_or_null("CharacterStatusQuickAction")
+		var rich_open: bool = is_instance_valid(nav) and not str(nav.get("current_menu")).is_empty()
+		var settings_open: bool = is_instance_valid(status_shortcut) and is_instance_valid(status_shortcut.panel) and status_shortcut.panel.visible
+		owner_gm_button.visible = _can_use_gm() and not rich_open and not settings_open
 
 func _thai_panel_name(name: String) -> String:
 	var names := {"BulkSellConfirm":"ยืนยันขายหลายชิ้น", "Bag":"กระเป๋า", "Shop":"ร้านค้า", "Cash":"ร้านค้าแคช", "Status":"ตัวละครและอุปกรณ์", "Quest":"ภารกิจ", "World":"แผนที่โลก", "Pet":"สัตว์เลี้ยง", "Auto":"ล่าอัตโนมัติ", "Skills":"ทักษะ", "GM":"ผู้ดูแลระบบ", "Settings":"ตั้งค่า", "Connect":"เชื่อมต่อ", "OwnerLogin":"ยืนยันสิทธิ์เจ้าของ", "Death":"ฟื้นคืนชีพ", "Item":"รายละเอียดไอเทม"}

@@ -617,6 +617,10 @@ func _update_web_diagnostics() -> void:
 		rectangles[menu_id] = [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
 		caption_texts[menu_id] = (nav_labels[menu_id] as Label).text
 	var area: Rect2 = menu_panel.get_global_rect()
+	var row_rectangles: Array = []
+	for option in row_buttons:
+		var r: Rect2 = option.get_global_rect()
+		row_rectangles.append([r.position.x, r.position.y, r.size.x, r.size.y])
 	var data := {
 		"buttons": rectangles,
 		"all_slots": MainNavLayout.slots(get_viewport()).map(func(r: Rect2): return [r.position.x, r.position.y, r.size.x, r.size.y]),
@@ -628,6 +632,7 @@ func _update_web_diagnostics() -> void:
 		"open": not current_menu.is_empty(),
 		"menu": current_menu,
 		"rows": row_buttons.size(),
+		"row_rects": row_rectangles,
 		"items": row_targets,
 		"panel": [area.position.x, area.position.y, area.size.x, area.size.y],
 		"legacy_menu_hidden": is_instance_valid(gameplay) and not gameplay.menu_toggle_button.visible,

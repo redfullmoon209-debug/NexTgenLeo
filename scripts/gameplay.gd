@@ -152,6 +152,28 @@ func _build_avatar() -> void:
 	var height := GameState.height_meters()
 	avatar.scale = Vector3.ONE * height / 1.75
 	avatar.position.y = -0.85
+	# Preview the imported female mesh while retaining the procedural animation rig.
+	if GameState.gender == "Female":
+		var female_scene: PackedScene = load("res://assets/characters/female/Female.glb")
+		if female_scene != null:
+			var female_visual := female_scene.instantiate() as Node3D
+			if female_visual != null:
+				female_visual.name = "FemaleModel"
+				avatar.add_child(female_visual)
+				# Normalize the imported model to the existing 1.75 m avatar envelope.
+				var bounds := AABB()
+				var found := false
+				for child in female_visual.find_children("*", "MeshInstance3D", true, false):
+					var mesh_node := child as MeshInstance3D
+					if mesh_node.mesh == null:
+						continue
+					var local_bounds := mesh_node.get_aabb().transformed(female_visual.global_transform.affine_inverse() * mesh_node.global_transform)
+					bounds = bounds.merge(local_bounds) if found else local_bounds
+					found = true
+				if found and bounds.size.y > 0.001:
+					female_visual.scale = Vector3.ONE * (1.75 / bounds.size.y)
+					female_visual.position.y = -bounds.position.y * female_visual.scale.y
+					return
 	var skin := Color("d9ac83")
 	var cloth := Color("305e96") if GameState.gender == "Male" else Color("8567a2")
 	if "fashion_shirt" in GameState.equipped:

@@ -1149,12 +1149,25 @@ func _attack(index: int) -> void:
 	world.auto_destination = Vector3.INF
 	world.player.look_at(Vector3(mob.node.position.x, world.player.position.y, mob.node.position.z))
 	GameState.stamina -= float(skill.cost)
+	var skill_role: String = str(skill.get("role", ""))
+	if skill_role.begins_with("buff_"):
+		var buff_stat: String = skill_role.trim_prefix("buff_")
+		var duration: float = float(skill.get("duration", 10.0)) + float(skill.get("level", 1)) * 0.7
+		GameState.buffs[buff_stat] = Time.get_unix_time_from_system() + duration
+		GameState._recalculate_stats(false)
+		_tell("เปิดบัฟ %s · %.0f วินาที" % [str(skill.name), duration])
+		GameState.progression_changed.emit()
+		cooldowns[index] = float(skill.cooldown)
+		pending_skill = 0
+		return
 	cooldowns[index] = float(skill.cooldown) * (1.5 if id == "gun" else (1.2 if id == "kunai" else 1.0))
 	if index == 0 and not job.is_empty():
 		cooldowns[0] = float(job.interval)
 	swing = 0.35
 	var critical := rng.randf() < float(GameState.balance.critical_chance) or index == 3
 	var damage := maxi(1, int(GameState.attack_power() * float(skill.power) * (float(GameState.balance.critical_multiplier) if critical else 1.0)) - int(mob.level) * 2)
+	if skill_role == "shred":
+		damage = maxi(1, damage + int(mob.level) * 2) # Prototype armor penetration
 	var hit_indices: Array[int] = [target]
 	if float(skill.radius) > 0 or (GameState.class_rank >= 7 and GameState.skill_mode == "AoE" and index > 0):
 		for i in range(mobs.size()):
@@ -2318,22 +2331,53 @@ func _gm() -> void:
 	_button("Reset hunt quest", func(): GameState.quest_state = "available"; GameState.quest_kills = 0, menu)
 
 func _skills_panel() -> void:
-	menu.add_child(_label("ขั้นแรก / Initial · available skills\nจอมจ้าว / Sovereign · unlock rule not yet specified"))
-	if GameState.class_rank < 3:
-		menu.add_child(_label("Novice training skills · choose an element at Class 3"))
-	elif GameState.class_rank < 5:
-		menu.add_child(_label("Class 3–4 · freely assign skills within your element"))
-		if not GameState.selected_element.is_empty():
+	menu.add_child(_label("ศูนย์พัฒนาทักษะ · แต้มสกิล %d · ทอง %d" % [GameState.skill_points, GameState.gold], 19))
+	var job: Dictionary = GameState.job_definition()
+	var origin: String = str(job.get("name", "เริ่มต้น")) if not job.is_empty() else (GameState.selected_element if not GameState.selected_element.is_empty() else "Novice")
+	menu.add_child(_label("ธาตุ / อาชีพ: %s\nสะสมแต้มเมื่อเลเวลเพิ่ม · ใช้ 1 แต้ม + เงินทองต่อการอัปหนึ่งครั้ง" % origin, 13))
+	menu.add_child(_label("ช่องสกิลใช้งาน 3 ช่อง · เลือกสกิลกดใช้จากรายการด้านล่าง", 15))
+	for slot in range(3):
+		var source: int = GameState.skill_source(slot)
+		var equipped: Array = GameState.skill_catalog()
+		var shown: String = str(equipped[source].get("name", "สกิล")) if source >= 0 and source < equipped.size() else "ว่าง"
+		menu.add_child(_label("ช่อง %d : %s" % [slot + 1, shown], 14))
+	menu.add_child(_label("สกิลทั้งหมด · ระดับสูงสุด 10", 15))
+	var catalog: Array = GameState.skill_catalog()
+	for i in range(catalog.size()):
+		var source: int = i
+		var skill: Dictionary = catalog[i]
+		var role: String = str(skill.get("role", ""))
+		var passive: bool = role.begins_with("passive_")
+		var lvl: int = GameState.skill_level(source)
+		var cost: int = GameState.skill_gold_cost(source)
+		menu.add_child(_label("%02d  %s  •  Lv.%d/%d\n%s  | พลังงาน %d  | คูลดาวน์ %.1f วิ" % [i + 1, str(skill.get("name", "Skill")), lvl, GameState.SKILL_MAX_LEVEL, "ติดตัว (เพิ่มสถานะอัตโนมัติ)" if passive else "กดใช้", int(skill.get("cost", 0)), float(skill.get("cooldown", 0))], 13))
+		if cost > 0:
+			var upgrade_button := _button("＋ อัปเลเวล · 1 แต้ม + %d ทอง" % cost, func():
+				if network.active or network.connecting:
+					_tell("โหมดออนไลน์ต้องอัปเกรดผ่านเซิร์ฟเวอร์")
+					return
+				if GameState.upgrade_skill(source):
+					_save()
+					_show_panel("Skills")
+					_tell("อัปสกิลสำเร็จ")
+				else:
+					_tell("แต้มสกิลหรือเงินทองไม่เพียงพอ")
+			, menu)
+			upgrade_button.disabled = not GameState.can_upgrade_skill(source) or network.active or network.connecting
+		else:
+			menu.add_child(_label("อัปสูงสุดแล้ว", 12))
+		if not passive:
 			for slot in range(3):
-				for source in range(3):
-					var a := slot
-					var b := source
-					_button("Slot %d ← %s" % [slot + 1, GameState.balance.element_skills[GameState.selected_element][source].name], func(): GameState.set_skill_slot(a,b); _tell("Loadout updated"), menu)
-	else:
-		menu.add_child(_label("Class 5+ · loadout fixed by profession"))
-	for i in range(1,4):
-		menu.add_child(_label("%d · %s · %.0f Stamina / %.1fs" % [i, GameState.skill_definition(i).name, GameState.skill_definition(i).cost, GameState.skill_definition(i).cooldown]))
-
+				var target_slot: int = slot
+				var equip_button := _button("ใส่ช่อง %d" % (slot + 1), func():
+					if GameState.set_skill_slot(target_slot, source):
+						_save()
+						_show_panel("Skills")
+						_tell("ตั้งช่องสกิลแล้ว")
+					else:
+						_tell("ต้องเลือกธาตุ/อาชีพก่อน หรือไม่สามารถเปลี่ยนช่องได้")
+				, menu)
+				equip_button.disabled = not GameState.can_equip_skill(target_slot, source)
 func _online_tick(delta: float) -> void:
 	animation_time += delta
 	if (auto_attack or auto_hunt) and target >= 0:

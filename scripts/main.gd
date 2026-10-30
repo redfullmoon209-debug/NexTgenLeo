@@ -284,6 +284,8 @@ func _physics_process(delta: float) -> void:
 		direction = Vector3.ZERO
 	dash_time = maxf(0, dash_time - delta)
 	var speed := RUN_SPEED if run_enabled or Input.is_key_pressed(KEY_SHIFT) else SPEED
+	if GameState.buff_active("speed"):
+		speed *= 1.25
 	if dash_time > 0:
 		speed = 20.0
 		if direction.is_zero_approx():
